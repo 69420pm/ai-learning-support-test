@@ -51,13 +51,13 @@ class PDFCollectorApp:
                     size_bytes=loaded["size_bytes"],
                 )
                 self.state.pdf_documents.append(document)
-                self.cli.show_loaded(document.path, document.size_bytes)
+                self.cli.show_loaded(document)
 
             except PDFValidationError as exc:
                 self.cli.show_error(str(exc))
                 self.cli.show_error("Please try again with a valid PDF path.")
 
-        self.cli.show_summary([doc.path for doc in self.state.pdf_documents])
+        self.cli.show_summary(self.state.pdf_documents)
         return self.state.pdf_documents
 
     def _is_duplicate(self, path: Path) -> bool:

@@ -1,0 +1,18 @@
+{
+	"name": "@ai-learning-support/core",
+	"version": "1.0.0",
+	"private": true,
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"build": "tsup src/index.ts --format esm,cjs --dts",
+		"lint": "biome lint src",
+		"format": "biome format src --write",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "module"
+}

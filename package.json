@@ -1,0 +1,33 @@
+{
+	"name": "ai-learning-support",
+	"version": "1.0.0",
+	"description": "",
+	"private": true,
+	"main": "index.js",
+	"scripts": {
+		"build": "turbo build",
+		"lint": "turbo lint",
+		"format": "turbo format",
+		"typecheck": "turbo typecheck",
+		"test": "turbo test",
+		"check": "turbo build lint typecheck test",
+		"release": "turbo build && changeset publish"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"packageManager": "pnpm@11.0.8",
+	"devEngines": {},
+	"type": "module",
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.14",
+		"@changesets/cli": "^2.31.0",
+		"@types/node": "^25.6.0",
+		"lefthook": "^2.1.6",
+		"tsup": "^8.5.1",
+		"tsx": "^4.21.0",
+		"turbo": "^2.9.9",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.5"
+	}
+}

@@ -1,0 +1,13 @@
+# Lefthook configuration
+# See: https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
+
+pre-commit:
+  parallel: true
+  commands:
+    check:
+      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}"
+      run: pnpm biome check --write --no-errors-on-unmatched {staged_files} && git add {staged_files}
+pre-push:
+  commands:
+    check:
+      run: make check

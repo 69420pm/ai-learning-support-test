@@ -4,7 +4,7 @@
    * [x] GitHub Actions CI/CD: Automate make check on every Pull Request. Professional projects never rely on manual local checks alone.
    * [x] Changesets for Releases: Implement Changesets (https://github.com/changesets/changesets) to manage versioning and changelogs across your monorepo packages.
    * [ ] Coverage Thresholds: Configure vitest to fail if code coverage drops below a specific percentage (e.g., 80%).
-   * [ ] Git Hooks: Use lefthook or husky to run make format and make typecheck on pre-commit to prevent "lint-fixing" commits.
+   * [x] Git Hooks: Use lefthook or husky to run make format and make typecheck on pre-commit to prevent "lint-fixing" commits.
    * [ ] Security Auditing: Integrate npm audit into the CI and setup Dependabot/Renovate for automated dependency management.
 
   2. Architectural Scalability

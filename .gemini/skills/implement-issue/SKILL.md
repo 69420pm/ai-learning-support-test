@@ -23,7 +23,7 @@ This skill guides you through the implementation phase of a task.
 
 *   Use Conventional Commits (e.g., `feat:`, `fix:`, `refactor:`).
 *   Provide clear, concise commit messages.
-*   Do NOT push to remote unless explicitly asked.
+*   Do NOT push to remote.
 
 ## Tool Usage
 

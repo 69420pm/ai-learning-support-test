@@ -16,6 +16,7 @@ This skill guides you through the process of creating a high-quality GitHub issu
     *   **Description**: Explain the "why" and "what".
     *   **Acceptance Criteria**: Provide a bulleted list of specific, testable requirements.
     *   **Context/Hints**: Mention relevant files or architectural constraints.
+    *   **Labels**: Suggest appropriate labels (e.g., `enhancement`, `bug`, `help wanted`).
 4.  **User Approval**: Present the draft to the user and ask for approval or edits.
 5.  **Create Issue**: Once approved, run `make check-github` to ensure environment is ready, then use `gh issue create`.
 

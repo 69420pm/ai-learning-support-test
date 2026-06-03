@@ -1,4 +1,4 @@
-.PHONY: help setup build lint format typecheck test check clean check-github agent-start-branch agent-validate agent-submit-pr generate-issue get-issue commit
+.PHONY: help setup build lint format typecheck test check clean check-github generate-issue get-issue get-pr checkout-pr commit
 
 # Default target: show help
 help:
@@ -14,10 +14,17 @@ help:
 	@echo "  check         Run all validation tasks (build, lint, typecheck, test)"
 	@echo "  check-github  Verify GitHub CLI installation and auth"
 	@echo "  clean         Remove build artifacts and node_modules"
+	@echo "  generate-issue TITLE=\"...\" LABEL=\"...\"  Create a GitHub issue"
+	@echo "  get-issue NUMBER=<num>                     View a GitHub issue"
+	@echo "  get-pr NUMBER=<num>                        View pull request info and diff"
+	@echo "  checkout-pr NUMBER=<num>                   Checkout pull request branch locally"
+	@echo "  commit MSG=\"...\"                         Validate code via check and commit all changes"
+
 check-github:
 	@which gh > /dev/null || (echo "Error: GitHub CLI (gh) is not installed. Please install it first." && exit 1)
 	@gh auth status > /dev/null 2>&1 || (echo "Error: GitHub CLI is not authenticated. Please run 'gh auth login'." && exit 1)
 	@echo "GitHub CLI is installed and authenticated."
+
 setup:
 	pnpm install
 
@@ -67,7 +74,23 @@ get-issue: check-github
 	fi
 	@gh issue view $${NUMBER:-$(NUMBER)}
 
+get-pr: check-github
+	@if [ -z "$$NUMBER" ] && [ -z "$(NUMBER)" ]; then \
+		echo "Error: NUMBER is required. Usage: make get-pr NUMBER=<pr-number>"; \
+		exit 1; \
+	fi
+	@gh pr view $${NUMBER:-$(NUMBER)}
+	@echo ""
+	@echo "--- Pull Request Diff ---"
+	@gh pr diff $${NUMBER:-$(NUMBER)}
+
+checkout-pr: check-github
+	@if [ -z "$$NUMBER" ] && [ -z "$(NUMBER)" ]; then \
+		echo "Error: NUMBER is required. Usage: make checkout-pr NUMBER=<pr-number>"; \
+		exit 1; \
+	fi
+	@gh pr checkout $${NUMBER:-$(NUMBER)}
+
 commit: check
 	@git add .
 	@git commit -m "$(if $(MSG),$(MSG),automated commit after check validation)"
-

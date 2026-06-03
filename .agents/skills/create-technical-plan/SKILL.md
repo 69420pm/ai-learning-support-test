@@ -1,11 +1,29 @@
 ---
 name: create-technical-plan
-description: Use when user wants to create some sort of technical plan of a feature that should get implemented.
+description: Use when the user wants to create a detailed technical implementation plan for a feature.
 ---
-- the user gives you either an idea file or writes his idea
-- don't question the idea, just convert it into a really thorough technical plan
-- ask user technical relevant questions if you are not sure or there are existing multiple viable options
-- the plan should have clear boundaries, what needs to get implemented, what not, what are acceptance criterias, how do we plan to test it, which components do we have etc.
-- nothing should be left out for imagination
-- write it out that even an unexperienced junior devs knows what to do
-- write the plan into `specs/plan/PLAN_TEMPLATE.md` at the end
+
+### Objective
+Translate a proposed feature or idea into a highly thorough, step-by-step technical plan that leaves no room for ambiguity. The plan should be detailed enough that a junior developer could implement it successfully without additional guidance.
+
+### Step-by-Step Instructions
+
+1. **Ingest the Feature Request**:
+   - Retrieve the idea or feature description from the user's prompt or the designated idea file (located in `specs/ideas/`).
+   - Do not challenge the validity of the idea (unlike the stress-test skill); focus entirely on *how* to implement it optimally.
+
+2. **Clarify Ambiguities**:
+   - If there are multiple viable technical approaches or unclear requirements, ask the user specific technical questions to make a decision.
+
+3. **Define Scope and Boundaries**:
+   - Specify exactly what is in scope (Goals) and what is out of scope (Non-Goals).
+   - Identify which files will be created or modified.
+
+4. **Draft the Plan**:
+   - Break down the idea into a clear technical implementation plan
+   - Outline the architecture, data flow and clear interfaces.
+   - Define clear acceptance criteria and testing strategies (both automated and manual).
+
+5. **Output the Plan**:
+   - Write the final plan into [PLAN_TEMPLATE.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/specs/plan/PLAN_TEMPLATE.md).
+   - Alternatively, write to a custom file like `specs/plan/YYYY-MM-DD-feature-name.md` using the template format if specified by the user.

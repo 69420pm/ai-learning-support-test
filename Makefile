@@ -1,4 +1,4 @@
-.PHONY: help setup build lint format typecheck test check clean check-github agent-start-branch agent-validate agent-submit-pr
+.PHONY: help setup build lint format typecheck test check clean check-github agent-start-branch agent-validate agent-submit-pr generate-issue get-issue commit
 
 # Default target: show help
 help:
@@ -44,3 +44,30 @@ clean:
 	rm -rf packages/*/node_modules
 	rm -rf packages/*/dist
 	rm -rf .turbo
+
+generate-issue: check-github
+	@if [ -z "$$TITLE" ] && [ -z "$(TITLE)" ]; then \
+		echo "Error: TITLE is required."; \
+		echo "Usage: make generate-issue TITLE=\"My Issue Title\" [BODY=\"body text\" | BODY_FILE=\"path/to/body.md\"] [LABEL=\"label1,label2\"]"; \
+		exit 1; \
+	fi
+	@echo "Creating GitHub issue: $${TITLE:-$(TITLE)}..."
+	@if [ -n "$${BODY_FILE:-$(BODY_FILE)}" ]; then \
+		gh issue create --title "$${TITLE:-$(TITLE)}" --body-file "$${BODY_FILE:-$(BODY_FILE)}" $(if $(LABEL),--label "$(LABEL)",); \
+	elif [ -n "$${BODY:-$(BODY)}" ]; then \
+		gh issue create --title "$${TITLE:-$(TITLE)}" --body "$${BODY:-$(BODY)}" $(if $(LABEL),--label "$(LABEL)",); \
+	else \
+		gh issue create --title "$${TITLE:-$(TITLE)}" --body "" $(if $(LABEL),--label "$(LABEL)",); \
+	fi
+
+get-issue: check-github
+	@if [ -z "$$NUMBER" ] && [ -z "$(NUMBER)" ]; then \
+		echo "Error: NUMBER is required. Usage: make get-issue NUMBER=<issue-number>"; \
+		exit 1; \
+	fi
+	@gh issue view $${NUMBER:-$(NUMBER)}
+
+commit: check
+	@git add .
+	@git commit -m "$(if $(MSG),$(MSG),automated commit after check validation)"
+

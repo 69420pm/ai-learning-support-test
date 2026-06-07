@@ -1,6 +1,6 @@
 ---
 name: stresstest-technical-idea
-description: Use when the user needs feedback on an idea they are proposing to implement or think about.
+description: Use when the user is at the beginning stages of an implementation idea and wants to stress test it, talk about it and get critical feedback on it.
 ---
 
 ### Objective
@@ -9,6 +9,7 @@ Provide critical, objective, and constructive feedback on a user's proposed idea
 ### Step-by-Step Instructions
 
 1. **Ingest the Idea**:
+   - Read the product requirement document at `specs/product_requirements_document.md` to understand the overall context and vision of the project.
    - Locate and read the user's idea description, either provided directly in the prompt or in a specified file.
 
 2. **Conduct the Stress Test**:
@@ -27,3 +28,5 @@ Provide critical, objective, and constructive feedback on a user's proposed idea
    - Once the idea is analyzed, create a summary document in the `specs/ideas/` directory.
    - Use the template located at [IDEA_TEMPLATE.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/specs/ideas/IDEA_TEMPLATE.md).
    - Name the file descriptive of the idea, e.g., `specs/ideas/YYYY-MM-DD-idea-name.md`.
+
+IMPORTANT: Under no circumstance any code implementation or anything, just write out the idea and then you are finished. Another skill will take care of the technical planning and implementation.

@@ -1,70 +1,137 @@
-# AI Learning Support - Product Requirements Document
+# AI Learning Support — Product Requirements Document (PRD)
+
 ---
-### Metadata
-|  | |
-| --- | --- |
-| **Last Updated ** | 2024-06-01 |
-| **Version** | 1.0 |
-| **Status** | MVP|
 
-# 1. Overview
-This document describes the product requirements for the AI Learning Support project. The project aims to create a system uses AI agents/workflows to support users in learning basically anything that you can learn in text form (university, school, business, for life, ...). The system will actively apply learning science principles to optimize the learning process and take over the "grunt work" of learning (e.g. note-taking, summarization, flashcard creation, spaced repetition scheduling, etc.) so that users can focus on the actual learning and application of knowledge. The system will be designed to be flexible and adaptable to different learning styles and goals, and will leverage the latest advancements in AI to provide personalized support and guidance throughout the learning journey.
+## 1. Document Control
 
-# 2. Context & Background
-In the educational realm currently AI (especially the ChatGPT and Gemini App) gets often abused to skip the hard part of learning and solving problems. Using AI feels really productive and rewarding in the short term, however in the long term users end up without actually learning much, because the work is not happening in their brain. This is a bad advancement and should be fixed.
-However also AI can be really really beneficial for learning if used in the right way. E.g. automate the tiring work of creating flashcards, giving context around a topic, answering any imaginable question about a topic, creating learning plans, etc. 
-Furthermore a lot of students learn without applying the learning science principles that are effective for learning, and make learning much more efficient. The main techniques are here active recall, spaced repetition, interleaving, etc. These techniques get not used by a lot of students because they are unintuitive, often are complex to actually implement them into your learning process and often feel really counterproductive. 
-However with the power of AI we can try to minimize the friction of applying these learning science principles and minimize the burocratic overhead of learning, that the user can focus entirely on the learning itself, that is happening in the user's brain and nowhere else.
+### 1.1 Metadata
+| Attribute | Value |
+| :--- | :--- |
+| **Product Name** | AI Learning Support |
+| **Version** | 1.0.0 |
+| **Status** | MVP Draft |
+| **Last Updated** | 2024-06-01 |
+| **Target Audience** | Academic & Professional Learners |
 
-# 3. Goals & Non-Goals
-## Goals
-- User uploads content they want to learn (e.g. a textbook, lecture slides, an article, etc. in PDF format) and it is available for the LLM in all subsequent steps.
-- User formulates goals for learning (e.g. A+ in the exam, understand the topic to apply it in real life, pass-only limits) and the system uses these goals to optimize the learning process.
-- System creates a learning plan based on goals, optimized for learning efficiency.
-- System guides the user according to the learning plan and guides him through the learning process.
-- It is possible to change the learning plan, goals, and uploaded content at any time.
+### 1.2 Revision History
+| Version | Date | Author | Description of Changes |
+| :--- | :--- | :--- | :--- |
+| 1.0.0 | 2024-06-01 | Product Team | Initial draft for MVP scope and architecture alignment. |
 
-## Non-Goals
-- No support for non-textual assets (e.g. art/images, videos, audio files) in the first phase.
-- No native PDF annotation or editing tools inside the application (keep it to a clean PDF viewer/viewer integration).
-- No collaborative or social learning tools (fully single-user focused for the MVP).
-- No offline desktop application wrapper (fully web-based).
+---
 
-# 4. High-Level Architecture
+## Table of Contents
+- [1. Document Control](#1-document-control)
+- [2. Executive Summary & Context](#2-executive-summary--context)
+  - [2.1 Product Vision](#21-product-vision)
+  - [2.2 Problem Statement](#22-problem-statement)
+  - [2.3 Core Pedagogical Framework](#23-core-pedagogical-framework)
+- [3. Product Goals & Scope](#3-product-goals--scope)
+  - [3.1 Strategic Goals](#31-strategic-goals)
+  - [3.2 Scope Boundaries (Non-Goals)](#32-scope-boundaries-non-goals)
+- [4. Functional Requirements & User Workflows](#4-functional-requirements--user-workflows)
+  - [4.1 Document Preprocessing & Concept Ingestion (GraphRAG)](#41-document-preprocessing--concept-ingestion-graphrag)
+  - [4.2 Dynamic Learning Plan Generation](#42-dynamic-learning-plan-generation)
+  - [4.3 Guided Encoding (Active Study Phase)](#43-guided-encoding-active-study-phase)
+  - [4.4 Active Recall & Spaced Repetition (Review Phase)](#44-active-recall--spaced-repetition-review-phase)
+- [5. Financial Viability & Competitive Differentiation](#6-financial-viability--competitive-differentiation)
+- [6. Risks & Open Issues](#7-risks--open-issues)
 
-## Preprocessing & GraphRAG
-- Parse uploaded PDFs and extract text.
-- Generate a simplified conceptual knowledge graph (cheap GraphRAG) outlining how topics relate to each other. This is built from the start to significantly boost prompt grounding and answering quality.
-- Generate summaries of the content at different levels of granularity.
-- Generate a table of contents with mapped links to the original PDF locations, summaries, and the knowledge graph to avoid bloating the LLM context window.
+---
 
-## Learning Plan Generation
-- Generate a visual learning plan based on user learning goals that tracks progress, highlights completed topics, and notes areas where the user struggled.
+## 2. Executive Summary & Context
 
-## Encoding (Active & Guided)
-- Guide the user to encode new concepts using structured scientific priming.
-- Present content with varying detail levels, adapting to user struggles to build strong mental models without overwhelming them.
-- Ground explanations strictly in the uploaded PDF to prevent hallucinations.
-- Make encoding interactive (e.g., pre-reading predictions, quick questions) to prevent passive reading loops.
+### 2.1 Product Vision
+The AI Learning Support system is an intelligent companion designed to guide users through the process of mastering textual content (e.g., academic textbooks, research papers, lecture slides, and business documents). By automating the high-friction, administrative tasks of learning—such as note-taking, summarization, flashcard creation, and spaced repetition scheduling—the system enables learners to focus exclusively on comprehension, retention, and application. The system is flexible, personalized, and deeply grounded in cognitive science.
 
-## Recall (Active Retrieval)
-- Automatically generate high-quality flashcards based on core concepts.
-- Use the Feynman technique, prompting the user to explain concepts in their own words.
-- Schedule reviews programmatically using the **Free Spaced Repetition Scheduler (FSRS)** algorithm.
-- Implement interleaving (mixing different topics during recall sessions) to reinforce retention.
+### 2.2 Problem Statement
+Many modern AI learning aids (including general chat interfaces like ChatGPT or Gemini) are frequently misused to bypass the "desirable difficulties" of cognitive effort. While using LLMs to write summaries or answer direct questions provides a short-term illusion of productivity, it fails to produce durable long-term retention because the cognitive effort is offloaded from the learner's brain to the machine. 
 
-## Tech Stack & Hosting
-- **Application Type:** Web Application.
-- **Frontend & Backend API:** Next.js hosted on Vercel.
-- **Database:** Supabase (Postgres for managing user profiles, learning plan state, flashcards, and FSRS metadata).
-- **Storage:** Supabase Storage (for hosting uploaded PDFs).
-- **Cost Model:** Strictly designed around utilizing the free tiers of Vercel, Supabase, and AI API providers (e.g., Gemini Flash free tier) to ensure the MVP operates at $0/month.
+Additionally, standard cognitive science techniques that optimize retention—such as active recall, spaced repetition, and interleaving—are rarely adopted. They are unintuitive to implement manually, require substantial bureaucratic overhead, and feel subjectively more difficult to the student. AI presents an opportunity to bridge this gap by minimizing implementation friction and guiding the learner along a scientifically optimal path.
 
-# 5. Financial Viability and Competitors
-- Everything should be built with reducing tokens and only using the smartest model needed in mind to drastically reduce LLM API costs, without compromising the quality.
-- Minimize token usage by caching queries, using smart chunking, and utilizing cheaper models (e.g., Gemini 1.5 Flash) for processing-heavy jobs (like GraphRAG generation and initial summaries).
-- Ensure competitive differentiation by offering an active learning loop instead of the passive QA offered by general-purpose LLM chat apps.
+### 2.3 Core Pedagogical Framework
+To maximize retention, the application will programmatically implement and guide the user through established learning science principles:
 
-# 6. Questions & Open Issues
-- **Vercel Execution Limits:** Processing large PDFs (GraphRAG generation, deep summarization) might exceed Vercel's serverless function timeout limits (typically 10-60s on free tiers). We need to design an asynchronous queue or chunk-by-chunk ingestion process. Or maybe are there better solutions, we don't have to only use vercel.
-- **GraphRAG Schema:** Define the exact node/edge structure of our "cheap GraphRAG" to prevent over-complicating entity extraction.
+> [!NOTE]
+> **Active Recall:** Forcing the brain to retrieve information from memory rather than passively rereading it.
+>
+> **Spaced Repetition:** Testing knowledge at expanding intervals to interrupt the forgetting curve.
+>
+> **Interleaving:** Mixing different topics or subjects within a single study session to build robust cognitive associations.
+>
+> **Feynman Technique:** Requiring the user to explain complex concepts in simple, plain language to identify gaps in understanding.
+
+---
+
+## 3. Product Goals & Scope
+
+### 3.1 Strategic Goals
+- **Platform:** The application should be a web application accessible via standard browsers, either hosted locally or on a cloud platform.
+- **Structured Content Ingestion:** Allow users to upload textual source materials (specifically PDF format) that will ground all subsequent learning sessions.
+- **Goal-Oriented Personalization:** Adapt the system to explicit user goals (e.g., scoring an A+ on an exam, deep conceptual understanding for practical application, or passing a minimum threshold).
+- **Automated Learning Plans:** Dynamically generate a structured learning schedule optimized for efficiency and grounded in the ingested content.
+- **Adaptive Guided Study:** Lead the user step-by-step through the study plan, adjusting the speed and depth of content delivery based on real-time performance.
+- **Dynamic Adaptability:** Allow users to update their learning goals, schedules, or source materials at any point during their learning lifecycle.
+- **Self-Hostable & Private:** Provide a path for tech-savvy users to run the application locally on their own hardware with their own API keys, keeping their study data private and local.
+- **Asynchronous Task Processing:** Ensure heavy computational processes (e.g., PDF parsing and GraphRAG concept generation) execute asynchronously to avoid blocking the user interface or triggering network timeouts.
+
+### 3.2 Scope Boundaries (Non-Goals)
+- **No Non-Textual Assets:** Support is strictly limited to textual materials with diagrams, everything a multimodal model currently can understand, for the initial phase. Visual assets (art, complex mechanical/architectural material), video ingestion, and audio files are out of scope.
+- **No Native Annotations:** The app will integrate a clean, passive PDF viewer, but will not provide built-in annotation, highlighting, or editing capabilities.
+- **Single-User Focus:** No collaborative, classroom management, or social features will be built for the MVP.
+- **Web-Only Deployment:** Desktop wrapper builds (Electron, Tauri) or native mobile applications are out of scope; the application will be optimized for standard web browsers.
+
+---
+
+## 4. Functional Requirements & User Workflows
+
+### 4.1 Document Preprocessing & Concept Ingestion (GraphRAG)
+- **PDF Extraction:** Parse text and structure from uploaded PDF materials.
+- **Concept Graph Generation (Cheap GraphRAG):** Construct a simplified conceptual knowledge graph showing how topics relate to one another. This graph acts as a retrieval context to boost prompt grounding and answering precision.
+- **Granular Summarization:** Generate hierarchical summaries (high-level overviews down to detailed deep-dives) for all concepts in the document.
+- **Smart Directory Mapping:** Generate a Table of Contents with mapped deep links to the original PDF pages, the conceptual graph nodes, and the summaries. This avoids bloating the LLM's context window by retrieving only relevant nodes as needed.
+- **Asynchronous Processing Feedback:** Since preprocessing is slow, the interface must present a live, step-by-step progress status to the user while ingestion runs in the background.
+
+### 4.2 Dynamic Learning Plan Generation
+- **Visual Milestones:** Map out the generated learning plan in an interactive timeline interface.
+- **Progress Tracking:** Color-code and update progress (e.g., completed topics, in-progress items, and scheduled reviews).
+- **Struggle Analytics:** Identify and flag specific concepts where the user struggled during recall sessions, prompting the system to schedule extra reviews.
+
+### 4.3 Guided Encoding (Active Study Phase)
+- **Scientific Priming:** Prompt users to make pre-reading predictions or answer baseline questions about a concept before diving into the detail, activating pre-existing knowledge.
+- **Scaffolded Detail Levels:** Dynamically expand or simplify the detail of explanations based on user comprehension feedback to build solid mental models without cognitive overload.
+- **Strict Grounding:** Constrain explanations strictly to the uploaded document context to prevent LLM hallucinations.
+- **Interactive Engagement:** Interject quick checks and short questions throughout the reading flow to prevent passive reading loops.
+- Uses all helper data from the preprocessing phase (concept graph, summaries, directory mapping) to optimize retrieval and therefore the llm output quality and minimize token usage.
+
+### 4.4 Active Recall & Spaced Repetition (Review Phase)
+- **Flashcard Ingestion:** Automatically generate high-quality, targeted flashcards based on extracted core concepts.
+- **Feynman Audits:** Prompt the user to explain complex concepts in their own words, analyzing their response for gaps or misconceptions.
+- **FSRS Scheduling:** Schedule card reviews using the **Free Spaced Repetition Scheduler (FSRS)** algorithm to calculate optimal review intervals.
+- **Interleaving Reviews:** Mix questions from different sections/topics during a review session to prevent rote memorization and encourage contextual understanding.
+- Uses all helper data from the preprocessing phase (concept graph, summaries, directory mapping) to optimize retrieval and therefore the llm output quality and minimize token usage.
+
+---
+
+## 5. Business Model & Licensing
+
+### 5.1 Competitive Differentiation
+Unlike generic QA wrappers that passively respond to queries, the AI Learning Support system acts as an active educator. It prevents the user from relying on passive habits and guides them through cognitive science-backed study routines. By caching contexts, minimizing GraphRAG overhead, and utilizing cost-effective models (such as Gemini 3.5 Flash), the system maintains high prompt quality while keeping operating costs as low as possible.
+
+### 5.2 Licensing & Distribution Model
+- **Source Available:** The complete source code is public and open on GitHub from day one, allowing tech-savvy users to inspect, modify, and self-host for personal use.
+- **Elastic License 2.0 (ELv2):** The codebase is distributed under the ELv2 (or similar source-available license). Under this license:
+  - Users may run and modify the application for personal and non-commercial purposes.
+  - Users **cannot** sell the software or host it as a commercial service for others.
+- **Hosted Subscription SaaS:** A fully managed, hosted version of the app is available via subscription for non-technical users. This version provides zero-setup, high-performance execution, and cross-device cloud synchronization.
+
+---
+
+## 6. Risks & Open Issues
+
+| Risk / Open Issue | Impact | Description | Proposed Mitigation / Status |
+| :--- | :--- | :--- | :--- |
+| **Vercel Timeout Limits** | High | Processing large PDFs (text extraction, GraphRAG indexing, summarization) will exceed Vercel's standard serverless timeout limit (10s on Hobby tier). | **Mitigated** - Decouple the frontend from the ingestion execution. The API will immediately accept the job and return a receipt, while an asynchronous background queue (e.g., using Inngest or a containerized Node.js worker) handles the processing, updating the DB. |
+| **GraphRAG Schema Design** | Medium | Overcomplicating the entity and relationship schema will bloat the token count and degrade retrieval latency. | **Open** - Establish a lightweight node-edge schema specifically optimized for academic relationships (e.g., "prerequisite of", "example of"). |
+| **Environment Parity** | Medium | Supporting both zero-dependency local self-hosting and a hosted multi-tenant SaaS could lead to divergent codebases or complex configurations. | **Open** - Define a pluggable adapter architecture in the Technical Design Document for databases (SQLite vs. PostgreSQL) and storage (local filesystem vs. S3). |
+

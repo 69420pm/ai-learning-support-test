@@ -1,4 +1,9 @@
-# Issue: [Brief Title]
+---
+name: Atomic Issue
+about: Describe an atomic unit of work for human developers or AI agents.
+title: 'issue: [Brief Title]'
+labels: ['enhancement']
+---
 
 ## Description
 [Provide a clear, high-level description of what this issue accomplishes.]

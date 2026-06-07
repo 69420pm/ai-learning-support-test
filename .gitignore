@@ -30,3 +30,11 @@ build/
 # System Files
 .DS_Store
 Thumbs.db
+
+# Local Data / SQLite Databases
+.data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+

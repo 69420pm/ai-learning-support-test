@@ -66,17 +66,14 @@ All contributions must follow our structured Git flow.
 3. **Write Code and Tests**:
    - Write tests alongside your logic.
    - Verify code locally: run `make test`.
-4. **Run Validation**:
-   - Run the full verification pipeline: `make check`. This runs build, lint, typecheck, and tests.
-   - **Crucial**: Your code must compile, pass types, and pass lint checks without errors.
-5. **Commit Changes**:
+4. **Commit Changes**:
    - Commit your changes using Conventional Commits (see Section 4).
-   - Git hooks (`lefthook`) will automatically run Biome formatting checks on your staged files pre-commit, and run `make check` pre-push.
-6. **Open a Pull Request**:
+   - Git hooks (`lefthook`) will automatically format/lint your staged files and run related tests pre-commit, and run TypeScript typechecks pre-push.
+5. **Open a Pull Request**:
    - Push your branch and open a PR.
    - Fill out the PR description using the [Pull Request Template](.github/pull_request_template.md).
    - Link the PR to the issue (`Closes #42`).
-7. **Code Review & Merge**:
+6. **Code Review & Merge**:
    - Code must be approved by a maintainer.
    - The CI build pipeline must pass successfully.
    - Merge into `main` via Squash and Merge.

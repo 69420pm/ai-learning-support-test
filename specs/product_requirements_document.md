@@ -43,6 +43,7 @@
 
 ### 2.1 Product Vision
 The AI Learning Support system is an intelligent companion designed to guide users through the process of mastering textual content (e.g., academic textbooks, research papers, lecture slides, and business documents). By automating the high-friction, administrative tasks of learning—such as note-taking, summarization, flashcard creation, and spaced repetition scheduling—the system enables learners to focus exclusively on comprehension, retention, and application. The system is flexible, personalized, and deeply grounded in cognitive science.
+You can read more about the vision and motivation in the product requirement document at `specs/product_requirements_document.md`.
 
 ### 2.2 Problem Statement
 Many modern AI learning aids (including general chat interfaces like ChatGPT or Gemini) are frequently misused to bypass the "desirable difficulties" of cognitive effort. While using LLMs to write summaries or answer direct questions provides a short-term illusion of productivity, it fails to produce durable long-term retention because the cognitive effort is offloaded from the learner's brain to the machine. 
@@ -134,4 +135,3 @@ Unlike generic QA wrappers that passively respond to queries, the AI Learning Su
 | **Vercel Timeout Limits** | High | Processing large PDFs (text extraction, GraphRAG indexing, summarization) will exceed Vercel's standard serverless timeout limit (10s on Hobby tier). | **Mitigated** - Decouple the frontend from the ingestion execution. The API will immediately accept the job and return a receipt, while an asynchronous background queue (e.g., using Inngest or a containerized Node.js worker) handles the processing, updating the DB. |
 | **GraphRAG Schema Design** | Medium | Overcomplicating the entity and relationship schema will bloat the token count and degrade retrieval latency. | **Open** - Establish a lightweight node-edge schema specifically optimized for academic relationships (e.g., "prerequisite of", "example of"). |
 | **Environment Parity** | Medium | Supporting both zero-dependency local self-hosting and a hosted multi-tenant SaaS could lead to divergent codebases or complex configurations. | **Open** - Define a pluggable adapter architecture in the Technical Design Document for databases (SQLite vs. PostgreSQL) and storage (local filesystem vs. S3). |
-

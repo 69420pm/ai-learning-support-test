@@ -14,7 +14,7 @@ help:
 	@echo "  check         Run all validation tasks (build, lint, typecheck, test)"
 	@echo "  check-github  Verify GitHub CLI installation and auth"
 	@echo "  clean         Remove build artifacts and node_modules"
-	@echo "  generate-issue TITLE=\"...\" LABEL=\"...\"  Create a GitHub issue"
+	@echo "  generate-issue TITLE=\"...\" [LABEL=\"...\"] [PARENT=\"...\"] [BLOCKED_BY=\"...\"] [BLOCKING=\"...\"]  Create a GitHub issue"
 	@echo "  get-issue NUMBER=<num>                     View a GitHub issue"
 	@echo "  get-pr NUMBER=<num>                        View pull request info and diff"
 	@echo "  checkout-pr NUMBER=<num>                   Checkout pull request branch locally"
@@ -55,16 +55,16 @@ clean:
 generate-issue: check-github
 	@if [ -z "$$TITLE" ] && [ -z "$(TITLE)" ]; then \
 		echo "Error: TITLE is required."; \
-		echo "Usage: make generate-issue TITLE=\"My Issue Title\" [BODY=\"body text\" | BODY_FILE=\"path/to/body.md\"] [LABEL=\"label1,label2\"]"; \
+		echo "Usage: make generate-issue TITLE=\"My Issue Title\" [BODY=\"body text\" | BODY_FILE=\"path/to/body.md\"] [LABEL=\"label1,label2\"] [PARENT=\"parent-number\"] [BLOCKED_BY=\"numbers\"] [BLOCKING=\"numbers\"]"; \
 		exit 1; \
 	fi
 	@echo "Creating GitHub issue: $${TITLE:-$(TITLE)}..."
 	@if [ -n "$${BODY_FILE:-$(BODY_FILE)}" ]; then \
-		gh issue create --title "$${TITLE:-$(TITLE)}" --body-file "$${BODY_FILE:-$(BODY_FILE)}" $(if $(LABEL),--label "$(LABEL)",); \
+		gh issue create --title "$${TITLE:-$(TITLE)}" --body-file "$${BODY_FILE:-$(BODY_FILE)}" $(if $(LABEL),--label "$(LABEL)",) $(if $(PARENT),--parent "$(PARENT)",) $(if $(BLOCKED_BY),--blocked-by "$(BLOCKED_BY)",) $(if $(BLOCKING),--blocking "$(BLOCKING)",); \
 	elif [ -n "$${BODY:-$(BODY)}" ]; then \
-		gh issue create --title "$${TITLE:-$(TITLE)}" --body "$${BODY:-$(BODY)}" $(if $(LABEL),--label "$(LABEL)",); \
+		gh issue create --title "$${TITLE:-$(TITLE)}" --body "$${BODY:-$(BODY)}" $(if $(LABEL),--label "$(LABEL)",) $(if $(PARENT),--parent "$(PARENT)",) $(if $(BLOCKED_BY),--blocked-by "$(BLOCKED_BY)",) $(if $(BLOCKING),--blocking "$(BLOCKING)",); \
 	else \
-		gh issue create --title "$${TITLE:-$(TITLE)}" --body "" $(if $(LABEL),--label "$(LABEL)",); \
+		gh issue create --title "$${TITLE:-$(TITLE)}" --body "" $(if $(LABEL),--label "$(LABEL)",) $(if $(PARENT),--parent "$(PARENT)",) $(if $(BLOCKED_BY),--blocked-by "$(BLOCKED_BY)",) $(if $(BLOCKING),--blocking "$(BLOCKING)",); \
 	fi
 
 get-issue: check-github
@@ -73,6 +73,9 @@ get-issue: check-github
 		exit 1; \
 	fi
 	@gh issue view $${NUMBER:-$(NUMBER)}
+
+list-issues: check-github
+	@gh issue list
 
 get-pr: check-github
 	@if [ -z "$$NUMBER" ] && [ -z "$(NUMBER)" ]; then \

@@ -10,6 +10,7 @@ Translate a proposed feature or idea into a highly thorough, step-by-step techni
 
 1. **Ingest the Feature Request**:
    - Retrieve the idea or feature description from the user's prompt or the designated idea file (located in `specs/ideas/`).
+   - Read the system architecture file (located at `specs/system_architecture.md`) to know the (planned) architecture of the application
    - Do not challenge the validity of the idea (unlike the stress-test skill); focus entirely on *how* to implement it optimally.
 
 2. **Clarify Ambiguities**:

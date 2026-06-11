@@ -10,6 +10,7 @@ Provide critical, objective, and constructive feedback on a user's proposed idea
 
 1. **Ingest the Idea**:
    - Read the product requirement document at `specs/product_requirements_document.md` to understand the overall context and vision of the project.
+   - Read the system architecture file (located at `specs/system_architecture.md`) to know the (planned) architecture of the application
    - Locate and read the user's idea description, either provided directly in the prompt or in a specified file.
 
 2. **Conduct the Stress Test**:

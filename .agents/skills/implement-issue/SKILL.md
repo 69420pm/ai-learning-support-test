@@ -32,3 +32,7 @@ Implement the requested feature or fix based strictly on the provided issue defi
 6. **Commit and Save Your Work**:
    - Run `make commit MSG="impl: resolve issue #<issue_number>"` to validate and commit your changes.
    - If the commit fails due to validation errors, fix the issues in your code and run the command again.
+
+7. **Push and Open a PR**:
+   - Push your branch to the remote repository.
+   - Open a Pull Request (PR) following the template defined at `./.github/pull_request_template.md` linking it to the original issue (e.g., `Closes #<issue_number>` in the PR description).

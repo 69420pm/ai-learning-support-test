@@ -24,6 +24,7 @@ build/
 # IDEs
 .idea/
 .vscode/
+.antigravitycli/
 *.swp
 *.swo
 
@@ -37,4 +38,3 @@ Thumbs.db
 *.db-journal
 *.db-shm
 *.db-wal
-

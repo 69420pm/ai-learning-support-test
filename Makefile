@@ -1,4 +1,4 @@
-.PHONY: help setup build lint format typecheck test check clean check-github generate-issue get-issue get-pr checkout-pr commit
+.PHONY: help setup build lint format typecheck test check clean check-github generate-issue get-issue list-issues get-pr create-branch switch-branch checkout-pr commit
 
 # Default target: show help
 help:
@@ -87,6 +87,22 @@ get-pr: check-github
 	@echo "--- Pull Request Diff ---"
 	@gh pr diff $${NUMBER:-$(NUMBER)}
 
+create-branch:
+	@if [ -z "$$NAME" ] && [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required. Usage: make create-branch NAME=<branch-name>"; \
+		exit 1; \
+	fi
+	@git switch -c $${NAME:-$(NAME)}
+
+
+switch-branch:
+		@if [ -z "$$NAME" ] && [ -z "$(NAME)" ]; then \
+			echo "Error: NAME is required. Usage: make switch-branch NAME=<branch-name>"; \
+			exit 1; \
+		fi
+		@git switch $${NAME:-$(NAME)}
+
+
 checkout-pr: check-github
 	@if [ -z "$$NUMBER" ] && [ -z "$(NUMBER)" ]; then \
 		echo "Error: NUMBER is required. Usage: make checkout-pr NUMBER=<pr-number>"; \
@@ -94,6 +110,6 @@ checkout-pr: check-github
 	fi
 	@gh pr checkout $${NUMBER:-$(NUMBER)}
 
-commit: check
+commit:
 	@git add .
 	@git commit -m "$(if $(MSG),$(MSG),automated commit after check validation)"

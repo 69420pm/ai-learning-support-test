@@ -38,6 +38,8 @@ importers:
 
   packages/core: {}
 
+  packages/tsconfig: {}
+
 packages:
 
   '@babel/runtime@7.29.2':

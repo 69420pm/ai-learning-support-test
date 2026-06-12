@@ -1,35 +1,11 @@
-# Gemini.md
+# GEMINI.md
 
-This file provides project-specific guidance for Gemini CLI (and other AI agents).
+This file is a living record of project-specific **gotchas, non-discoverable tooling constraints, and operational landmines** for AI agents.
 
-## Project Overview
-AI Learning Support is a monorepo for building intelligent tutoring and learning tools.
+## Rules for GEMINI.md
+1. **Can the agent find this by reading the code?** If yes, **do not write it here**. Directory structures, tech stack overviews, lint rules, and standard configurations are discoverable. Adding them bloats the agent context, dilutes attention, and increases token cost.
+2. **Treat this file as a list of codebase smells we haven't fixed yet.** If agents repeatedly make a mistake, first try to fix the underlying codebase design (e.g., refactoring, strict types, biome rules, or build pipelines). Reach for GEMINI.md only if the friction cannot be solved in code.
+3. **Remove instructions once the friction is resolved.**
 
-## Development Workflow
-Use the `Makefile` as the primary interface for all tasks.
-
-1. **Make changes**
-2. **Validate**: Run `make check`. This runs build, lint, typecheck, and tests.
-3. **Commit**: Use Conventional Commits.
-
-## Agent Directives
-- **Discovery**: Always read `CONTEXT_MAP.md` and `Makefile` first to understand the workspace.
-- **Commands**: Prefer `make <target>` over direct `npm` or `pnpm` commands.
-- **Style**: Adhere strictly to the Biome configuration. Use `make format` to fix styling issues.
-- **Types**: Use strict TypeScript patterns. Avoid `any` and non-null assertions.
-- **Errors**: Handle errors explicitly. Provide meaningful context in error messages.
-
-## Commands Reference
-- `make setup`: Install dependencies.
-- `make build`: Build all packages.
-- `make check`: Run all validations (lint, typecheck, test).
-- `make test`: Run unit tests.
-
-## Things to AVOID
-- Do NOT use `any` without a strong architectural reason.
-- Do NOT skip the validation loop before suggesting a commit.
-- Do NOT use `interface` when `type` is sufficient.
-- Do NOT use `enum` (use string literal unions instead).
-
----
-*This file is a living document. Update it with new lessons learned.*
+## Active Gotchas & Landmines
+*(None currently. Keep this file minimal to save token budget and prevent anchoring effects.)*

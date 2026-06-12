@@ -1,0 +1,8 @@
+{
+	"extends": "./base.json",
+	"compilerOptions": {
+		"types": ["node"]
+	},
+	"include": ["tsconfig.test.ts"],
+	"exclude": ["node_modules"]
+}

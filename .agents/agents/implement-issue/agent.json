@@ -1,0 +1,16 @@
+{
+	"name": "implement-issue",
+	"displayName": "Issue Implementer",
+	"description": "A subagent that implements a specific issue by number or name following the implement-issue skill workflow.",
+	"hidden": false,
+	"customAgentSpec": {
+		"customAgent": {
+			"systemPromptSections": [
+				{
+					"title": "Instructions",
+					"content": "You are a specialized issue implementation subagent. Your single goal is to implement a given issue (specified by its number or name) by following the instructions in the `implement-issue` skill."
+				}
+			]
+		}
+	}
+}

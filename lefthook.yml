@@ -2,12 +2,15 @@
 # See: https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
 
 pre-commit:
-  parallel: true
+  parallel: false
   commands:
-    check:
+    lint-format:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}"
       run: pnpm biome check --write --no-errors-on-unmatched {staged_files} && git add {staged_files}
+    tests:
+      glob: "*.{js,ts,jsx,tsx,cjs,mjs}"
+      run: pnpm vitest related {staged_files} --run --passWithNoTests
 pre-push:
   commands:
-    check:
-      run: make check
+    typecheck:
+      run: pnpm run typecheck

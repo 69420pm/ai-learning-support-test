@@ -1,9 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 describe("tsconfig package", () => {
-	const pkgDir = __dirname;
+	const pkgDir = path.dirname(fileURLToPath(import.meta.url));
 
 	it("should have a valid package.json with name @ai-learning-support/tsconfig", () => {
 		const pkgJsonPath = path.join(pkgDir, "package.json");

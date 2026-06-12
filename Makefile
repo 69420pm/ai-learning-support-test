@@ -1,4 +1,4 @@
-.PHONY: help setup build lint format typecheck test check clean check-github generate-issue get-issue list-issues get-pr create-branch switch-branch checkout-pr commit
+.PHONY: help setup build lint format typecheck test check clean check-github generate-issue get-issue list-issues get-pr create-branch switch-branch checkout-pr create-pr commit
 
 # Default target: show help
 help:
@@ -18,6 +18,7 @@ help:
 	@echo "  get-issue NUMBER=<num>                     View a GitHub issue"
 	@echo "  get-pr NUMBER=<num>                        View pull request info and diff"
 	@echo "  checkout-pr NUMBER=<num>                   Checkout pull request branch locally"
+	@echo "  create-pr [TITLE=\"...\"] [BODY=\"...\"] [FILL=true] [BASE=\"...\"] [HEAD=\"...\"] [DRAFT=true]  Create a GitHub pull request"
 	@echo "  commit MSG=\"...\"                         Validate code via check and commit all changes"
 
 check-github:
@@ -109,6 +110,46 @@ checkout-pr: check-github
 		exit 1; \
 	fi
 	@gh pr checkout $${NUMBER:-$(NUMBER)}
+
+create-pr: check-github
+	@TITLE="$${TITLE:-$(TITLE)}"; \
+	BODY="$${BODY:-$(BODY)}"; \
+	BODY_FILE="$${BODY_FILE:-$(BODY_FILE)}"; \
+	FILL="$${FILL:-$(FILL)}"; \
+	BASE="$${BASE:-$(BASE)}"; \
+	HEAD="$${HEAD:-$(HEAD)}"; \
+	DRAFT="$${DRAFT:-$(DRAFT)}"; \
+	LABEL="$${LABEL:-$(LABEL)}"; \
+	REVIEWER="$${REVIEWER:-$(REVIEWER)}"; \
+	ASSIGNEE="$${ASSIGNEE:-$(ASSIGNEE)}"; \
+	if [ -z "$$TITLE" ] && [ -z "$$FILL" ]; then \
+		echo "Error: TITLE or FILL=true is required."; \
+		echo "Usage: make create-pr [TITLE=\"My PR Title\"] [BODY=\"body text\" | BODY_FILE=\"path/to/body.md\"] [FILL=true] [BASE=\"main\"] [HEAD=\"feature\"] [DRAFT=true] [LABEL=\"label1,label2\"] [REVIEWER=\"user1\"] [ASSIGNEE=\"user1\"]"; \
+		exit 1; \
+	fi; \
+	echo "Creating GitHub Pull Request..."; \
+	cmd="gh pr create"; \
+	if [ -n "$$FILL" ]; then \
+		cmd="$$cmd --fill"; \
+	else \
+		if [ -n "$$TITLE" ]; then \
+			cmd="$$cmd --title \"$$TITLE\""; \
+		fi; \
+		if [ -n "$$BODY_FILE" ]; then \
+			cmd="$$cmd --body-file \"$$BODY_FILE\""; \
+		elif [ -n "$$BODY" ]; then \
+			cmd="$$cmd --body \"$$BODY\""; \
+		else \
+			cmd="$$cmd --body \"\""; \
+		fi; \
+	fi; \
+	if [ -n "$$BASE" ]; then cmd="$$cmd --base \"$$BASE\""; fi; \
+	if [ -n "$$HEAD" ]; then cmd="$$cmd --head \"$$HEAD\""; fi; \
+	if [ -n "$$DRAFT" ]; then cmd="$$cmd --draft"; fi; \
+	if [ -n "$$LABEL" ]; then cmd="$$cmd --label \"$$LABEL\""; fi; \
+	if [ -n "$$REVIEWER" ]; then cmd="$$cmd --reviewer \"$$REVIEWER\""; fi; \
+	if [ -n "$$ASSIGNEE" ]; then cmd="$$cmd --assignee \"$$ASSIGNEE\""; fi; \
+	eval $$cmd
 
 commit:
 	@git add .

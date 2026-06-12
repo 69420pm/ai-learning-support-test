@@ -1,4 +1,4 @@
 {
 	"files": [],
-	"references": [{ "path": "./packages/core" }, { "path": "./apps/web" }]
+	"references": [{ "path": "./packages/core" }, { "path": "./packages/tsconfig" }]
 }

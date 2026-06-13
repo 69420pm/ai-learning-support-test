@@ -9,7 +9,7 @@ Implement the requested feature or fix based strictly on the provided issue defi
 ### Step-by-Step Instructions
 
 1. **Retrieve the Issue Details**:
-   - Run the command `make get-issue NUMBER=<issue_number>` (replace `<issue_number>` with the target issue number) to load the issue description, context, and requirements.
+   - Run the command `make view-issue NUMBER=<issue_number>` (replace `<issue_number>` with the target issue number) to load the issue description, context, and requirements.
    - If only an issue name was provided, search the repository issues or query the user to find the issue number.
 
 2. **Understand the Requirements & Existing Tests**:
@@ -33,6 +33,16 @@ Implement the requested feature or fix based strictly on the provided issue defi
    - Run `make commit MSG="impl: resolve issue #<issue_number>"` to validate and commit your changes.
    - If the commit fails due to validation errors, fix the issues in your code and run the command again.
 
-7. **Push and Open a PR**:
-   - Push your branch to the remote repository.
-   - Open a Pull Request (PR) following the template defined at `./.github/pull_request_template.md` linking it to the original issue (e.g., `Closes #<issue_number>` in the PR description).
+7. **Push and Open a PR (Conditional)**:
+   > [!IMPORTANT]
+   > **If you are running as a subagent** under a coordinator like `full-tdd-issue-implementation`, **DO NOT** push the branch or create a Pull Request. Simply commit your work locally, stop, and report completion back to the parent agent.
+   
+   If you are running standalone directly for the user:
+   - Push your branch to the remote repository by running:
+     ```bash
+     make push
+     ```
+   - Open a Pull Request (PR) linking it to the original issue:
+     ```bash
+     make create-pr TITLE="impl: resolve issue #<issue_number>" BODY="Closes #<issue_number>"
+     ```

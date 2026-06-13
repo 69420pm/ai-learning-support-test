@@ -1,5 +1,5 @@
 ---
-name: convert-plan-to-issue
+name: convert-plan-to-issues
 description: Use when you need to convert an implementation plan into individual, atomic GitHub issues.
 ---
 
@@ -14,9 +14,9 @@ Deconstruct a high-level technical implementation plan into a series of independ
 2. **Create the Parent Issue**:
    - Create one large parent issue to represent the implementation plan. The title should be `Plan: [Plan Name]`.
    - The body of this parent issue should summarize the overall plan goals and link to or contain the plan document.
-   - Run the command to create it using the [Makefile]:
+   - Run the command to create it using the [Makefile](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/Makefile):
      ```bash
-     make generate-issue TITLE="Plan: [Plan Name]" BODY_FILE="specs/plan/[plan-file].md" LABEL="epic"
+     make create-issue TITLE="Plan: [Plan Name]" BODY_FILE="specs/plan/[plan-file].md" LABEL="epic"
      ```
    - Capture the issue number or URL of the created parent issue from the command output.
 
@@ -31,8 +31,8 @@ Deconstruct a high-level technical implementation plan into a series of independ
    - Capture the issue numbers of previously created subissues to link dependencies natively.
 
 5. **Submit the Subissues**:
-   - For each subissue, call the `make generate-issue` command passing the parent and any dependency parameters:
+   - For each subissue, call the `make create-issue` command passing the parent and any dependency parameters:
      ```bash
-     make generate-issue TITLE="Issue Title" BODY_FILE="path/to/issue_body.md" PARENT="[parent-number-or-url]" [BLOCKED_BY="[issue-number-or-url]"] [BLOCKING="[issue-number-or-url]"] [LABEL="optional-label"]
+     make create-issue TITLE="Issue Title" BODY_FILE="path/to/issue_body.md" PARENT="[parent-number-or-url]" [BLOCKED_BY="[issue-number-or-url]"] [BLOCKING="[issue-number-or-url]"] [LABEL="optional-label"]
      ```
    - Ensure you pass the exact title, the path to a temporary file containing the populated template body, and the correct relationship parameters.

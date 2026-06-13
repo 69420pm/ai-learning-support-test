@@ -9,7 +9,7 @@ Act as a highly critical pull request reviewer aiming for flawless code in terms
 ### Step-by-Step Instructions
 
 1. **Retrieve PR Information**:
-   - Run the command `make get-pr NUMBER=<pr_number>` (replace `<pr_number>` with the pull request number) to view the PR description, comments, and the complete git diff of the changes.
+   - Run the command `make view-pr NUMBER=<pr_number>` (replace `<pr_number>` with the pull request number) to view the PR description, comments, and the complete git diff of the changes.
 
 2. **Checkout PR Branch Locally**:
    - Run the command `make checkout-pr NUMBER=<pr_number>` to check out the branch associated with the PR locally.
@@ -32,5 +32,9 @@ Act as a highly critical pull request reviewer aiming for flawless code in terms
    - Be objective, highly critical, direct, and professional. Ensure all feedback is actionable and includes code snippets or line references where applicable. Classify issues by severity: **Critical**, **Major**, or **Minor / Nitpicks**.
 
 6. **State the Verdict**:
-   - Summarize your review findings to the user and state your final verdict: **Approve**, **Request Changes**, or **Comment**.
+   - Summarize your review findings to the user and state your final verdict.
    - Provide a clickable file link to your review report.
+   - Submit your review status to GitHub using the appropriate command:
+     - **Approve**: `make approve-pr NUMBER=<pr_number> [BODY="Your summary"]`
+     - **Request Changes**: `make request-changes-pr NUMBER=<pr_number> BODY="Your summary of changes requested"`
+     - **Comment**: `make comment-pr NUMBER=<pr_number> BODY="Your comment"`

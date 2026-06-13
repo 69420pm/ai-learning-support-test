@@ -9,7 +9,7 @@ Write comprehensive, behavior-driven unit tests for a specific issue. Author the
 ### Step-by-Step Instructions
 
 1. **Retrieve the Issue Details**:
-   - Run the command `make get-issue NUMBER=<issue_number>` (replace `<issue_number>` with the target issue number) to view the issue context, goals, and acceptance criteria.
+   - Run the command `make view-issue NUMBER=<issue_number>` (replace `<issue_number>` with the target issue number) to view the issue context, goals, and acceptance criteria.
    - If only an issue name was provided, search the repository issues or query the user to find the issue number.
 
 2. **Locate or Create the Test File**:

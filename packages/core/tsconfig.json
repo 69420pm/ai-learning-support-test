@@ -1,5 +1,5 @@
 {
-	"extends": "../../tsconfig.base.json",
+	"extends": "@ai-learning-support/tsconfig/base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
 		"rootDir": "./src"

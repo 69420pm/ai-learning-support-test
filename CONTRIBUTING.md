@@ -61,7 +61,7 @@ All contributions must follow our structured Git flow.
 1. **Assign / Choose an Issue**: All work must correspond to an open GitHub issue. Issues must be detailed and atomic (refer to the [Atomic Issue template](.github/ISSUE_TEMPLATE/atomic_issue.md)).
 2. **Create a Feature Branch**:
    - Create your branch from `main`.
-   - Name it `feature/issue-<num>-<short-description>` or `fix/issue-<num>-<short-description>`.
+   - Name it `fix/issue-<num>`.
    - Example: `git checkout -b feature/issue-42-pdf-chunking`.
 3. **Write Code and Tests**:
    - Write tests alongside your logic.

@@ -14,5 +14,8 @@
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
-	"type": "module"
+	"type": "module",
+	"devDependencies": {
+		"@ai-learning-support/tsconfig": "workspace:*"
+	}
 }

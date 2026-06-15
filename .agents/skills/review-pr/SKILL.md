@@ -6,6 +6,13 @@ description: Use when you get a github pull request number you should review.
 ### Objective
 Act as a highly critical pull request reviewer aiming for flawless code in terms of bugs, simplicity, maintainability, extensibility, and test coverage. Retrieve the PR details, checkout the PR branch locally to validate it, and document all findings in a structured PR review markdown report.
 
+### Boundaries
+- Run `make check` exactly **once**. If it fails, note the failure in your review — do NOT attempt to fix the environment by running `make clean`, `make setup`, or re-running check.
+- Do NOT run raw pnpm/turbo commands. Use only `make` targets.
+- Do NOT read the Makefile or git-workflow.sh — those are infrastructure files, not review targets.
+- Do NOT read `biome.json`, `turbo.json`, `pnpm-workspace.yaml`, or other config files unless they appear in the PR diff.
+- Consolidate git operations: run `git diff --stat origin/main...HEAD && git diff origin/main...HEAD` as a single command instead of multiple separate git calls.
+
 ### Step-by-Step Instructions
 
 1. **Retrieve PR Information**:
@@ -15,11 +22,13 @@ Act as a highly critical pull request reviewer aiming for flawless code in terms
    - Run the command `make checkout-pr NUMBER=<pr_number>` to check out the branch associated with the PR locally.
 
 3. **Verify the PR Locally**:
-   - Run the validation command `make check` on the PR branch.
+   - Run the validation command `make check` on the PR branch — exactly **once**.
    - Note if there are any build failures, TypeScript compiler errors, biome format or linting issues, or failing vitest tests.
 
 4. **Critique the Code Changes**:
-   - Carefully inspect the diff across the following dimensions:
+   - Only inspect files that appear in the PR diff. Do NOT read files outside the diff unless a diff change directly references them (e.g., an import of a newly-added module).
+   - Run `git diff --name-only origin/main...HEAD` first to get the list of changed files. Limit your review scope to these files only.
+   - Assess the diff across the following dimensions:
      - **Bugs & Edge Cases**: Identify potential runtime errors, unhandled promise rejections, type safety loopholes, resource leaks, or missing boundary checks.
      - **Simplicity & Readability**: Identify overengineered logic, complex abstractions, poor naming conventions, or dead/commented-out code.
      - **Maintainability & Extensibility**: Ensure changes follow SOLID/clean code principles. Verify if components are cohesive and loosely coupled.

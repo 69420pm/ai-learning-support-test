@@ -3,7 +3,9 @@
 	"version": "1.0.0",
 	"private": true,
 	"description": "",
-	"main": "index.js",
+	"main": "dist/index.js",
+	"module": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"scripts": {
 		"build": "tsup src/index.ts --format esm,cjs --dts",
 		"lint": "biome lint src",

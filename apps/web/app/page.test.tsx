@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import Page from "./page";
 
 vi.mock("@ai-learning-support/core", () => ({
@@ -7,9 +8,8 @@ vi.mock("@ai-learning-support/core", () => ({
 
 describe("Page component", () => {
 	it("should call core() and display its returned value", () => {
-		const element = Page();
-		expect(element).toBeDefined();
-		const stringified = JSON.stringify(element);
-		expect(stringified).toContain("mocked-core-greeting");
+		const html = renderToStaticMarkup(<Page />);
+		expect(html).toContain("mocked-core-greeting");
 	});
 });
+

@@ -1,4 +1,9 @@
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
+import webConfig from "./apps/web/vitest.config";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
 	test: {
@@ -6,22 +11,23 @@ export default defineConfig({
 			{
 				test: {
 					name: "tsconfig",
-					root: "./packages/tsconfig",
+					root: path.resolve(__dirname, "packages/tsconfig"),
 					exclude: [...configDefaults.exclude, "**/dist/**"],
 				},
 			},
 			{
 				test: {
 					name: "core",
-					root: "./packages/core",
+					root: path.resolve(__dirname, "packages/core"),
 					exclude: [...configDefaults.exclude, "**/dist/**"],
 				},
 			},
 			{
-				extends: "./apps/web/vitest.config.ts",
+				...webConfig,
 				test: {
+					...webConfig.test,
 					name: "web",
-					root: "./apps/web",
+					root: path.resolve(__dirname, "apps/web"),
 					exclude: [...configDefaults.exclude, "**/dist/**"],
 				},
 			},

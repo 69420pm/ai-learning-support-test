@@ -4,3 +4,4 @@ packages:
 allowBuilds:
   esbuild: false
   lefthook: true
+  sharp: true

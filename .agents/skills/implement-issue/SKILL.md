@@ -6,11 +6,19 @@ description: Use when a given issue name or number needs to get implemented.
 ### Objective
 Implement the requested feature or fix based strictly on the provided issue definition and existing unit tests. Focus on writing the simplest, cleanest implementation that passes the existing test suite, and commit your work using the repository pipeline.
 
+### Boundaries
+- Do NOT read or inspect the Makefile, git-workflow.sh, or any files under `.agents/`.
+- Do NOT run exploratory commands (`Find`, `git log`, `git diff`) beyond the files identified in the issue.
+- Do NOT run `make check` independently — it is already run automatically by `make commit`.
+- Do NOT run `make test` more than 3 times total. If tests still fail after 3 attempts, stop and report the failure.
+- Do NOT install dependencies using raw `pnpm install`. Use `make setup` if needed.
+- Do NOT push branches or create PRs when running as a subagent. Commit locally and stop.
+
 ### Step-by-Step Instructions
 
 1. **Retrieve the Issue Details**:
-   - Run the command `make view-issue NUMBER=<issue_number>` (replace `<issue_number>` with the target issue number) to load the issue description, context, and requirements.
-   - If only an issue name was provided, search the repository issues or query the user to find the issue number.
+   - If the issue context was provided in your prompt, use that directly. Do NOT call `make view-issue`.
+   - Only run `make view-issue NUMBER=<issue_number>` if you were invoked standalone without issue context.
 
 2. **Understand the Requirements & Existing Tests**:
    - Review the issue details carefully, identifying the list of files to modify and the specific tasks.
@@ -22,20 +30,19 @@ Implement the requested feature or fix based strictly on the provided issue defi
    - Adhere strictly to clean code principles: proper naming, type-safety, and biome styling standards.
 
 4. **Verify the Implementation**:
-   - Run `make test` to run the test suite and verify that the tests for this issue are now passing.
-   - If any test fails, analyze the test failure and adjust your implementation. Repeat this step until all tests pass.
+   - Run `make test` to verify that the tests for this issue pass.
+   - If any test fails, fix and re-run `make test` — but do not run it more than 3 times total. If tests still fail after 3 attempts, stop and report the failure.
 
-5. **Run Monorepo Quality Checks**:
-   - Run `make check` to verify linting, formatting, building, and type-safety across all packages in the monorepo.
-   - Fix any type errors, linting issues, or formatting issues.
-
-6. **Commit and Save Your Work**:
+5. **Commit and Save Your Work**:
    - Run `make commit MSG="impl: resolve issue #<issue_number>"` to validate and commit your changes.
+   > [!NOTE]
+   > `make commit` already runs `make check` internally before committing.
+   > Do NOT run `make check` separately before `make commit` — it doubles the work.
    - If the commit fails due to validation errors, fix the issues in your code and run the command again.
 
-7. **Push and Open a PR (Conditional)**:
+6. **Push and Open a PR (Conditional)**:
    > [!IMPORTANT]
-   > **If you are running as a subagent** under a coordinator like `full-tdd-issue-implementation`, **DO NOT** push the branch or create a Pull Request. Simply commit your work locally, stop, and report completion back to the parent agent.
+   > **If you are running as a subagent** under a coordinator like `full-issue-implementation`, **DO NOT** push the branch or create a Pull Request. Simply commit your work locally, stop, and report completion back to the parent agent.
    
    If you are running standalone directly for the user:
    - Push your branch to the remote repository by running:

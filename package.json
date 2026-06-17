@@ -17,6 +17,12 @@
 	"author": "",
 	"license": "ISC",
 	"packageManager": "pnpm@11.0.8",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"lefthook",
+			"sharp"
+		]
+	},
 	"devEngines": {},
 	"type": "module",
 	"devDependencies": {

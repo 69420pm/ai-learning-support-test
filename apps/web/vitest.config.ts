@@ -3,9 +3,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	oxc: false,
 	test: {
-		environment: "node"
+		environment: "node",
 	},
 	esbuild: {
-		jsx: "automatic"
-	}
+		jsx: "automatic",
+	},
 });

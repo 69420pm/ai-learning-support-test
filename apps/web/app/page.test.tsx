@@ -12,4 +12,3 @@ describe("Page component", () => {
 		expect(html).toContain("mocked-core-greeting");
 	});
 });
-

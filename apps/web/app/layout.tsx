@@ -3,14 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
 	title: "Web App",
-	description: "AI Learning Support Web App"
+	description: "AI Learning Support Web App",
 };
 
-export default function RootLayout({
-	children,
-}: {
-	children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
 			<body>{children}</body>

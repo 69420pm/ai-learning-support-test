@@ -182,17 +182,3 @@ To maintain a $0 developer testing budget while keeping the deployment path open
 ### 4.2 Cost Management
 - **Bring Your Own Key (BYOK):** Under Settings, users can input their own Gemini or OpenAI API keys. The app's workers use the provided credentials, ensuring zero LLM API expenses for the developer.
 
----
-
-## 5. Engineering Guidelines
-
-To match high-performance industry standards:
-
-1. **Strict TypeScript:** `strict: true` enabled in all `tsconfig.json` configurations.
-2. **Formatting & Quality:**
-   - **Prettier** for consistent code formatting.
-   - **ESLint** with standard React/TypeScript rules.
-3. **Automated Testing:**
-   - Core mathematical and logical modules (specifically the FSRS spaced repetition algorithm and PDF parsing engine) must have unit tests written using **Vitest**.
-4. **CI/CD:**
-   - GitHub Actions configured to run lint checks, type compiler checks, and tests on every pull request.

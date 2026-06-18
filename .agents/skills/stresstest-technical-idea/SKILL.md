@@ -8,9 +8,10 @@ Provide critical, objective, and constructive feedback on a user's proposed idea
 
 ### Step-by-Step Instructions
 
-1. **Ingest the Idea**:
+1. **Ingest the Idea & Gather Context**:
    - Read the product requirement document at `specs/product_requirements_document.md` to understand the overall context and vision of the project.
-   - Read the system architecture file (located at `specs/system_architecture.md`) to know the (planned) architecture of the application
+   - Read the system architecture file (located at `specs/system_architecture.md`) to understand the application structure.
+   - Consult relevant guidelines from the knowledge layer: [dont-outsource-the-learning.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/docs/context/dont-outsource-the-learning.md) (to align on strategic architecture and avoid coding outsourcing pitfalls).
    - Locate and read the user's idea description, either provided directly in the prompt or in a specified file.
 
 2. **Conduct the Stress Test**:

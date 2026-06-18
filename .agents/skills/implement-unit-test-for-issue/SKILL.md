@@ -25,6 +25,7 @@ Write comprehensive, behavior-driven unit tests for a specific issue. Author the
 
 3. **Design and Write Unit Tests**:
    - Write comprehensive tests that map directly to the acceptance criteria defined in the issue.
+   - Adhere strictly to the testing standards (test placement, Vitest conventions) defined in [CONTRIBUTING.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/CONTRIBUTING.md#unit-testing--verification).
    - Focus on testing *behavior* (contracts, inputs, outputs, errors) rather than implementation details (avoid unnecessary mocking of internal module functions).
    - Cover the following scenarios:
      - **Happy path**: Standard valid usage and input.
@@ -45,4 +46,5 @@ Write comprehensive, behavior-driven unit tests for a specific issue. Author the
      ```bash
      git add . && git commit -m "test: add unit tests for issue #<issue_number>" --no-verify
      ```
+   - Ensure the commit message follows the Conventional Commits format as defined in [CONTRIBUTING.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/CONTRIBUTING.md#commit-message-standard).
    - Before committing, ensure step 5 (typecheck & lint) passed. Only test failures are expected and acceptable.

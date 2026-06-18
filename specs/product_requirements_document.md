@@ -43,7 +43,6 @@
 
 ### 2.1 Product Vision
 The AI Learning Support system is an intelligent companion designed to guide users through the process of mastering textual content (e.g., academic textbooks, research papers, lecture slides, and business documents). By automating the high-friction, administrative tasks of learning—such as note-taking, summarization, flashcard creation, and spaced repetition scheduling—the system enables learners to focus exclusively on comprehension, retention, and application. The system is flexible, personalized, and deeply grounded in cognitive science.
-You can read more about the vision and motivation in the product requirement document at `specs/product_requirements_document.md`.
 
 ### 2.2 Problem Statement
 Many modern AI learning aids (including general chat interfaces like ChatGPT or Gemini) are frequently misused to bypass the "desirable difficulties" of cognitive effort. While using LLMs to write summaries or answer direct questions provides a short-term illusion of productivity, it fails to produce durable long-term retention because the cognitive effort is offloaded from the learner's brain to the machine. 

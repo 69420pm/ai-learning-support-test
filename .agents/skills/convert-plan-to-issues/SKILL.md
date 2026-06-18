@@ -30,6 +30,8 @@ Deconstruct a high-level technical implementation plan into a series of independ
      - **Subissue Dependencies**: Identify which subissues block or are blocked by other subissues (e.g., Subissue B cannot start until Subissue A is done).
    - Capture the issue numbers of previously created subissues to link dependencies natively.
 
+**Checkpoint**: Before proceeding to submit the issues to GitHub, present the list of proposed issues to the user (showing their titles, files to modify, dependencies, and rationale summaries). Do NOT call any issue creation commands until the user reviews and confirms they are correct.
+
 5. **Submit the Subissues**:
    - For each subissue, call the `make create-issue` command passing the parent and any dependency parameters:
      ```bash

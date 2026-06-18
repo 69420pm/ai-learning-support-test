@@ -2,11 +2,13 @@
 name: design-prd-or-system-architecture
 description: Use when the user wants to edit or get guidance on updating the Product Requirements Document (PRD) or the Technical Design Document / System Architecture (TDD) for the application.
 ---
-- read the current PRD in `specs/product_requirements_document.md` and the TDD in `specs/system_architecture.md`
-- ensure a clean separation of concerns:
+- Read the current PRD in `specs/product_requirements_document.md` and the TDD in `specs/system_architecture.md`.
+- Read the established architectural decisions in [specs/decisions.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/specs/decisions.md) to preserve existing project constraints.
+- Consult relevant design guidelines from the knowledge layer: [good-specs.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/docs/context/good-specs.md) (on spec requirements structure and boundaries) and [intent-debt.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/docs/context/intent-debt.md) (on documenting architectural intent).
+- Ensure a clean separation of concerns:
   - Keep product-focused requirements (what, why, user experience goals, licensing models, high-level features) in the **PRD**.
   - Keep engineering-focused implementation details (how, monorepo paths, database/storage adapters, ORMs, hosting configurations, specific queue workers) in the **TDD**.
-- for technical decisions orient yourself at the implementations of Claude Code (desktop app, web app and CLI) or OpenAI Codex, which are both high-quality, modern, and well-architected AI applications. Use them as benchmarks for the level of quality and professionalism we want to achieve. Also when relevant mention how they have implemented similar features or solved similar problems.
+- For technical decisions, orient yourself at the implementations of Claude Code (desktop app, web app and CLI) or OpenAI Codex, which are both high-quality, modern, and well-architected AI applications. Use them as benchmarks for the level of quality and professionalism we want to achieve. Also when relevant, mention how they have implemented similar features or solved similar problems.
 - give honest feedback on the proposals of changes, and ask critical questions to clarify requirements and make sure they are viable
 - these documents are living specifications, but point out large gaps that could cause product or engineering problems
 - no sugarcoating, be direct but professional: the goal is to build real, high-quality software

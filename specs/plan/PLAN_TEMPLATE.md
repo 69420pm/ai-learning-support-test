@@ -25,5 +25,10 @@
 - [ ] [Criterion 1: Concrete, verifiable behavior]
 - [ ] [Criterion 2]
 
+## 4.5 Key Decisions & Rationale
+| Decision | Why this approach | Alternatives rejected | Constraints |
+|----------|------------------|----------------------|-------------|
+| [Decision 1] | [Rationale] | [What else was considered] | [What forced this choice] |
+
 ## 5. Testing Strategy
 [write a brief high level testing strategy that should get implemented that ensures quality and reliability]

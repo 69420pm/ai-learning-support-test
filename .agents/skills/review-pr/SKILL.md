@@ -28,6 +28,7 @@ Act as a highly critical pull request reviewer aiming for flawless code in terms
 4. **Critique the Code Changes**:
    - Only inspect files that appear in the PR diff. Do NOT read files outside the diff unless a diff change directly references them (e.g., an import of a newly-added module).
    - Run `git diff --name-only origin/main...HEAD` first to get the list of changed files. Limit your review scope to these files only.
+   - Verify that code changes adhere strictly to the engineering, formatting/linting, testing, and documentation standards defined in [CONTRIBUTING.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/CONTRIBUTING.md#core-engineering-standards).
    - Assess the diff across the following dimensions:
      - **Bugs & Edge Cases**: Identify potential runtime errors, unhandled promise rejections, type safety loopholes, resource leaks, or missing boundary checks.
      - **Simplicity & Readability**: Identify overengineered logic, complex abstractions, poor naming conventions, or dead/commented-out code.

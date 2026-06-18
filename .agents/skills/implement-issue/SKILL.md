@@ -27,7 +27,7 @@ Implement the requested feature or fix based strictly on the provided issue defi
 3. **Implement the Code**:
    - Implement the code changes in the files identified by the issue.
    - Write the simplest, most boring, and straightforward solution. Avoid speculative coding, overcomplication, or adding features not requested.
-   - Adhere strictly to clean code principles: proper naming, type-safety, and biome styling standards.
+   - Adhere strictly to clean code principles, type-safety, and biome styling standards as defined in [CONTRIBUTING.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/CONTRIBUTING.md#core-engineering-standards).
 
 4. **Verify the Implementation**:
    - Run `make test` to verify that the tests for this issue pass.
@@ -35,6 +35,7 @@ Implement the requested feature or fix based strictly on the provided issue defi
 
 5. **Commit and Save Your Work**:
    - Run `make commit MSG="impl: resolve issue #<issue_number>"` to validate and commit your changes.
+   - Ensure the commit message follows the Conventional Commits format as defined in [CONTRIBUTING.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/CONTRIBUTING.md#commit-message-standard).
    > [!NOTE]
    > `make commit` already runs `make check` internally before committing.
    > Do NOT run `make check` separately before `make commit` — it doubles the work.

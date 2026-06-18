@@ -34,6 +34,8 @@ Look for the following qualitative problems:
 2. **Non-Sequential Loops**: Did the agent keep returning to the same failed approach or command across separate steps (even if not consecutive)?
 3. **Task Overhead & Procrastination**: Did the agent spend steps writing scratch scripts or performing research that wasn't necessary for the core task?
 4. **Cognitive Surrender**: Did the agent accept incorrect error states or fail to question obvious anomalies?
+5. **Bash Command Misuse and Unnecessary Sandbox Bypass**: Did the agent used some bash commands directly without relying on simplified/standardized make commands from the makefile? Did the agent unnecessarily bypassed the sandbox for tasks that could have been done with standard tools? It is important that the agent uses mainly make commands (point out when commands are missing and net to get created) and only bypass the sandbox when it is strictly necessary. 
+
 
 Open the review file and edit/add these findings to Section 2 (**Programmatic Analysis & Heuristics (Stated Problems)**) under the appropriate headings. Keep your observations strictly descriptive of the problems (no recommendations or solutions).
 

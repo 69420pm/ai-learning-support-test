@@ -27,6 +27,10 @@
 ### ❌ Tool Failures & Stuck States
 {{FAILURES_ANALYSIS}}
 
+### ⚠️ Bash Command Misuse & Unnecessary Sandbox Bypass
+> Add any observations of bash command misuse (e.g., using `ls` instead of `make list-files`) or unnecessary sandbox bypass (e.g., bypassing the sandbox to read a file that could have been accessed with a standard tool). This is important for ensuring agents use standardized commands and only bypass the sandbox when strictly necessary.
+
+
 ## 3. Chronology of Events
 
 {{CHRONOLOGY_LIST}}

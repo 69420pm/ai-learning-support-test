@@ -137,6 +137,36 @@ classDiagram
 - **Cloud MVP:** Uploads to Supabase S3-compatible Buckets ($0 setup up to 1 GB).
 - **Cloud Scale-Up (Migration Target):** Migrates to **Cloudflare R2** once storage needs exceed Supabase free limits to avoid egress/bandwidth charges and access flat $0.015/GB/month pricing.
 
+### 3.3 Document Database Schema
+
+To track uploaded documents, the database schema (managed via Drizzle ORM) defines a `documents` entity:
+
+| Field | Type (SQLite) | Type (Postgres) | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `text` (UUID) | `uuid` (UUID) | Unique document ID |
+| `userId` | `text` | `uuid` | Owner of the document (Mocked in Local Mode) |
+| `name` | `text` | `varchar(255)` | Original filename |
+| `storagePath` | `text` | `text` | Key/Path in storage adapter |
+| `fileSize` | `integer` | `integer` | File size in bytes |
+| `status` | `text` | `varchar(50)` | `pending` \| `processing` \| `completed` \| `failed` |
+| `createdAt` | `integer` (epoch) | `timestamp` | Creation timestamp |
+| `updatedAt` | `integer` (epoch) | `timestamp` | Last update timestamp |
+
+### 3.4 Document Upload Flow (Local vs. Cloud Mode)
+
+To circumvent the Vercel serverless function payload limit (4.5MB), the system uses dual upload strategies dependent on the active mode:
+
+#### **Local Mode (LOCAL_MODE=true)**
+1. **Frontend** POSTs the PDF file to Next.js API route `/api/documents/upload` using a standard `FormData` body.
+2. **Next.js API** reads the file buffer, invokes the `StorageService.uploadFile` method (writing to local disk `.data/storage/`), and registers the document metadata in the local SQLite DB.
+3. **API** returns the registered `documentId` to the frontend.
+
+#### **Cloud Mode (LOCAL_MODE=false)**
+1. **Frontend** requests a presigned upload payload from Next.js API `/api/documents/upload/presigned` containing the target path and token (or uses Supabase Client direct authorization).
+2. **Frontend** uploads the binary PDF file *directly* to the Supabase Storage Bucket using the presigned URL/token. This bypasses Next.js serverless limitations completely.
+3. **Frontend** notifies Next.js API `/api/documents/register` that the upload is complete, passing the document details.
+4. **Next.js API** registers the document metadata in Supabase Postgres and triggers the asynchronous background processing queue.
+
 ---
 
 ## 4. Background Ingestion & Agent Execution

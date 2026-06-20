@@ -1,4 +1,5 @@
 import type { Buffer } from "node:buffer";
+import * as path from "node:path";
 import { desc, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../../database/db.js";
@@ -15,32 +16,42 @@ export class DocumentService {
 		fileBuffer: Buffer,
 	): Promise<DocumentEntity> {
 		const documentId = uuidv4();
-		const storagePath = `users/${userId}/documents/${documentId}-${filename}`;
+		const safeFilename = path.basename(filename).replace(/[^a-zA-Z0-9.-]/g, "_");
+		const storagePath = `users/${userId}/documents/${documentId}-${safeFilename}`;
 
 		// Save file content buffer to storage
 		await this.storageService.uploadFile(storagePath, fileBuffer);
 
 		// Save document metadata record into database
 		const timestamp = Date.now();
-		const [inserted] = await db
-			.insert(documents)
-			.values({
-				id: documentId,
-				userId,
-				name: filename,
-				storagePath,
-				fileSize: fileBuffer.length,
-				status: "pending",
-				createdAt: timestamp,
-				updatedAt: timestamp,
-			})
-			.returning();
+		try {
+			const [inserted] = await db
+				.insert(documents)
+				.values({
+					id: documentId,
+					userId,
+					name: safeFilename,
+					storagePath,
+					fileSize: fileBuffer.length,
+					status: "pending",
+					createdAt: timestamp,
+					updatedAt: timestamp,
+				})
+				.returning();
 
-		if (!inserted) {
-			throw new Error("Failed to insert document metadata");
+			if (!inserted) {
+				throw new Error("Failed to insert document metadata");
+			}
+
+			return inserted;
+		} catch (error) {
+			try {
+				await this.storageService.deleteFile(storagePath);
+			} catch (cleanupError) {
+				console.error("Failed to delete orphan file:", cleanupError);
+			}
+			throw error;
 		}
-
-		return inserted;
 	}
 
 	async listDocuments(userId: string): Promise<DocumentEntity[]> {

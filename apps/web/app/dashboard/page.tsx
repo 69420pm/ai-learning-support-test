@@ -17,6 +17,7 @@ interface DocumentEntity {
 export default function DashboardPage() {
 	const [documents, setDocuments] = useState<DocumentEntity[]>([]);
 	const [uploading, setUploading] = useState<boolean>(false);
+	const [mounted, setMounted] = useState<boolean>(false);
 	const [dragActive, setDragActive] = useState<boolean>(false);
 	const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +37,7 @@ export default function DashboardPage() {
 	}, []);
 
 	useEffect(() => {
+		setMounted(true);
 		fetchDocuments();
 	}, [fetchDocuments]);
 
@@ -114,6 +116,7 @@ export default function DashboardPage() {
 	};
 
 	const formatDateTime = (timestamp: number) => {
+		if (!mounted) return "";
 		return new Date(timestamp).toLocaleString();
 	};
 

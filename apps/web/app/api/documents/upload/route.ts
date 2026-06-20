@@ -12,6 +12,11 @@ export async function POST(request: Request) {
 			return NextResponse.json({ error: "Missing or invalid file input" }, { status: 400 });
 		}
 
+		const maxFileSize = 10 * 1024 * 1024; // 10 MB limit
+		if (file.size > maxFileSize) {
+			return NextResponse.json({ error: "File size exceeds the 10MB limit" }, { status: 400 });
+		}
+
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const storage = new LocalFileSystemStorage();
 		const documentService = new DocumentService(storage);

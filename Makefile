@@ -122,6 +122,7 @@ push:
 
 create-issue:
 	@TITLE="$(TITLE)" BODY="$(BODY)" BODY_FILE="$(BODY_FILE)" LABEL="$(LABEL)" ASSIGNEE="$(ASSIGNEE)" \
+		PARENT="$(PARENT)" BLOCKED_BY="$(BLOCKED_BY)" BLOCKING="$(BLOCKING)" \
 		bash .agents/scripts/git-workflow.sh create-issue
 
 view-issue:
@@ -132,6 +133,7 @@ list-issues:
 
 edit-issue:
 	@NUMBER="$(NUMBER)" TITLE="$(TITLE)" BODY="$(BODY)" BODY_FILE="$(BODY_FILE)" LABEL="$(LABEL)" ASSIGNEE="$(ASSIGNEE)" \
+		PARENT="$(PARENT)" BLOCKED_BY="$(BLOCKED_BY)" BLOCKING="$(BLOCKING)" \
 		bash .agents/scripts/git-workflow.sh edit-issue
 
 close-issue:

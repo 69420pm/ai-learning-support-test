@@ -3,6 +3,7 @@
 ## 1. Overview & Context
 - **Feature Description**: [High-level summary of what is being built]
 - **User Value / Problem Solved**: [Why we are implementing this]
+- **Architectural Intent & Core Constraints**: [Describe the 'why' behind the chosen design. What global constraints or security/performance trade-offs exist? Cite relevant ADRs from decisions.md]
 - **Idea Path**: [Link to the original idea document that inspired this implementation plan, if applicable]
 
 ## 2. Scope Boundaries (Goals & Non-Goals)

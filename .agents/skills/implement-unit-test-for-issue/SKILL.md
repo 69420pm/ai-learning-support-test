@@ -1,10 +1,10 @@
 ---
 name: implement-unit-test-for-issue
-description: Use when for a given issue name or number unit tests need to get implemented.
+description: Use when writing test suite scaffolding (Issue 1) for a technical plan.
 ---
 
 ### Objective
-Write comprehensive, behavior-driven unit tests for a specific issue. Author the tests before the actual logic is implemented, ensuring they verify the correct contracts and behavior rather than implementation details.
+Write comprehensive, behavior-driven unit tests and scaffolding for the plan's interface issue (Issue 1). Author the tests before the actual business logic is implemented, defining expected contracts and signatures.
 
 ### Boundaries
 - Do NOT read or inspect the Makefile, git-workflow.sh, or any files under `.agents/`.
@@ -37,7 +37,7 @@ Write comprehensive, behavior-driven unit tests for a specific issue. Author the
    - Ensure the tests fail specifically due to missing functionality, not because of compilation or syntax errors.
 
 5. **Verify Code Quality**:
-   - Run `make typecheck && make lint` to ensure the new test code has no TypeScript errors or lint violations.
+   - Run `make lint` to ensure the new test code has no lint violations or formatting issues.
    - Fix any errors or warnings before committing.
 
 6. **Commit and Save Your Work**:

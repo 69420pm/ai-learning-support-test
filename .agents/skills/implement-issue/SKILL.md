@@ -43,7 +43,7 @@ Implement the requested feature or fix based strictly on the provided issue defi
 
 6. **Push and Open a PR (Conditional)**:
    > [!IMPORTANT]
-   > **If you are running as a subagent** under a coordinator like `full-issue-implementation`, **DO NOT** push the branch or create a Pull Request. Simply commit your work locally, stop, and report completion back to the parent agent.
+   > **If you are running as a subagent** under a coordinator like `full-plan-implementation`, **DO NOT** push the branch or create a Pull Request. Simply commit your work locally, stop, and report completion back to the parent agent.
    
    If you are running standalone directly for the user:
    - Push your branch to the remote repository by running:

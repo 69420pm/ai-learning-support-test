@@ -3,7 +3,7 @@ name: full-plan-implementation
 description: Use when a technical plan defined on GitHub needs to get implemented from start to finish via a single branch and PR.
 ---
 ### Objective
-Manage the end-to-end lifecycle of implementing an entire plan using a streamlined, interface-first Test-Driven Development (TDD) workflow. You are the orchestrator agent responsible for coordinating the execution of multiple subagents on a single plan branch, starting with test scaffolding (Issue 1) and iteratively implementing code for subsequent child issues (Issues 2..N). Your role is sequencing, validation, and PR creation.
+Manage the end-to-end lifecycle of implementing an entire plan using a streamlined, interface-first Test-Driven Development (TDD) workflow. You are the orchestrator agent responsible for coordinating the execution of multiple subagents on a single plan branch, starting with API contracts, stubs, and skipped test suites (Issue 1) and iteratively implementing code for subsequent child issues (Issues 2..N). Your role is sequencing, validation, and PR creation.
 
 ### Orchestrator Boundaries
 - You are a **sequencing agent only**. Do NOT read source files, config files, or debug compilation errors yourself.
@@ -26,10 +26,10 @@ Manage the end-to-end lifecycle of implementing an entire plan using a streamlin
    - Create a branch named `plan-<parent_plan_issue_number>-<slug>` (e.g., `plan-42-local-document-upload`).
    - Run: `make create-branch NAME=plan-<parent_plan_issue_number>-<slug>`.
 
-4. **Phase 1: Upfront Test Scaffolding (Issue 1)**:
+4. **Phase 1: API Contracts, Stubs & Skipped Test Suites (Issue 1)**:
    - Identify the Test Suite issue (Issue 1, which blocks all other issues).
    - Define a subagent with the following prompt:
-     "Use the skill `implement-unit-test-for-issue` to write test suites and scaffolding for issue #<test_issue_number>.
+     "Use the skill `implement-unit-test-for-issue` to write types, interfaces, stubs, and skipped unit tests for issue #<test_issue_number>.
       Here is the issue context:
       <paste the test issue details here>"
    - Wait for the subagent to complete. Verify that the unit tests are committed.
@@ -38,8 +38,8 @@ Manage the end-to-end lifecycle of implementing an entire plan using a streamlin
 5. **Phase 2: Iterative Sequential Implementation (Issues 2..N)**:
    - For each remaining child issue in the plan, in blocking/sequence order:
      - Define a subagent with the following prompt:
-       "Use the skill `implement-issue` to implement code for issue #<child_issue_number> matching the pre-written unit tests.
-        First review the existing tests to understand the contract. Write the simplest logic to make the tests pass.
+       "Use the skill `implement-issue` to implement code for issue #<child_issue_number>.
+        First un-skip the tests related to this issue, verify they fail locally, and write the simplest logic to make the tests pass.
         Verify with `make test`. Commit the changes locally using `make commit MSG=\"impl: resolve issue #<child_issue_number>\"`.
         Here is the issue context:
         <paste child issue details here>"

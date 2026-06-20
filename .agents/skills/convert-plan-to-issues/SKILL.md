@@ -22,9 +22,16 @@ Deconstruct a high-level technical implementation plan into a series of independ
 
 3. **Deconstruct the Plan into Atomic Issues**:
    - Divide the plan into sequential, manageable parts.
-   - **Mandatory First Issue (Issue 1)**: You MUST define the first subissue as `Issue 1: Test Suite & Scaffolding for [Plan Name]`. This issue covers creating all the necessary test files, interface definitions, and failing test blocks for the plan.
-   - For each subsequent child issue (Issues 2..N), write a clear title and draft the body following [atomic_issue.md](.github/ISSUE_TEMPLATE/atomic_issue.md).
-   - All subsequent implementation issues (Issues 2..N) MUST be blocked by `Issue 1: Test Suite & Scaffolding`.
+   - **IMPORTANT**: Every issue must be an atomic unit of work that has all relevant context contained within it. It must be completely understandable what to do without requiring external search or referencing other non-code files. This means you MUST explicitly copy/define all relevant data contracts, API signatures, Drizzle schemas, file layouts, and visual rules directly into the implementation details of the issue body.
+   - **Mandatory First Issue (Issue 1)**: You MUST define the first subissue as `Issue 1: API Contracts, Stubs & Skipped Test Suites for [Plan Name]`. This issue covers:
+     - Creating all necessary shared type and interface files.
+     - Scaffolding all stub classes/functions (methods must return dummy data or throw a "Not implemented" error) to guarantee the codebase compiles without type-check errors.
+     - **Explicit Type & Stub Contracts**: The issue body of Issue 1 MUST include the exact code blocks for the interfaces, types, class properties, and stub method signatures (with dummy return structures or throws) that need to be created. Do not leave the implementation of contracts/stubs up to guesswork.
+     - Creating all test files containing the planned test suites, with every test block marked as **skipped or todo** (e.g. `describe.skip`, `it.skip`, or `it.todo` in Vitest/Jest) so that test runners pass (exit code 0) and do not block build pipelines or pre-commit hooks (`lefthook`).
+   - **Subsequent Issues (Issues 2..N)**: For each subsequent child issue, write a clear title and draft the body following [atomic_issue.md](.github/ISSUE_TEMPLATE/atomic_issue.md).
+     - **Complete Implementation Details**: The body of subsequent issues must specify the exact technical expectations, database columns, path formulas, API response formats, and architectural decisions, so they can be implemented independently.
+     - **Mandatory First Task in Issues 2..N**: You MUST list the first task of every implementation issue as un-skipping the relevant test block: *"1. Un-skip the relevant tests in `[test-file-path]` (remove `.skip` or `.todo` modifiers) and verify they fail locally."*
+   - All subsequent implementation issues (Issues 2..N) MUST be blocked by `Issue 1: API Contracts, Stubs & Skipped Test Suites` and any other direct technical dependencies.
 
 4. **Define Relationships**:
    - Identify parent/child and sequence dependencies:

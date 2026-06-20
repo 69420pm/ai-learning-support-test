@@ -22,15 +22,16 @@ Implement the requested feature or fix based strictly on the provided issue defi
 
 2. **Understand the Requirements & Existing Tests**:
    - Review the issue details carefully, identifying the list of files to modify and the specific tasks.
-   - Inspect the existing test files related to the issue (e.g., `*.test.ts` or `*.spec.ts`). These tests serve as your contract and guidance. Do not modify the test code itself unless the issue explicitly specifies doing so.
+   - Inspect the existing test files related to the issue (e.g., `*.test.ts` or `*.spec.ts`). Under our skipped-test TDD workflow, the test cases are initially marked as skipped or todo (e.g. `describe.skip`, `it.skip`, or `it.todo`).
+   - **Un-skip target tests**: Locate the test blocks covering your assigned task. Remove `.skip` or `.todo` from those tests so they become active. Verify that they fail locally (red phase). Do not edit the test assertions themselves.
 
 3. **Implement the Code**:
    - Implement the code changes in the files identified by the issue.
-   - Write the simplest, most boring, and straightforward solution. Avoid speculative coding, overcomplication, or adding features not requested.
+   - Write the simplest, most boring, and straightforward solution to make the un-skipped tests pass. Avoid speculative coding, overcomplication, or adding features not requested.
    - Adhere strictly to clean code principles, type-safety, and biome styling standards as defined in [CONTRIBUTING.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/CONTRIBUTING.md#core-engineering-standards).
 
 4. **Verify the Implementation**:
-   - Run `make test` to verify that the tests for this issue pass.
+   - Run `make test` to verify that the active, un-skipped tests for this issue pass (green phase). Ensure all other tests remain skipped.
    - If any test fails, fix and re-run `make test` — but do not run it more than 3 times total. If tests still fail after 3 attempts, stop and report the failure.
 
 5. **Commit and Save Your Work**:

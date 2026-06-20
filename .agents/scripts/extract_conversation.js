@@ -88,9 +88,29 @@ function getTitleFromDb(dbPath) {
 	return null;
 }
 
+function formatArgValue(val) {
+	const cleaned = cleanArgValue(val);
+	if (typeof cleaned === "string") {
+		if (cleaned.length > 100) {
+			return `${cleaned.substring(0, 100)}...`;
+		}
+		return cleaned;
+	}
+	if (cleaned && typeof cleaned === "object") {
+		const str = JSON.stringify(cleaned);
+		if (str.length > 100) {
+			return `${str.substring(0, 100)}...`;
+		}
+	}
+	return val;
+}
+
 function formatUserInputStep(step) {
 	const content = step.content || "";
-	const requestText = content.replace(/<\/?[A-Z_]+>/g, "").trim();
+	let requestText = content.replace(/<\/?[A-Z_]+>/g, "").trim();
+	if (requestText.length > 200) {
+		requestText = `${requestText.substring(0, 200)}...`;
+	}
 	return `  - **Objective:**\n    > ${requestText.replace(/\r?\n/g, "\n    > ")}`;
 }
 
@@ -98,7 +118,10 @@ function formatPlannerResponseStep(step) {
 	const content = step.content || "";
 	let details = "";
 	if (content) {
-		const cleanThoughts = content.trim();
+		let cleanThoughts = content.trim();
+		if (cleanThoughts.length > 150) {
+			cleanThoughts = `${cleanThoughts.substring(0, 150)}...`;
+		}
 		details += `  - **Thoughts:** ${cleanThoughts.replace(/\r?\n/g, "\n    ")}\n`;
 	}
 	if (step.tool_calls && step.tool_calls.length > 0) {
@@ -107,7 +130,7 @@ function formatPlannerResponseStep(step) {
 			let argsStr = "";
 			try {
 				argsStr = Object.entries(tc.args)
-					.map(([k, v]) => `${k}: ${JSON.stringify(cleanArgValue(v))}`)
+					.map(([k, v]) => `${k}: ${JSON.stringify(formatArgValue(v))}`)
 					.join(", ");
 			} catch {
 				argsStr = JSON.stringify(tc.args);
@@ -147,23 +170,415 @@ function formatRunCommandStep(step) {
 		content.match(/Output:\n([\s\S]*)/) || content.match(/Log output:\n([\s\S]*)/);
 	if (stdoutMatch?.[1].trim()) {
 		const cleanStdout = stdoutMatch[1].trim();
-		outputSnippet = `\n    **Output:**\n    \`\`\`\n    ${cleanStdout.substring(0, 500).replace(/\r?\n/g, "\n    ")}\n    \`\`\``;
+		outputSnippet = `\n    **Output:**\n    \`\`\`\n    ${cleanStdout.substring(0, 200).replace(/\r?\n/g, "\n    ")}\n    \`\`\``;
 	}
 	return `  - Run command ${exitCodeStr}.${outputSnippet}`;
 }
 
 // Format the details of step chronology as nested list items
 function formatStepDetails(step) {
-	if (step.type === "USER_INPUT") return formatUserInputStep(step);
-	if (step.type === "CONVERSATION_HISTORY")
-		return "  - Loaded past conversation history/summaries.";
-	if (step.type === "PLANNER_RESPONSE") return formatPlannerResponseStep(step);
-	if (step.type === "VIEW_FILE") return formatViewFileStep(step);
-	if (step.type === "LIST_DIRECTORY") return formatListDirectoryStep(step);
-	if (step.type === "RUN_COMMAND") return formatRunCommandStep(step);
+	switch (step.type) {
+		case "USER_INPUT":
+			return formatUserInputStep(step);
+		case "CONVERSATION_HISTORY":
+			return "  - Loaded past conversation history/summaries.";
+		case "PLANNER_RESPONSE":
+			return formatPlannerResponseStep(step);
+		case "VIEW_FILE":
+			return formatViewFileStep(step);
+		case "LIST_DIRECTORY":
+			return formatListDirectoryStep(step);
+		case "RUN_COMMAND":
+			return formatRunCommandStep(step);
+		case "DEFINE_SUBAGENT":
+			return "  - Defined subagent.";
+		case "INVOKE_SUBAGENT": {
+			const content = step.content || "";
+			const cidMatch = content.match(/"conversationId":\s*"([^"]+)"/);
+			const cid = cidMatch ? cidMatch[1] : "unknown";
+			return `  - Invoked subagent with ID: \`${cid}\``;
+		}
+		case "WRITE_TO_FILE":
+		case "REPLACE_FILE_CONTENT":
+		case "MULTI_REPLACE_FILE_CONTENT": {
+			const content = step.content || "";
+			const filePathMatch =
+				content.match(/File Path: `file:\/\/(.*?)`/) || content.match(/TargetFile:\s*([^\s]+)/);
+			const fp = filePathMatch ? path.relative(process.cwd(), filePathMatch[1]) : "file";
+			const action = step.type === "WRITE_TO_FILE" ? "Wrote" : "Modified";
+			return `  - ${action} file \`${fp}\``;
+		}
+		default: {
+			const content = step.content || "";
+			let cleanContent = content.trim();
+			if (cleanContent.length > 200) {
+				cleanContent = `${cleanContent.substring(0, 200)}...`;
+			}
+			return `  - ${cleanContent.replace(/\r?\n/g, "\n  ")}`;
+		}
+	}
+}
 
-	const content = step.content || "";
-	return `  - ${content.trim().replace(/\r?\n/g, "\n  ")}`;
+// Helper to look up a title in the history file
+function findTitleInHistory(convId) {
+	if (fs.existsSync(historyFile)) {
+		try {
+			const lines = fs.readFileSync(historyFile, "utf8").split("\n");
+			for (const line of lines) {
+				if (!line.trim()) continue;
+				const entry = JSON.parse(line);
+				if (entry.conversationId === convId && entry.display) {
+					return entry.display;
+				}
+			}
+		} catch {}
+	}
+	return null;
+}
+
+function detectLoops(step, ctx) {
+	if (step.type === "PLANNER_RESPONSE" && step.tool_calls) {
+		step.tool_calls.forEach((tc) => {
+			const callKey = `${tc.name}:${JSON.stringify(tc.args)}`;
+			if (callKey === ctx.lastCallKey) {
+				ctx.consecutiveIdenticalCalls++;
+				if (ctx.consecutiveIdenticalCalls >= 2) {
+					ctx.loopFindings.push(
+						`- Step ${step.step_index}: Repeated consecutive tool call to \`${tc.name}\` with identical arguments.`,
+					);
+				}
+			} else {
+				ctx.consecutiveIdenticalCalls = 0;
+				ctx.lastCallKey = callKey;
+			}
+		});
+	}
+}
+
+function countToolsUsage(step, ctx) {
+	if (step.type === "PLANNER_RESPONSE" && step.tool_calls) {
+		step.tool_calls.forEach((tc) => {
+			ctx.toolCounts[tc.name] = (ctx.toolCounts[tc.name] || 0) + 1;
+			let file = tc.args.TargetFile || tc.args.AbsolutePath;
+			if (file) {
+				file = cleanArgValue(file);
+				ctx.fileAccessCounts[file] = (ctx.fileAccessCounts[file] || 0) + 1;
+			}
+			if (tc.name === "run_command" && tc.args.CommandLine) {
+				const cmd = cleanArgValue(tc.args.CommandLine);
+				ctx.commandCounts[cmd] = (ctx.commandCounts[cmd] || 0) + 1;
+			}
+		});
+	}
+}
+
+function detectFailures(step, ctx) {
+	if (step.status === "ERROR") {
+		ctx.failureFindings.push(`- Step ${step.step_index} (${step.type}): Failed with error status.`);
+		ctx.consecutiveFailures++;
+		if (ctx.consecutiveFailures >= 3) {
+			ctx.failureFindings.push(
+				`- Step ${step.step_index}: ⚠️ Stuck in a failure loop (3+ consecutive errors).`,
+			);
+		}
+	} else if (
+		step.type === "RUN_COMMAND" &&
+		(step.content?.includes("failed with exit") ||
+			step.content?.includes("Operation not permitted") ||
+			step.content?.includes("blocked by sandbox"))
+	) {
+		ctx.failureFindings.push(
+			`- Step ${step.step_index} (RUN_COMMAND): Command failed or was blocked by the sandbox.`,
+		);
+		ctx.consecutiveFailures++;
+		if (ctx.consecutiveFailures >= 3) {
+			ctx.failureFindings.push(
+				`- Step ${step.step_index}: ⚠️ Stuck in a command failure loop (3+ consecutive command issues).`,
+			);
+		}
+	} else {
+		ctx.consecutiveFailures = 0;
+	}
+}
+
+function detectDeviations(step, ctx) {
+	if (step.type === "PLANNER_RESPONSE" && step.tool_calls) {
+		step.tool_calls.forEach((tc) => {
+			if (tc.name === "search_web" || tc.name === "read_url_content") {
+				ctx.deviationFindings.push(
+					`- Step ${step.step_index}: Triggered web tool \`${tc.name}\`. Check if web access was relevant to the objective.`,
+				);
+			}
+			const pathArg = tc.args.TargetFile || tc.args.AbsolutePath || tc.args.DirectoryPath;
+			if (pathArg && typeof pathArg === "string") {
+				if (!pathArg.includes("ai-learning-support") && !pathArg.includes(".gemini")) {
+					ctx.deviationFindings.push(
+						`- Step ${step.step_index}: Accessed paths outside workspace boundary: \`${pathArg}\`.`,
+					);
+				}
+			}
+		});
+	}
+}
+
+// Run heuristics checks on steps
+function runHeuristicsOnSteps(steps) {
+	const ctx = {
+		loopFindings: [],
+		consecutiveIdenticalCalls: 0,
+		lastCallKey: null,
+		toolCounts: {},
+		fileAccessCounts: {},
+		commandCounts: {},
+		failureFindings: [],
+		consecutiveFailures: 0,
+		deviationFindings: [],
+	};
+
+	steps.forEach((step) => {
+		detectLoops(step, ctx);
+		countToolsUsage(step, ctx);
+		detectFailures(step, ctx);
+		detectDeviations(step, ctx);
+	});
+
+	// Post-process excessive tools
+	const excessiveFindings = [];
+	Object.entries(ctx.toolCounts).forEach(([tool, count]) => {
+		if (count > 10) {
+			excessiveFindings.push(`- Tool \`${tool}\` was called ${count} times (high usage).`);
+		}
+	});
+	Object.entries(ctx.fileAccessCounts).forEach(([file, count]) => {
+		if (count > 3) {
+			const displayPath = path.relative(process.cwd(), file);
+			excessiveFindings.push(`- File \`${displayPath}\` was accessed/modified ${count} times.`);
+		}
+	});
+	Object.entries(ctx.commandCounts).forEach(([cmd, count]) => {
+		if (count > 3) {
+			excessiveFindings.push(`- Command \`${cmd}\` was run ${count} times.`);
+		}
+	});
+
+	return {
+		toolCounts: ctx.toolCounts,
+		loopFindings: ctx.loopFindings,
+		excessiveFindings,
+		deviationFindings: ctx.deviationFindings,
+		failureFindings: ctx.failureFindings,
+	};
+}
+
+function sanitizeRole(role) {
+	if (!role) return "";
+	return role.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim();
+}
+
+// Recursively load subagents transcript and details
+function getConversationDataRecursive(convId, visited = new Set(), role = "Main Agent") {
+	if (visited.has(convId)) return [];
+	visited.add(convId);
+
+	const transcriptPath = path.join(
+		brainDir,
+		convId,
+		".system_generated",
+		"logs",
+		"transcript.jsonl",
+	);
+
+	if (!fs.existsSync(transcriptPath)) {
+		return [];
+	}
+
+	let fileContent;
+	try {
+		fileContent = fs.readFileSync(transcriptPath, "utf8");
+	} catch {
+		return [];
+	}
+
+	const lines = fileContent.split("\n").filter((l) => l.trim().length > 0);
+	let steps = [];
+	try {
+		steps = lines.map((line) => JSON.parse(line));
+	} catch (e) {
+		console.error(`Error parsing transcript JSONL for ${convId}:`, e);
+		return [];
+	}
+
+	// 1. Analyze this conversation (heuristics)
+	const analysis = runHeuristicsOnSteps(steps);
+
+	// 2. Scan for subagents in this transcript
+	const subagentsFound = [];
+	steps.forEach((step) => {
+		if (step.type === "INVOKE_SUBAGENT") {
+			const content = step.content || "";
+			const regex = /"conversationId":\s*"([^"]+)"/g;
+			let match = regex.exec(content);
+			while (match !== null) {
+				const subId = match[1];
+				let subRole = "Subagent";
+				const dbPath = path.join(conversationsDir, `${subId}.db`);
+				const dbTitle = getTitleFromDb(dbPath);
+				if (dbTitle) {
+					subRole = sanitizeRole(dbTitle);
+				} else {
+					subRole = sanitizeRole(findTitleInHistory(subId)) || "Subagent";
+				}
+				subagentsFound.push({ id: subId, role: subRole });
+				match = regex.exec(content);
+			}
+		}
+	});
+
+	const currentConvData = {
+		id: convId,
+		role: sanitizeRole(role),
+		steps,
+		analysis,
+	};
+
+	let allConvs = [currentConvData];
+	for (const sub of subagentsFound) {
+		const subConvs = getConversationDataRecursive(sub.id, visited, sub.role);
+		allConvs = allConvs.concat(subConvs);
+	}
+
+	return allConvs;
+}
+
+// Compile Section 1: Metadata
+function compileMetadataSection(conversations) {
+	let markdown = "";
+	const main = conversations[0];
+	markdown += `### Main Agent Metadata\n\n`;
+	markdown += `| Field | Value |\n`;
+	markdown += `|---|---|\n`;
+	markdown += `| **Conversation ID** | \`${main.id}\` |\n`;
+	markdown += `| **Title / Objective** | ${main.role} |\n`;
+	markdown += `| **Total Steps** | ${main.steps.length} |\n`;
+
+	const mainToolSummary =
+		Object.entries(main.analysis.toolCounts)
+			.map(([tool, count]) => `\`${tool}\`: ${count}`)
+			.join(", ") || "No tools executed";
+	markdown += `| **Tool Execution Summary** | ${mainToolSummary} |\n\n`;
+
+	if (conversations.length > 1) {
+		markdown += `### Subagents Metadata\n\n`;
+		markdown += `| Conversation ID | Role / Title | Steps | Tool Execution Summary |\n`;
+		markdown += `|---|---|---|---|\n`;
+		for (let i = 1; i < conversations.length; i++) {
+			const sub = conversations[i];
+			const subToolSummary =
+				Object.entries(sub.analysis.toolCounts)
+					.map(([tool, count]) => `\`${tool}\`: ${count}`)
+					.join(", ") || "No tools executed";
+			markdown += `| \`${sub.id}\` | ${sub.role} | ${sub.steps.length} | ${subToolSummary} |\n`;
+		}
+		markdown += `\n`;
+	}
+
+	return markdown;
+}
+
+// Compile Section 2: Programmatic Analysis
+function compileAnalysisSection(conversations) {
+	let markdown = "";
+
+	conversations.forEach((conv, index) => {
+		const prefix = index === 0 ? "🤖 Main Agent" : `⚓ Subagent: ${conv.role}`;
+		markdown += `### ${prefix} (\`${conv.id}\`)\n\n`;
+
+		const loopAnalysisText =
+			conv.analysis.loopFindings.length > 0
+				? conv.analysis.loopFindings.join("\n")
+				: "- No repetitive loops or consecutive identical tool calls detected.";
+		markdown += `#### 🔄 Looping & Repetition\n${loopAnalysisText}\n\n`;
+
+		const excessiveAnalysisText =
+			conv.analysis.excessiveFindings.length > 0
+				? conv.analysis.excessiveFindings.join("\n")
+				: "- No excessive tool calls or repetitive file reads/writes detected.";
+		markdown += `#### ⚠️ Excessive Tool Usage\n${excessiveAnalysisText}\n\n`;
+
+		const deviationAnalysisText =
+			conv.analysis.deviationFindings.length > 0
+				? conv.analysis.deviationFindings.join("\n")
+				: "- No obvious scope deviations or unrelated file access detected.";
+		markdown += `#### 🚫 Irrelevant Actions / Scope Deviations\n${deviationAnalysisText}\n\n`;
+
+		const failuresAnalysisText =
+			conv.analysis.failureFindings.length > 0
+				? conv.analysis.failureFindings.join("\n")
+				: "- No tool failures or sandbox blocks detected.";
+		markdown += `#### ❌ Tool Failures & Stuck States\n${failuresAnalysisText}\n\n`;
+	});
+
+	markdown += `### ⚠️ Bash Command Misuse & Unnecessary Sandbox Bypass\n`;
+	markdown += `> Add any observations of bash command misuse (e.g., using \`ls\` instead of \`make list-files\`) or unnecessary sandbox bypass (e.g., bypassing the sandbox to read a file that could have been accessed with a standard tool). This is important for ensuring agents use standardized commands and only bypass the sandbox when strictly necessary.\n\n`;
+
+	return markdown;
+}
+
+function shouldSkipStep(step) {
+	if (step.type === "RUN_COMMAND") {
+		const content = step.content || "";
+		const errorMatch =
+			content.match(/failed with exit code: (\d+)/) || content.match(/blocked by sandbox/);
+		const stdoutMatch =
+			content.match(/Output:\n([\s\S]*)/) || content.match(/Log output:\n([\s\S]*)/);
+		const hasOutput = stdoutMatch?.[1]?.trim()?.length > 0;
+		if (!errorMatch && !hasOutput) {
+			return true;
+		}
+	}
+	if (step.type === "GENERIC" && step.content?.includes("defined successfully")) {
+		return true;
+	}
+	return false;
+}
+
+function getActorName(step) {
+	if (step.source === "USER_EXPLICIT") return "👤 User";
+	if (step.source === "SYSTEM") return "🖥️ System";
+	if (step.source === "MODEL" && step.type !== "PLANNER_RESPONSE") return "🔧 Tool Output";
+	return "🤖 Agent";
+}
+
+function formatChronologyRow(step) {
+	if (shouldSkipStep(step)) return null;
+
+	const actor = getActorName(step);
+	const stepIdx = step.step_index;
+	const actionType = step.type;
+	const details = formatStepDetails(step);
+
+	return `- **Step ${stepIdx}** · **${actor}** · \`${actionType}\`\n${details}`;
+}
+
+// Compile Section 3: Chronology
+function compileChronologySection(conversations) {
+	let markdown = "";
+	conversations.forEach((conv, index) => {
+		const prefix = index === 0 ? "🤖 Main Agent" : `⚓ Subagent: ${conv.role}`;
+		markdown += `### ${prefix} (\`${conv.id}\`)\n\n`;
+
+		const chronologyRows = [];
+		conv.steps.forEach((step) => {
+			const row = formatChronologyRow(step);
+			if (row) {
+				chronologyRows.push(row);
+			}
+		});
+
+		markdown += `${chronologyRows.join("\n\n")}\n\n`;
+	});
+
+	return markdown;
 }
 
 // Parse args
@@ -181,7 +596,6 @@ let targetTitle = "";
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 if (uuidRegex.test(query)) {
 	targetId = query;
-	// Try to find the title from db if possible
 	const dbPath = path.join(conversationsDir, `${targetId}.db`);
 	if (fs.existsSync(dbPath)) {
 		targetTitle = getTitleFromDb(dbPath) || `Conversation ${targetId}`;
@@ -192,7 +606,6 @@ if (uuidRegex.test(query)) {
 	console.log(`Searching for conversation matching: "${query}"...`);
 	const candidates = [];
 
-	// Method 1: Scan SQLite DBs and extract titles
 	if (fs.existsSync(conversationsDir)) {
 		const files = fs.readdirSync(conversationsDir).filter((f) => f.endsWith(".db"));
 		files.forEach((f) => {
@@ -206,7 +619,6 @@ if (uuidRegex.test(query)) {
 		});
 	}
 
-	// Method 2: Scan history.jsonl as fallback
 	if (candidates.length === 0 && fs.existsSync(historyFile)) {
 		const lines = fs.readFileSync(historyFile, "utf8").split("\n");
 		lines.forEach((line) => {
@@ -214,7 +626,6 @@ if (uuidRegex.test(query)) {
 			try {
 				const entry = JSON.parse(line);
 				if (entry.conversationId && entry.display?.toLowerCase().includes(query.toLowerCase())) {
-					// Check if not already in candidates
 					if (!candidates.some((c) => c.id === entry.conversationId)) {
 						candidates.push({
 							id: entry.conversationId,
@@ -232,7 +643,6 @@ if (uuidRegex.test(query)) {
 		process.exit(1);
 	}
 
-	// Sort candidates by modified time (newest first)
 	candidates.sort((a, b) => b.mtime - a.mtime);
 	console.log("Found matching conversations:");
 	candidates.forEach((c, idx) => {
@@ -241,200 +651,24 @@ if (uuidRegex.test(query)) {
 		);
 	});
 
-	// Pick the newest one
 	const selected = candidates[0];
 	targetId = selected.id;
 	targetTitle = selected.title;
 	console.log(`Selecting the most recent match: "${truncateText(targetTitle, 60)}" (${targetId})`);
 }
 
-// Locate transcript path
-const transcriptPath = path.join(
-	brainDir,
-	targetId,
-	".system_generated",
-	"logs",
-	"transcript.jsonl",
-);
-if (!fs.existsSync(transcriptPath)) {
-	console.error(`Error: Transcript file not found at ${transcriptPath}`);
+// Recursively load all conversation logs
+console.log(`Recursively loading transcripts starting from ${targetId}...`);
+const conversations = getConversationDataRecursive(targetId, new Set(), targetTitle);
+
+if (conversations.length === 0) {
+	console.error("Error: No conversations loaded.");
 	process.exit(1);
 }
 
-console.log(`Reading transcript from ${transcriptPath}...`);
-const fileContent = fs.readFileSync(transcriptPath, "utf8");
-const lines = fileContent.split("\n").filter((l) => l.trim().length > 0);
+console.log(`Successfully loaded ${conversations.length} conversation(s).`);
 
-let steps = [];
-try {
-	steps = lines.map((line) => JSON.parse(line));
-} catch (e) {
-	console.error("Error parsing transcript JSONL:", e);
-	process.exit(1);
-}
-
-// -------------------------------------------------------------
-// Heuristics Analysis
-// -------------------------------------------------------------
-const loopFindings = [];
-let consecutiveIdenticalCalls = 0;
-let lastCallKey = null;
-
-const toolCounts = {};
-const fileAccessCounts = {};
-const commandCounts = {};
-
-const failureFindings = [];
-let consecutiveFailures = 0;
-
-const deviationFindings = [];
-
-steps.forEach((step) => {
-	// 1. Loops detection
-	if (step.type === "PLANNER_RESPONSE" && step.tool_calls) {
-		step.tool_calls.forEach((tc) => {
-			const callKey = `${tc.name}:${JSON.stringify(tc.args)}`;
-			if (callKey === lastCallKey) {
-				consecutiveIdenticalCalls++;
-				if (consecutiveIdenticalCalls >= 2) {
-					loopFindings.push(
-						`- Step ${step.step_index}: Repeated consecutive tool call to \`${tc.name}\` with identical arguments.`,
-					);
-				}
-			} else {
-				consecutiveIdenticalCalls = 0;
-				lastCallKey = callKey;
-			}
-		});
-	}
-
-	// 2. Excessive usage counts
-	if (step.type === "PLANNER_RESPONSE" && step.tool_calls) {
-		step.tool_calls.forEach((tc) => {
-			toolCounts[tc.name] = (toolCounts[tc.name] || 0) + 1;
-			let file = tc.args.TargetFile || tc.args.AbsolutePath;
-			if (file) {
-				file = cleanArgValue(file);
-				fileAccessCounts[file] = (fileAccessCounts[file] || 0) + 1;
-			}
-			if (tc.name === "run_command" && tc.args.CommandLine) {
-				const cmd = cleanArgValue(tc.args.CommandLine);
-				commandCounts[cmd] = (commandCounts[cmd] || 0) + 1;
-			}
-		});
-	}
-
-	// 3. Failures detection
-	if (step.status === "ERROR") {
-		failureFindings.push(`- Step ${step.step_index} (${step.type}): Failed with error status.`);
-		consecutiveFailures++;
-		if (consecutiveFailures >= 3) {
-			failureFindings.push(
-				`- Step ${step.step_index}: ⚠️ Stuck in a failure loop (3+ consecutive errors).`,
-			);
-		}
-	} else if (
-		step.type === "RUN_COMMAND" &&
-		(step.content.includes("failed with exit") ||
-			step.content.includes("Operation not permitted") ||
-			step.content.includes("blocked by sandbox"))
-	) {
-		failureFindings.push(
-			`- Step ${step.step_index} (RUN_COMMAND): Command failed or was blocked by the sandbox.`,
-		);
-		consecutiveFailures++;
-		if (consecutiveFailures >= 3) {
-			failureFindings.push(
-				`- Step ${step.step_index}: ⚠️ Stuck in a command failure loop (3+ consecutive command issues).`,
-			);
-		}
-	} else {
-		consecutiveFailures = 0;
-	}
-
-	// 4. Deviation detection
-	if (step.type === "PLANNER_RESPONSE" && step.tool_calls) {
-		step.tool_calls.forEach((tc) => {
-			if (tc.name === "search_web" || tc.name === "read_url_content") {
-				deviationFindings.push(
-					`- Step ${step.step_index}: Triggered web tool \`${tc.name}\`. Check if web access was relevant to the objective.`,
-				);
-			}
-			const pathArg = tc.args.TargetFile || tc.args.AbsolutePath || tc.args.DirectoryPath;
-			if (pathArg && typeof pathArg === "string") {
-				if (!pathArg.includes("ai-learning-support") && !pathArg.includes(".gemini")) {
-					deviationFindings.push(
-						`- Step ${step.step_index}: Accessed paths outside workspace boundary: \`${pathArg}\`.`,
-					);
-				}
-			}
-		});
-	}
-});
-
-// Post-process excessive tools
-const excessiveFindings = [];
-Object.entries(toolCounts).forEach(([tool, count]) => {
-	if (count > 10) {
-		excessiveFindings.push(`- Tool \`${tool}\` was called ${count} times (high usage).`);
-	}
-});
-Object.entries(fileAccessCounts).forEach(([file, count]) => {
-	if (count > 3) {
-		const displayPath = path.relative(process.cwd(), file);
-		excessiveFindings.push(`- File \`${displayPath}\` was accessed/modified ${count} times.`);
-	}
-});
-Object.entries(commandCounts).forEach(([cmd, count]) => {
-	if (count > 3) {
-		excessiveFindings.push(`- Command \`${cmd}\` was run ${count} times.`);
-	}
-});
-
-// Format summaries for the template
-const loopAnalysisText =
-	loopFindings.length > 0
-		? loopFindings.join("\n")
-		: "- No repetitive loops or consecutive identical tool calls detected.";
-const excessiveAnalysisText =
-	excessiveFindings.length > 0
-		? excessiveFindings.join("\n")
-		: "- No excessive tool calls or repetitive file reads/writes detected.";
-const deviationAnalysisText =
-	deviationFindings.length > 0
-		? deviationFindings.join("\n")
-		: "- No obvious scope deviations or unrelated file access detected.";
-const failuresAnalysisText =
-	failureFindings.length > 0
-		? failureFindings.join("\n")
-		: "- No tool failures or sandbox blocks detected.";
-
-const toolSummaryText =
-	Object.entries(toolCounts)
-		.map(([tool, count]) => `\`${tool}\`: ${count}`)
-		.join(", ") || "No tools executed";
-
-// -------------------------------------------------------------
-// Chronology List Generation
-// -------------------------------------------------------------
-const chronologyRows = [];
-steps.forEach((step) => {
-	let actor = "🤖 Agent";
-	if (step.source === "USER_EXPLICIT") actor = "👤 User";
-	else if (step.source === "SYSTEM") actor = "🖥️ System";
-	else if (step.source === "MODEL" && step.type !== "PLANNER_RESPONSE") actor = "🔧 Tool Output";
-
-	const stepIdx = step.step_index;
-	const actionType = step.type;
-	const details = formatStepDetails(step);
-
-	chronologyRows.push(`- **Step ${stepIdx}** · **${actor}** · \`${actionType}\`\n${details}`);
-});
-const chronologyListText = chronologyRows.join("\n\n");
-
-// -------------------------------------------------------------
-// Read template and write output
-// -------------------------------------------------------------
+// Read template
 const templatePath = path.join(
 	process.cwd(),
 	"specs",
@@ -448,27 +682,25 @@ if (!fs.existsSync(templatePath)) {
 
 let templateContent = fs.readFileSync(templatePath, "utf8");
 
-// Replace placeholders
+// Clean title
 const firstNonEmptyLine =
 	targetTitle
 		.split("\n")
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0)[0] || "Untitled Conversation";
 const titleClean = firstNonEmptyLine.replace(/<\/?[A-Z_]+>/g, "").trim();
-const titleShort = titleClean.length > 80 ? `${titleClean.substring(0, 80)}...` : titleClean;
 
+// Compile sections
+const metadataSection = compileMetadataSection(conversations);
+const analysisSection = compileAnalysisSection(conversations);
+const chronologySection = compileChronologySection(conversations);
+
+// Replace placeholders
 templateContent = templateContent
 	.replace(/\{\{TITLE\}\}/g, titleClean)
-	.replace(/\{\{TITLE_SHORT\}\}/g, titleShort)
-	.replace(/\{\{CONVERSATION_ID\}\}/g, targetId)
-	.replace(/\{\{REVIEW_DATE\}\}/g, new Date().toISOString().slice(0, 10))
-	.replace(/\{\{TOTAL_STEPS\}\}/g, steps.length.toString())
-	.replace(/\{\{TOOL_SUMMARY\}\}/g, toolSummaryText)
-	.replace(/\{\{LOOP_ANALYSIS\}\}/g, loopAnalysisText)
-	.replace(/\{\{EXCESSIVE_TOOL_ANALYSIS\}\}/g, excessiveAnalysisText)
-	.replace(/\{\{SCOPE_DEVIATION_ANALYSIS\}\}/g, deviationAnalysisText)
-	.replace(/\{\{FAILURES_ANALYSIS\}\}/g, failuresAnalysisText)
-	.replace(/\{\{CHRONOLOGY_LIST\}\}/g, chronologyListText);
+	.replace(/\{\{METADATA_SECTION\}\}/g, metadataSection)
+	.replace(/\{\{ANALYSIS_SECTION\}\}/g, analysisSection)
+	.replace(/\{\{CHRONOLOGY_SECTION\}\}/g, chronologySection);
 
 // Write to specs/conversation-reviews/review-<id>.md
 const outputDir = path.join(process.cwd(), "specs", "conversation-reviews");
@@ -481,5 +713,3 @@ const outputPath = args[1] ? path.resolve(args[1]) : defaultOutputPath;
 
 fs.writeFileSync(outputPath, templateContent);
 console.log(`\nSuccessfully extracted review to: ${outputPath}`);
-console.log(`Total steps: ${steps.length}`);
-console.log(`Tool usage summary: ${toolSummaryText}`);

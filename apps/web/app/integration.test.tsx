@@ -1,10 +1,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import Page from "./page";
 import { core } from "@ai-learning-support/core";
+
+vi.mock("next/navigation", () => ({
+	redirect: vi.fn(),
+}));
+
 
 describe("E2E Integration and Monorepo Validation (#12)", () => {
 	const __dirname = path.dirname(fileURLToPath(import.meta.url));

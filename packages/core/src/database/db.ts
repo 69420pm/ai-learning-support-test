@@ -1,2 +1,43 @@
-// biome-ignore lint/suspicious/noExplicitAny: stub database client
-export const db = {} as any;
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import * as documentsSchema from "./schema/documents.js";
+
+function findWorkspaceRoot(): string {
+	let currentDir = path.dirname(fileURLToPath(import.meta.url));
+	while (currentDir !== path.parse(currentDir).root) {
+		if (fs.existsSync(path.join(currentDir, "pnpm-workspace.yaml"))) {
+			return currentDir;
+		}
+		currentDir = path.dirname(currentDir);
+	}
+	return process.cwd();
+}
+
+const rootDir = findWorkspaceRoot();
+const dbDir = path.join(rootDir, ".data");
+const dbPath = path.join(dbDir, "app.db");
+
+if (!fs.existsSync(dbDir)) {
+	fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const sqlite = new Database(dbPath);
+
+// Run the inline table bootstrapping SQL query inside db.ts on module import/initialization
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+export const db = drizzle(sqlite, { schema: { ...documentsSchema } });

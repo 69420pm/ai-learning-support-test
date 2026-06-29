@@ -142,6 +142,18 @@ cmd_create_issue() {
     args+=(--assignee "$ASSIGNEE")
   fi
 
+  if [ -n "${PARENT:-}" ]; then
+    args+=(--parent "$PARENT")
+  fi
+
+  if [ -n "${BLOCKED_BY:-}" ]; then
+    args+=(--blocked-by "$BLOCKED_BY")
+  fi
+
+  if [ -n "${BLOCKING:-}" ]; then
+    args+=(--blocking "$BLOCKING")
+  fi
+
   echo "Creating GitHub issue..."
   gh issue create "${args[@]}"
 }
@@ -191,8 +203,20 @@ cmd_edit_issue() {
     args+=(--add-assignee "$ASSIGNEE")
   fi
 
+  if [ -n "${PARENT:-}" ]; then
+    args+=(--parent "$PARENT")
+  fi
+
+  if [ -n "${BLOCKED_BY:-}" ]; then
+    args+=(--add-blocked-by "$BLOCKED_BY")
+  fi
+
+  if [ -n "${BLOCKING:-}" ]; then
+    args+=(--add-blocking "$BLOCKING")
+  fi
+
   if [ ${#args[@]} -eq 0 ]; then
-    error_exit "No fields to update specified. Provide TITLE, BODY/BODY_FILE, LABEL, or ASSIGNEE."
+    error_exit "No fields to update specified. Provide TITLE, BODY/BODY_FILE, LABEL, ASSIGNEE, PARENT, BLOCKED_BY, or BLOCKING."
   fi
 
   echo "Editing GitHub issue #$NUMBER..."

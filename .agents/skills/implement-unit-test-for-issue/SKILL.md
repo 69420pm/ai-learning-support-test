@@ -1,10 +1,10 @@
 ---
 name: implement-unit-test-for-issue
-description: Use when for a given issue name or number unit tests need to get implemented.
+description: Use when writing test suite scaffolding (Issue 1) for a technical plan.
 ---
 
 ### Objective
-Write comprehensive, behavior-driven unit tests for a specific issue. Author the tests before the actual logic is implemented, ensuring they verify the correct contracts and behavior rather than implementation details.
+Write comprehensive, behavior-driven unit tests and scaffolding for the plan's interface issue (Issue 1). Author the tests before the actual business logic is implemented, defining expected contracts and signatures.
 
 ### Boundaries
 - Do NOT read or inspect the Makefile, git-workflow.sh, or any files under `.agents/`.
@@ -31,20 +31,22 @@ Write comprehensive, behavior-driven unit tests for a specific issue. Author the
      - **Happy path**: Standard valid usage and input.
      - **Edge cases**: Empty inputs, boundary values, unexpected types.
      - **Error handling**: Proper exceptions or error values returned under failure states.
+   - **Mark as Skipped/Todo**: You MUST mark all test suites and test cases as skipped or todo (`describe.skip()`, `it.skip()`, or `it.todo()` in Vitest/Jest). This ensures they compile and outline the target contract, but do not fail the build or pre-commit checks (`lefthook`).
 
-4. **Verify Test Failure (TDD Phase)**:
-   - Run `make test` to verify that your new tests fail as expected (since the target code is not yet implemented).
-   - Ensure the tests fail specifically due to missing functionality, not because of compilation or syntax errors.
+4. **Verify Test Failure (TDD Verification)**:
+   - To verify the tests compile and run: run `make test`. You should see the tests marked as skipped, with 0 failures.
+   - To verify test correctness: temporarily un-skip one test block (remove `.skip`), run `pnpm vitest run [test-file]`, and check that it fails specifically due to the stub's missing functionality (e.g. `"Not implemented"` error).
+   - Re-skip the test block before proceeding to commit.
 
 5. **Verify Code Quality**:
-   - Run `make typecheck && make lint` to ensure the new test code has no TypeScript errors or lint violations.
+   - Run `make lint` to ensure the new test code has no lint violations or formatting issues.
    - Fix any errors or warnings before committing.
 
 6. **Commit and Save Your Work**:
-   - Since tests are expected to fail at this stage (TDD red phase), do NOT use `make commit` (it runs `make check` internally which will fail on the failing tests).
-   - Instead, stage and commit directly:
+   - Run `make typecheck` and `make lint` to ensure everything compiles and lints correctly.
+   - Stage and commit your changes:
      ```bash
-     git add . && git commit -m "test: add unit tests for issue #<issue_number>" --no-verify
+     git add . && git commit -m "test: add skipped unit tests and stubs for issue #<issue_number>"
      ```
    - Ensure the commit message follows the Conventional Commits format as defined in [CONTRIBUTING.md](file:///Users/kevinsmith/Documents/development/typescript/ai-learning-support/CONTRIBUTING.md#commit-message-standard).
-   - Before committing, ensure step 5 (typecheck & lint) passed. Only test failures are expected and acceptable.
+   - Do NOT use `--no-verify` unless there are environment-specific problems. The pre-commit hook will pass because the tests are skipped.

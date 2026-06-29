@@ -21,13 +21,22 @@ Deconstruct a high-level technical implementation plan into a series of independ
    - Capture the issue number or URL of the created parent issue from the command output.
 
 3. **Deconstruct the Plan into Atomic Issues**:
-   - Divide the plan into sequential, manageable parts. Each part must represent a single, atomic unit of work that can be implemented and tested independently.
-   - For each issue, write a clear title and draft the body following [atomic_issue.md](.github/ISSUE_TEMPLATE/atomic_issue.md).
+   - Divide the plan into sequential, manageable parts.
+   - **IMPORTANT**: Every issue must be an atomic unit of work that has all relevant context contained within it. It must be completely understandable what to do without requiring external search or referencing other non-code files. This means you MUST explicitly copy/define all relevant data contracts, API signatures, Drizzle schemas, file layouts, and visual rules directly into the implementation details of the issue body.
+   - **Mandatory First Issue (Issue 1)**: You MUST define the first subissue as `Issue 1: API Contracts, Stubs & Skipped Test Suites for [Plan Name]`. This issue covers:
+     - Creating all necessary shared type and interface files.
+     - Scaffolding all stub classes/functions (methods must return dummy data or throw a "Not implemented" error) to guarantee the codebase compiles without type-check errors.
+     - **Explicit Type & Stub Contracts**: The issue body of Issue 1 MUST include the exact code blocks for the interfaces, types, class properties, and stub method signatures (with dummy return structures or throws) that need to be created. Do not leave the implementation of contracts/stubs up to guesswork.
+     - Creating all test files containing the planned test suites, with every test block marked as **skipped or todo** (e.g. `describe.skip`, `it.skip`, or `it.todo` in Vitest/Jest) so that test runners pass (exit code 0) and do not block build pipelines or pre-commit hooks (`lefthook`).
+   - **Subsequent Issues (Issues 2..N)**: For each subsequent child issue, write a clear title and draft the body following [atomic_issue.md](.github/ISSUE_TEMPLATE/atomic_issue.md).
+     - **Complete Implementation Details**: The body of subsequent issues must specify the exact technical expectations, database columns, path formulas, API response formats, and architectural decisions, so they can be implemented independently.
+     - **Mandatory First Task in Issues 2..N**: You MUST list the first task of every implementation issue as un-skipping the relevant test block: *"1. Un-skip the relevant tests in `[test-file-path]` (remove `.skip` or `.todo` modifiers) and verify they fail locally."*
+   - All subsequent implementation issues (Issues 2..N) MUST be blocked by `Issue 1: API Contracts, Stubs & Skipped Test Suites` and any other direct technical dependencies.
 
 4. **Define Relationships**:
    - Identify parent/child and sequence dependencies:
      - **Parent/Child**: All task issues must have the plan's parent issue as their native parent.
-     - **Subissue Dependencies**: Identify which subissues block or are blocked by other subissues (e.g., Subissue B cannot start until Subissue A is done).
+     - **Subissue Dependencies**: Ensure all implementation issues are blocked by Issue 1. Identify any additional dependencies among Issues 2..N.
    - Capture the issue numbers of previously created subissues to link dependencies natively.
 
 **Checkpoint**: Before proceeding to submit the issues to GitHub, present the list of proposed issues to the user (showing their titles, files to modify, dependencies, and rationale summaries). Do NOT call any issue creation commands until the user reviews and confirms they are correct.
@@ -37,4 +46,5 @@ Deconstruct a high-level technical implementation plan into a series of independ
      ```bash
      make create-issue TITLE="Issue Title" BODY_FILE="path/to/issue_body.md" PARENT="[parent-number-or-url]" [BLOCKED_BY="[issue-number-or-url]"] [BLOCKING="[issue-number-or-url]"] [LABEL="optional-label"]
      ```
-   - Ensure you pass the exact title, the path to a temporary file containing the populated template body, and the correct relationship parameters.
+   - Ensure you pass the exact title, the path to a temporary file containing the populated template body, and the correct parameters for blocked_by (`Depends On` section in issue template) and blocking (`Blocks` section in issue template) relationships, as well as the parent issue defined before.
+     For implementation issues, ensure `BLOCKED_BY` includes the test suite issue number.

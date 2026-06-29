@@ -42,8 +42,8 @@ All contributions must follow our structured Git flow.
 1. **Assign / Choose an Issue**: All work must correspond to an open GitHub issue. Issues must be detailed and atomic (refer to the [Atomic Issue template](.github/ISSUE_TEMPLATE/atomic_issue.md)).
 2. **Create a Feature Branch**:
    - Create your branch from `main`.
-   - Name it using the Makefile: `make create-branch NAME=fix-issue-<num>`
-   - Example: `make create-branch NAME=fix-issue-42`
+   - For **Plans/Features**: Name it after the parent plan issue: `make create-branch NAME=plan-<plan_issue_num>-<slug>` (e.g., `make create-branch NAME=plan-42-local-document-upload`).
+   - For **Standalone Issues/Bugs**: Name it after the issue: `make create-branch NAME=fix-issue-<issue_num>` (e.g., `make create-branch NAME=fix-issue-109`).
 3. **Write Code and Tests**:
    - Write tests alongside your logic.
    - Verify code locally: run `make test`.

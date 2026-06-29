@@ -24,8 +24,8 @@ Translate a proposed feature or idea into a highly thorough, step-by-step techni
 
 4. **Draft the Plan**:
    - Break down the idea into a clear technical implementation plan.
-   - Outline the architecture, data flow, and clear interfaces.
-   - Define clear acceptance criteria and testing strategies (both automated and manual).
+   - Outline the architecture, data flow, and clear interfaces. Specifically, define the shared types, interface contracts, and stub classes/functions that will form the development foundation.
+   - Define clear acceptance criteria and testing strategies (both automated and manual). Ensure the automated testing strategy outlines the tests to be scaffolded as skipped/todo in the initial contract phase, allowing subsequent issues to implement logic incrementally without blocking build pipelines or git hooks.
 
 5. **Output the Plan**:
    - Write the final plan into a new plan file at `specs/plan/YYYY-MM-DD-feature-name.md` (or modify `specs/plan/PLAN_TEMPLATE.md` if explicitly requested) using the template format.

@@ -17,10 +17,13 @@ function findWorkspaceRoot(): string {
 
 const rootDir = findWorkspaceRoot();
 const dbDir = path.join(rootDir, ".data");
-const dbPath = path.join(dbDir, "app.db");
+const dbPath = process.env["DATABASE_PATH"]
+	? path.resolve(process.env["DATABASE_PATH"])
+	: path.join(dbDir, "app.db");
 
-if (!fs.existsSync(dbDir)) {
-	fs.mkdirSync(dbDir, { recursive: true });
+const targetDbDir = path.dirname(dbPath);
+if (!fs.existsSync(targetDbDir)) {
+	fs.mkdirSync(targetDbDir, { recursive: true });
 }
 
 const sqlite = new Database(dbPath);

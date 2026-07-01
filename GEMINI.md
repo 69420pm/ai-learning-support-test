@@ -1,11 +1,10 @@
 # GEMINI.md
 
-This file is a living record of project-specific **gotchas, non-discoverable tooling constraints, and operational landmines** for AI agents.
+Living record of project-specific, non-discoverable gotchas and landmines.
 
-## Rules for GEMINI.md
-1. **Can the agent find this by reading the code?** If yes, **do not write it here**. Directory structures, tech stack overviews, lint rules, and standard configurations are discoverable. Adding them bloats the agent context, dilutes attention, and increases token cost.
-2. **Treat this file as a list of codebase smells we haven't fixed yet.** If agents repeatedly make a mistake, first try to fix the underlying codebase design (e.g., refactoring, strict types, biome rules, or build pipelines). Reach for GEMINI.md only if the friction cannot be solved in code.
-3. **Remove instructions once the friction is resolved.**
+## Folder-Specific Gotchas
+* For **Web App** gotchas, read [apps/web/GEMINI.md](file:///workspaces/secure-ai-learning-support/apps/web/GEMINI.md).
+* For **Core Services/Adapters** gotchas, read [packages/core/GEMINI.md](file:///workspaces/secure-ai-learning-support/packages/core/GEMINI.md).
 
-## Active Gotchas & Landmines
-*(None currently. Keep this file minimal to save token budget and prevent anchoring effects.)*
+## Active Root Gotchas
+* **Memory Loop:** Always read memory files at startup and log updates in [.agents/memory/session-history.md](file:///workspaces/secure-ai-learning-support/.agents/memory/session-history.md).

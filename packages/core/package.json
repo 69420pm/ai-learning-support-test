@@ -19,7 +19,7 @@
 		"lint": "biome lint src",
 		"format": "biome format src --write",
 		"typecheck": "tsc --noEmit",
-		"test": "vitest run"
+		"test": "DATABASE_PATH=../../.data/app.core.test.db vitest run --project=core"
 	},
 	"keywords": [],
 	"author": "",

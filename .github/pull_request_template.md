@@ -17,8 +17,8 @@ Closes #[Issue Number]
 ## Verification & Testing
 
 ### Automated Tests
-- [ ] Unit tests added/updated and passing (`make test`)
-- [ ] Full monorepo validation pipeline passing (`make check`)
+- [ ] Unit tests added/updated and passing (`pnpm test`)
+- [ ] Full monorepo validation pipeline passing (`pnpm check`)
 
 ### Manual Verification Steps
 1. [Describe step-by-step how to manually verify the behavior]
@@ -30,5 +30,5 @@ Closes #[Issue Number]
 - [ ] I have commented my code, particularly in hard-to-understand areas, and added JSDoc/TSDoc to public APIs.
 - [ ] I have updated the documentation accordingly.
 - [ ] My changes generate no new warnings or type errors.
-- [ ] I have run `make check` locally before pushing my branch.
+- [ ] I have run `pnpm check` locally before pushing my branch.
 - [ ] I have added a Changeset (`pnpm changeset`) if version bumping is required.

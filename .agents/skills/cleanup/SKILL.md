@@ -10,4 +10,4 @@ Refactor the codebase to address technical debt.
    - Audit the code and propose specific refactoring changes to the user.
    - Implement the changes ONLY after user confirmation.
 3. Follow project rules for simplicity and lean code (`rules/project-rules.md`, `rules/coding-style.md`).
-4. Must run `make check` after any changes to guarantee nothing is broken.
+4. Must run `pnpm check` after any changes to guarantee nothing is broken.

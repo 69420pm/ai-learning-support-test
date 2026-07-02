@@ -5,7 +5,7 @@ description: Create a highly detailed implementation plan from a PRD, ADR, or a 
 
 Create an implementation plan for a given feature or request.
 
-1. Pre-reads: Relevant PRD, ADRs, `specs/system_architecture.md`, `CONTRIBUTING.md`, and any relevant `GEMINI.md`.
+1. Pre-reads: Relevant PRD, ADRs, `specs/architecture-index.md`, `CONTRIBUTING.md`, and any relevant `GEMINI.md`.
 2. Produce the plan as an AGY artifact.
 3. The plan should contain:
    - Overview

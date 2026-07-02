@@ -21,3 +21,17 @@ This is a log of tasks completed, what failed, and what worked. Keep entries bri
 ## [2026-07-02] Commit All Current Changes
 * **Goal:** Commit all staged and unstaged workspace changes.
 * **Outcome:** Logged session history update and committed all refactored harness rules, skills, memory structure, and restructured specs documentation to git. Successfully pushed branch `setup-harness-like-ecc` to remote `origin`.
+
+## [2026-07-02] Root Folder Structure Documentation
+* **Goal:** Document project folder structure in root `AGENTS.md` with concise descriptions, filtering out gitignored folders.
+* **Outcome:** Populated `AGENTS.md` with a concise summary of non-ignored workspace directories (`.agents`, `.changeset`, `.github`, `apps`, `packages`, `rules`, `specs`).
+
+## [2026-07-02] Codebase & Agent Harness Audit
+* **Goal:** Audit codebase, agent skills, CI workflows, and documentation for technical debt, and propose improvements to the `audit` skill.
+* **Outcome:** Generated comprehensive audit report `audit_report.md`. Upgraded `audit` skill with a 6-domain checklist and severity structure. Fixed broken architecture links (`specs/architecture-index.md`), deleted memory file references, and replaced non-existent `make check` commands with `pnpm check` across all skills, `.github/workflows/ci.yml`, `CONTRIBUTING.md`, and `pull_request_template.md`. Indexed ADR 001 in `specs/adr-index.md`. All verification checks (`pnpm check`) passing.
+
+## [2026-07-02] Refactor CONTRIBUTING.md to Single Source of Truth & Update Lifecycle
+* **Goal:** Document available AI agent skills and refine the feature development lifecycle in `CONTRIBUTING.md`.
+* **Outcome:** Added an AI Agent Skills summary section detailing all 9 skills. Documented the complete lifecycle for large features (PRD → ADR → Plan → TDD/PR → Review/Merge) while clarifying that PRDs and ADRs can be skipped for smaller features, bug fixes, or refactoring.
+
+

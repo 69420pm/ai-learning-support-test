@@ -7,3 +7,8 @@
 * [x] Set up package-level `GEMINI.md` gotchas <!-- id: 3 -->
 * [x] Install `mgrep` globally <!-- id: 4 -->
 * [ ] Run verification check and commit <!-- id: 5 -->
+
+## Milestone 2: Core Data Pipeline
+* [ ] Implement basic PDF chunking and parsing <!-- id: 6 -->
+* [ ] Implement GraphRAG concept extraction MVP <!-- id: 7 -->
+* [ ] Set up Supabase / local SQLite database adapters <!-- id: 8 -->

@@ -34,4 +34,27 @@ This is a log of tasks completed, what failed, and what worked. Keep entries bri
 * **Goal:** Document available AI agent skills and refine the feature development lifecycle in `CONTRIBUTING.md`.
 * **Outcome:** Added an AI Agent Skills summary section detailing all 9 skills. Documented the complete lifecycle for large features (PRD → ADR → Plan → TDD/PR → Review/Merge) while clarifying that PRDs and ADRs can be skipped for smaller features, bug fixes, or refactoring.
 
+## [2026-07-03] Modular PRD Documentation Restructuring
+* **Goal:** Decompose monolithic `specs/prds/product_requirements_document.md` into 5 domain-specific PRD files for LLM context efficiency and update PRD index.
+* **Outcome:** Created `01-vision-and-core-framework.md`, `02-document-ingestion-graphrag.md`, `03-learning-plan-analytics.md`, `04-guided-encoding-study.md`, and `05-active-recall-fsrs-review.md` in `specs/prds/`. Removed the monolithic file and updated `specs/prd-index.md` with domain-level summaries for fast LLM routing.
+
+## [2026-07-03] Upgrade write-prd Skill & Template
+* **Goal:** Enhance `.agents/skills/write-prd/SKILL.md` with critical product thinking patterns (necessity audit, gimmick filtration, zero-ambiguity guidelines) and a standardized fixed PRD template.
+* **Outcome:** Rewrote `write-prd` skill instructions. Added explicit agent behavior guidance for interviewing, challenging scope, eliminating hand-waving adjectives, and enforcing a 9-section Markdown template for all future PRDs.
+
+## [2026-07-03] Lean Skill-Creator Refactoring
+* **Goal:** Streamline the official `skill-creator` skill to remove unnecessary web servers, HTML viewers, and multi-hour optimization loops while preserving high-impact skill authoring principles and writing skills directly to `.agents/skills/`.
+* **Outcome:** Removed heavy web infrastructure (`eval-viewer/`, `assets/`, `agents/`, heavy benchmark scripts). Created zero-dependency [quick_validate.py](file:///workspaces/secure-ai-learning-support/.agents/skills/skill-creator/scripts/quick_validate.py) to structurally validate skills in <1 sec. Rewrote [SKILL.md](file:///workspaces/secure-ai-learning-support/.agents/skills/skill-creator/SKILL.md) to guide creation directly in `.agents/skills/<skill-name>/` with 1-pass fast in-chat sanity testing. Verified validation on `skill-creator`.
+
+## [2026-07-03] write-prd Skill Optimization Analysis
+* **Goal:** Analyze `.agents/skills/write-prd/SKILL.md` and propose optimizations based on recent skill standards, tool capabilities, and domain needs.
+* **Outcome:** Analyzed frontmatter, interactive discovery flows, template structure, domain security/AI safety guardrails, and asset modularization. Formulated actionable optimization proposal.
+
+## [2026-07-03] write-prd Skill Optimization & Modular Refactoring
+* **Goal:** Optimize `.agents/skills/write-prd/SKILL.md` and extract asset template.
+* **Outcome:** Created asset template [assets/prd-template.md](file:///workspaces/secure-ai-learning-support/.agents/skills/write-prd/assets/prd-template.md) featuring explicit Security, Data Privacy & AI Safety Guardrails. Refined [SKILL.md](file:///workspaces/secure-ai-learning-support/.agents/skills/write-prd/SKILL.md) with pushy description, Interactive Interview mode via `ask_question`, pre-save quality verification checklist, and downstream handoffs. Passed structural validation (`quick_validate.py`).
+
+## [2026-07-03] Split PRD 01 into Pure Vision & Extra Domain PRDs
+* **Goal:** Decompose `01-vision-and-core-framework.md` so that PRD 01 focuses purely on Product Vision & Learning Strategy, while extracting extra non-vision parts into dedicated PRDs.
+* **Outcome:** Replaced `01-vision-and-core-framework.md` with `01-product-vision.md` (focused purely on Product Vision, Core Value Proposition, and Strategy). Created detailed domain PRDs: `06-pedagogical-science-engine.md` (Active Recall, FSRS, Interleaving & Feynman audits) and `07-business-model-licensing.md` (ELv2 source-available vs Cloud SaaS subscription). Reclassified low-level infrastructure/queues implementation logic into an Architecture Spec at [background_processing_and_queues.md](file:///workspaces/secure-ai-learning-support/specs/architecture/background_processing_and_queues.md). Updated `specs/prd-index.md` and `specs/architecture-index.md`.
 

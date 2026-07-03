@@ -13,6 +13,8 @@
 
 ---
 
+This document outlines the architecture of the AI Learning Support system, it represents the current state of the system, NO FUTURE PLANS OR DECISIONS ARE FINALIZED HERE. For future plans, please refer to the [ADR directory](./adrs/).
+
 ## 2. Directory Structure (Monorepo)
 
 To decouple product logic from the UI framework and allow multiple packages (e.g., core, web app, CLI), we use a TypeScript monorepo managed via **pnpm workspaces** (or npm workspaces).

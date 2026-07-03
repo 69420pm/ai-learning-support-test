@@ -58,3 +58,8 @@ This is a log of tasks completed, what failed, and what worked. Keep entries bri
 * **Goal:** Decompose `01-vision-and-core-framework.md` so that PRD 01 focuses purely on Product Vision & Learning Strategy, while extracting extra non-vision parts into dedicated PRDs.
 * **Outcome:** Replaced `01-vision-and-core-framework.md` with `01-product-vision.md` (focused purely on Product Vision, Core Value Proposition, and Strategy). Created detailed domain PRDs: `06-pedagogical-science-engine.md` (Active Recall, FSRS, Interleaving & Feynman audits) and `07-business-model-licensing.md` (ELv2 source-available vs Cloud SaaS subscription). Reclassified low-level infrastructure/queues implementation logic into an Architecture Spec at [background_processing_and_queues.md](file:///workspaces/secure-ai-learning-support/specs/architecture/background_processing_and_queues.md). Updated `specs/prd-index.md` and `specs/architecture-index.md`.
 
+## [2026-07-03] Create ADR 002: Dual-Mode Architecture
+* **Goal:** Document the decision to use a Dual-Mode Pluggable Adapter Architecture (Local Self-Hosted vs. Cloud SaaS) in an ADR.
+* **Outcome:** Authored [specs/adrs/002-dual-mode-architecture.md](file:///workspaces/secure-ai-learning-support/specs/adrs/002-dual-mode-architecture.md) using the `write-adr` skill format. Updated [specs/adr-index.md](file:///workspaces/secure-ai-learning-support/specs/adr-index.md) to index ADR 002.
+
+

@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({
 
 
 describe("E2E Integration and Monorepo Validation (#12)", () => {
+	// biome-ignore lint/style/useNamingConvention: node fileURLToPath constant
 	const __dirname = path.dirname(fileURLToPath(import.meta.url));
 	const webDir = path.resolve(__dirname, "..");
 

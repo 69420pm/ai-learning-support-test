@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
 	useEffect(() => {
 		setMounted(true);
-		fetchDocuments();
+		void fetchDocuments();
 	}, [fetchDocuments]);
 
 	const handleUpload = async (file: File) => {
@@ -112,7 +112,7 @@ export default function DashboardPage() {
 		const k = 1024;
 		const sizes = ["Bytes", "KB", "MB", "GB"];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
+		return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	};
 
 	const formatDateTime = (timestamp: number) => {
@@ -228,7 +228,7 @@ export default function DashboardPage() {
 											</td>
 											<td>
 												<span className={`status-badge ${doc.status}`}>
-													<span className="status-dot"></span>
+													<span className="status-dot" />
 													{doc.status}
 												</span>
 											</td>

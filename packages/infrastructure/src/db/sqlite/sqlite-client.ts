@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import * as documentsSchema from './schema/documents.js';
+import * as documentsSchema from '../schema/documents.js';
 
 function findWorkspaceRoot(): string {
   let currentDir = process.cwd();

@@ -1,8 +1,11 @@
 import type { DocumentEntity } from '@ai-learning-support/shared';
 import { desc, eq } from 'drizzle-orm';
-import { db } from '../db.js';
+import type {
+  CreateDocumentInput,
+  DocumentRepository,
+} from '../repositories/document-repository.js';
 import { documents } from '../schema/documents.js';
-import type { CreateDocumentInput, DocumentRepository } from './document-repository.js';
+import { db } from './sqlite-client.js';
 
 export class SqliteDocumentRepository implements DocumentRepository {
   async create(input: CreateDocumentInput): Promise<DocumentEntity> {

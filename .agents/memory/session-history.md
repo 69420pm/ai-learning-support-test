@@ -94,3 +94,8 @@ This is a log of tasks completed, what failed, and what worked. Keep entries bri
 * **Goal:** Refactor database access in `@ai-learning-support/infrastructure` and `@ai-learning-support/core` using TDD to introduce `DocumentRepository`, decouple `DocumentService`, create `createDocumentService` factory, and refactor Next.js API routes in `apps/web`.
 * **Outcome:** Created `DocumentRepository` contract interface and `SqliteDocumentRepository` using Drizzle SQLite in infrastructure. Refactored `DocumentService` in core to use constructor dependency injection with zero direct `db` driver imports. Created `createDocumentService()` factory in core to handle `APP_MODE` environment switching. Refactored Next.js API routes in `apps/web` (`GET` and `POST`) to consume `createDocumentService()`. Full monorepo pipeline verification (`pnpm check`) passing 100% green.
 
+## [2026-07-04] Rewrite Architect Skill
+* **Goal:** Rewrite `.agents/skills/architect/SKILL.md` to be an uncompromising, highly critical Staff Systems Architect skill grounded in deep codebase pre-reading.
+* **Outcome:** Overhauled [SKILL.md](file:///workspaces/secure-ai-learning-support/.agents/skills/architect/SKILL.md) with an unfiltered persona (zero sugarcoating), mandatory context pre-read guidelines across specs, ADRs, rules, and package source code (`packages/core`, `packages/features`, `packages/infrastructure`, `packages/shared`, `apps/web`), 6 architectural landmines audit framework, multi-option trade-off matrix template, and structured recommendation flow. Validated via `quick_validate.py`.
+
+

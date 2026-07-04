@@ -81,3 +81,16 @@ This is a log of tasks completed, what failed, and what worked. Keep entries bri
 ## [2026-07-04] Draft Implementation Plan 01 & Refine Top-Level Package Structure
 * **Goal:** Update ADR 003, Architecture Spec, Project Rules, and Implementation Plan 01 to define top-level package paths under `packages/` (`packages/shared`, `packages/infrastructure`, `packages/features`, `packages/core`).
 * **Outcome:** Eliminates awkward `packages/core/src/core/` nesting by defining clean package-level directories under `packages/`. Updated [ADR 003](file:///workspaces/secure-ai-learning-support/specs/adrs/003-modular-monolith-package-structure.md), [specs/architecture-index.md](file:///workspaces/secure-ai-learning-support/specs/architecture-index.md), [rules/project-rules.md](file:///workspaces/secure-ai-learning-support/rules/project-rules.md), and [specs/plans/01-virtual-package-layering-refactoring.md](file:///workspaces/secure-ai-learning-support/specs/plans/01-virtual-package-layering-refactoring.md).
+
+## [2026-07-04] App Dev Server Verification
+* **Goal:** Run `pnpm dev` and check if the web app works in the browser.
+* **Outcome:** Executed `pnpm dev`. Next.js dev server started successfully on `http://localhost:3000`. Verified page loads correctly with title "Web App" and displays "AI Learning Support" UI (document upload dropzone & ingested documents list).
+
+## [2026-07-04] Test PDF Upload & Document Verification
+* **Goal:** Query currently stored PDFs in the app database and upload a test PDF.
+* **Outcome:** Identified existing seed PDFs (`first.pdf`, `second.pdf`, `other.pdf`). Successfully uploaded test PDF `test-sample.pdf` via `/api/documents/upload` endpoint, registering it in the SQLite database and local document storage. Verified output via `/api/documents` API.
+
+## [2026-07-04] Database Repository Pattern & Core Service Factory Implementation
+* **Goal:** Refactor database access in `@ai-learning-support/infrastructure` and `@ai-learning-support/core` using TDD to introduce `DocumentRepository`, decouple `DocumentService`, create `createDocumentService` factory, and refactor Next.js API routes in `apps/web`.
+* **Outcome:** Created `DocumentRepository` contract interface and `SqliteDocumentRepository` using Drizzle SQLite in infrastructure. Refactored `DocumentService` in core to use constructor dependency injection with zero direct `db` driver imports. Created `createDocumentService()` factory in core to handle `APP_MODE` environment switching. Refactored Next.js API routes in `apps/web` (`GET` and `POST`) to consume `createDocumentService()`. Full monorepo pipeline verification (`pnpm check`) passing 100% green.
+

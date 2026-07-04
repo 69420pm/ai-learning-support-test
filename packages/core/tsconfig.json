@@ -1,11 +1,18 @@
 {
-	"extends": "@ai-learning-support/tsconfig/base.json",
-	"compilerOptions": {
-		"outDir": "./dist",
-		"rootDir": "./src",
-		"composite": false,
-		"types": ["node"]
-	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist"]
+  "extends": "@ai-learning-support/tsconfig/base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "composite": false,
+    "types": ["node"],
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@infrastructure/*": ["infrastructure/*"],
+      "@features/*": ["features/*"],
+      "@core/*": ["core/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

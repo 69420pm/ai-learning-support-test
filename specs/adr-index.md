@@ -6,7 +6,7 @@ Overview of the architectural decisions made for the project. Each decision is d
 Architectural decisions that define active, repository-wide invariants and code design patterns.
 
 - [ADR 002: Dual-Mode Architecture (Local Self-Hosted vs. Cloud SaaS)](adrs/002-dual-mode-architecture.md) — *Pluggable adapter architecture (Local SQLite/FS vs Cloud Supabase PG/S3)*
-- [ADR 003: Modular Monolith Package-Like Structure](adrs/003-modular-monolith-package-structure.md) — *Strict feature isolation in `packages/core`, no cross-imports, orchestration in services*
+- [ADR 003: Modular Monolith Architecture & Layering](adrs/003-modular-monolith-package-structure.md) — *Virtual package structure (`shared`, `infrastructure`, `features`, `core`), repository data access abstractions, and 3-tier doc governance*
 
 ## Domain & Feature Infrastructure (Read When Modifying Related Subsystems)
 Decisions specific to sub-domains, background workers, or future scaling plans.

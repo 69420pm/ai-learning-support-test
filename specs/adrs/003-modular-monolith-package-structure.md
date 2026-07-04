@@ -1,57 +1,113 @@
-# ADR 003: Modular Monolith Package-Like Structure without pnpm Workspaces
+# ADR 003: Modular Monolith ("Virtual Package") Architecture & Layering
 
 **Status:** Accepted  
-**Date:** 2026-07-03  
+**Date:** 2026-07-03 (Updated: 2026-07-04)  
+**Deciders:** Staff Architect, Engineering Lead  
+**Target Domains / Packages:** `packages/core`, `packages/infrastructure`, `packages/shared`, `packages/features`, `apps/web`  
 
-## Context
-As the codebase grows, application features and agent capabilities (e.g., pedagogical engines, LLM provider adapters, tool executors, memory subsystems) require strict encapsulation, clean separation of concerns, and defined input/output boundaries. 
+---
 
-The traditional approach of creating separate `pnpm` workspace packages (with individual `package.json` files, compilation pipelines, and cross-package linking) for every internal sub-feature introduces substantial overhead:
-* Increased build and hot-reload latency.
-* Configuration proliferation (`package.json`, `tsconfig.json`, `build` scripts per folder).
-* Version sync and workspace dependency linking friction for code that executes within the same runtime process.
+## Context & Problem Statement
 
-Conversely, a flat, unorganized codebase leads to high coupling, leaky abstractions, and spaghetti dependencies across features.
+As the application grew, features and agent capabilities (e.g., pedagogical engines, LLM provider adapters, document parsers, memory subsystems) required strict encapsulation, clean separation of concerns, and defined input/output boundaries.
+
+Creating separate published `pnpm` workspace packages with heavy individual build pipelines, versioning configs, and publishing scripts for every tiny sub-feature introduced unnecessary build overhead and hot-reload latency.
+
+Conversely, dumping all infrastructure drivers (Drizzle ORM, SQLite/Supabase, local file storage) and domain features flatly inside `packages/core/src/` turned `core` into a bloated "God Package" with `packages/core/src/core/` path duplication, leaky abstractions, and unclear data access boundaries.
+
+## Decision Drivers
+- **Intuitive Top-Level Monorepo Boundaries:** Eliminate awkward nested folder duplication (`packages/core/src/core/`).
+- **Lean Core Orchestration:** Keep `packages/core` lean, acting strictly as the workflow engine, state machine executor, and service wire-up layer.
+- **Infrastructure Adapter Isolation:** Isolate specific database providers (Supabase, Drizzle) and storage drivers (S3, local disk) inside `packages/infrastructure/` behind strict repository interfaces.
+- **Strict Module Boundaries:** Prevent feature modules inside `packages/features/` from cross-importing private internals or raw database drivers.
+- **Clean 3-Tier Governance:** Decouple Decision History (ADRs), System Diagrams (Specs), and Active Guidelines (Rules).
+
+---
 
 ## Decision
-We adopt a **Modular Monolith ("Virtual Package") Architecture**. Internal features are structured into independent, package-like directories within a unified runtime target, avoiding unnecessary pnpm package overhead.
 
-### Key Architectural Principles
+We adopt a **Modular Monolith ("Virtual Package") Architecture**. Internal features, infrastructure adapters, shared domain entities, and core orchestrators are structured into clean, package-level directories under `packages/` using TypeScript path aliases (`@shared/*`, `@infrastructure/*`, `@features/*`, `@core/*`).
 
-1. **Independent "Virtual Package" Directories:**
-   * Each feature resides in its own isolated directory (e.g., `modules/<feature-name>` or `features/<feature-name>`).
-   * Every feature directory acts as an independent module: it receives typed inputs, executes local logic, and returns explicit output contracts (or async streams).
+### 1. Monorepo Package Directory Boundaries
 
-2. **Strict Public API Boundaries (`index.ts` Exports):**
-   * Features export their public interface strictly via a top-level `index.ts`.
-   * Direct imports into private sub-files of another feature (e.g., `import { internalUtil } from '../other-feature/utils/private'`) are strictly prohibited and enforced via linter/TypeScript path rules.
+```text
+packages/
+├── shared/          # (@shared/*)       Pure domain entities, interfaces, & zero-dependency types
+├── infrastructure/  # (@infrastructure/*) DB Repositories, Drizzle/Supabase schemas, Storage Adapters
+├── features/        # (@features/*)     Self-contained business modules (parser, graphrag, scheduler)
+├── core/            # (@core/*)         LEAN Orchestrators, state machines, and workflow pipelines
+└── tsconfig/        # Shared TypeScript configurations
+```
 
-3. **Core Orchestration (`core`):**
-   * A lean `core` module manages application state, execution loops, state machines, and pipeline composition.
-   * Core orchestrates features by embedding or calling their public interfaces without taking on their domain responsibilities.
+```mermaid
+graph TD
+    %% Applications
+    Web["apps/web (Next.js App Shell)"] --> Core["@core (packages/core)"]
+    CLI["apps/cli (Future CLI Shell)"] --> Core
 
-4. **Lean Shared Domain Models (`shared` / `domain`):**
-   * Shared entities (e.g., core message types, execution results, event signatures) are stored in a centralized, minimal shared module accessible to both `core` and feature modules.
+    %% Core Orchestration
+    Core --> Features["@features (packages/features)"]
+    Core --> Infra["@infrastructure (packages/infrastructure)"]
 
-5. **Path Alias Mapping:**
-   * Module boundaries are cleanly referenced using TypeScript `paths` aliases (e.g., `@core/*`, `@modules/*`, `@shared/*`), eliminating relative path clutter (`../../..`).
+    %% Shared Types
+    Core --> Shared["@shared (packages/shared)"]
+    Features --> Shared
+    Infra --> Shared
+    Features -.->|Uses Repository Contracts| Infra
+```
+
+### 2. Package Layer Rules
+
+1. **`packages/shared` (`@shared/*`):** Zero internal dependencies. Defines core domain entities (`Document`, `User`), branded types, error classes, and shared interfaces.
+2. **`packages/infrastructure` (`@infrastructure/*`):** External driver implementations. Contains Drizzle ORM schemas, SQLite/Supabase clients, and StorageAdapters (local disk, S3, Cloudflare R2). Exposes typed Repository interfaces to features and core.
+3. **`packages/features` (`@features/*`):** Independent business logic modules (e.g., `document-parser`, `graphrag`, `scheduler`). Modules export a strict public API via `index.ts` and MUST NOT cross-import other feature modules.
+4. **`packages/core` (`@core/*`):** Lean orchestrator package. Manages application state, execution loops, state machines, and pipeline composition. Core orchestrates features and infrastructure without absorbing their domain responsibilities.
+
+### 3. Feature Data Access via Repository Contracts
+
+Feature modules (`packages/features/*`) MUST NOT import raw database drivers (Drizzle instance, Supabase client) or SQL table schemas directly. Data access is restricted to:
+* **Repository Pattern:** Features import typed Repository interfaces (e.g., `DocumentRepository.findById(id)`) exposed cleanly by `packages/infrastructure/db`.
+* **Ports & Adapters (Dependency Injection):** Features accept pure data inputs or callback functions supplied by `packages/core` at runtime.
+
+### 4. Clean 3-Tier Documentation Governance Model
+
+Documentation responsibility is cleanly separated across three distinct tiers:
+
+1. **ADRs (`specs/adrs/`) — Decision History:** Immutable records detailing *WHY* technical decisions were made, alternatives considered, and trade-offs accepted.
+2. **Architecture Spec (`specs/architecture-index.md`) — System Blueprint:** Living document mapping *WHAT* the system layout and data flows look like today. Must remain a clean visual blueprint free of preachy rule lists.
+3. **Active Rules (`rules/project-rules.md`) — Active Enforcement:** Actionable DOs and DO NOTs referenced by `AGENTS.md` specifying *HOW* developers and AI agents must construct code.
+
+---
 
 ## Consequences
 
 ### What Becomes Easier
-* **Fast Developer Loop:** Instant hot-reloading and zero extra compilation/bundling steps during development.
-* **Low Friction Refactoring:** High cohesion within modules with simple input/output contracts makes testing and refactoring straightforward.
-* **Clean Code Boundaries:** Clear architectural mental model matching top-tier AI agent harnesses (Claude Code CLI, Aider, OpenHands).
+* **Intuitive Directory Structure:** Eliminates awkward `packages/core/src/core/` nesting in favor of top-level `packages/core`, `packages/infrastructure`, `packages/shared`, `packages/features`.
+* **Fast Developer Loop:** Instant hot-reloading across workspace packages without heavy publishing/compilation steps.
+* **Un-bloated Core:** `packages/core` remains lean as a pure orchestrator.
+* **Infrastructure Swappability:** Swapping SQLite for Supabase PostgreSQL or local disk for Cloudflare R2 only impacts `packages/infrastructure/`, leaving `packages/features/` completely untouched.
+* **Unit Testing:** Feature modules are pure data processors that do not require running database instances during unit tests.
 
 ### What Becomes Harder
-* **Boundary Enforcement:** Because TypeScript will physically allow importing across directories in the same project, linter rules (e.g., Biome or ESLint import boundaries) must be configured and enforced to prevent boundary leaks.
+* **Path Mapping Governance:** TypeScript path aliases (`@shared/*`, `@infrastructure/*`, `@features/*`, `@core/*`) must be configured across workspace packages and enforced via linter rules.
+
+### Risks & Mitigations
+- **Risk:** Developers bypass Repository abstractions and import Drizzle schemas into features.
+  - **Mitigation:** Enforce Biome/ESLint path boundaries blocking imports from `@infrastructure/db/schema/*` inside `@features/*`.
+
+---
 
 ## Alternatives Considered
 
-1. **Granular pnpm Monorepo Workspaces for Every Sub-Feature:**  
-   *Creating separate pnpm packages under `packages/*` for every internal module.*  
-   *Rejected* due to excessive configuration overhead, build pipeline complexity, and slow dev loops for code executing in a single Node.js runtime.
+### 1. Nested `packages/core/src/core/` Layering
+- **Overview:** Putting `shared`, `infrastructure`, `features`, and `core` inside `packages/core/src/`.
+- **Pros:** Keeps all logic inside a single package folder initially.
+- **Cons:** Results in awkward `packages/core/src/core/` nesting and makes `packages/core` a dumping ground.
+- **Rejection Rationale:** Top-level package directories (`packages/core`, `packages/infrastructure`, `packages/shared`, `packages/features`) are far cleaner and more intuitive.
 
-2. **Unstructured Layered Architecture (Global `services/`, `utils/`, `controllers/`):**  
-   *Grouping code by technical layer rather than feature boundaries.*  
-   *Rejected* because it leads to high coupling, scattered feature logic, and poor module isolation.
+---
+
+## Compliance & Related Specifications
+- [ADR 002: Dual-Mode Architecture](002-dual-mode-architecture.md)
+- [System Architecture Index](../architecture-index.md)
+- [Project Philosophy & Rules](../../rules/project-rules.md)

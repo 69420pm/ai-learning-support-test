@@ -7,72 +7,71 @@
 | Attribute | Value |
 | :--- | :--- |
 | **Document Type** | Technical Design Document (TDD) / Architecture Spec |
-| **Version** | 1.1.0 |
+| **Version** | 1.3.0 |
 | **Status** | Living Document |
-| **Last Updated** | 2026-07-02 |
+| **Last Updated** | 2026-07-04 |
 
 ---
 
-This document outlines the architecture of the AI Learning Support system, it represents the current state of the system, NO FUTURE PLANS OR DECISIONS ARE FINALIZED HERE. For future plans, please refer to the [ADR directory](./adrs/).
+This document outlines the architecture and blueprint of the AI Learning Support system. It describes the **current state** of system layout, layer boundaries, and component interaction. For decision context and trade-offs, refer to the [ADR directory](./adrs/). For active code enforcement rules, refer to [rules/project-rules.md](../rules/project-rules.md).
 
-## 2. Directory Structure (Monorepo)
+---
 
-To decouple product logic from the UI framework and allow multiple packages (e.g., core, web app, CLI), we use a TypeScript monorepo managed via **pnpm workspaces** (or npm workspaces).
+## 2. Monorepo Structure & Package Layers
+
+To decouple product logic from UI frameworks and enable seamless execution across multiple app shells (Next.js web app, CLI, background workers), code is partitioned into clean package-level directories under `packages/`.
 
 ```text
 ├── apps/
 │   └── web/                   # Next.js web application (Frontend UI & API routes)
 ├── packages/
-│   ├── core/                  # Core Application Package (Framework agnostic)
+│   ├── shared/                # (@shared/*) Pure domain entities & zero-dependency types
+│   ├── infrastructure/        # (@infrastructure/*) DB Repositories & Storage Adapters
+│   ├── features/              # (@features/*) Isolated domain modules (parser, graphrag)
+│   ├── core/                  # (@core/*) Lean Orchestrators & workflow pipelines
 │   └── tsconfig/              # Shared TypeScript configurations
 ├── package.json
 └── pnpm-workspace.yaml
 ```
 
-### 2.1 Architectural Rules & Dependency Flow
+---
 
-To maintain absolute modularity and allow future apps to inherit all capabilities with zero duplication, code must strictly adhere to the following dependency flow rules.
+## 2.1 Package Layers & Dependency Flow
 
 ```mermaid
 graph TD
     %% Applications (Thin Shells)
-    Web["apps/web (Next.js)"] --> Core["@project/core (Orchestrators)"]
-    CLI["apps/cli (Future)"] --> Core
+    Web["apps/web (Next.js)"] --> Core["@core (packages/core)"]
+    CLI["apps/cli (Future CLI Shell)"] --> Core
 
-    %% The Orchestrator
-    Core --> DB["packages/core/src/database"]
-    Core --> Storage["packages/core/src/storage"]
-    Core --> Parser["packages/core/src/features/parser"]
-    Core --> GraphRAG["packages/core/src/features/graphrag"]
-    Core --> Scheduler["packages/core/src/features/scheduler"]
+    %% Core Orchestration Layer
+    Core --> Features["@features (packages/features)"]
+    Core --> Infra["@infrastructure (packages/infrastructure)"]
+
+    %% Shared Domain Layer
+    Core --> Shared["@shared (packages/shared)"]
+    Features --> Shared
+    Infra --> Shared
+
+    %% Feature Data Access
+    Features -.->|Uses Repository Contracts| Infra
 ```
 
-#### **Rule 1: Unidirectional Orchestration (How to orchestrate)**
-* **DO:** Keep all coordination, database calls, external API fetches, and file storage read/writes inside the high-level orchestrators (e.g., `packages/core/src/services/*`).
-* **DO NOT:** Put API endpoints, HTTP-specific handlers, or route parameters inside the core orchestrator. The app shell (Next.js API routes) is a thin wrapper that parses inputs, runs the orchestrator, and responds.
+### Layer Responsibilities
 
-#### **Rule 2: Feature Isolation (No Cross-Imports)**
-* **DO:** Make features in `features/` self-contained and modular. Each feature should expose a clean public API via an `index.ts` file in its root.
-* **DO NOT:** Cross-import files between features (e.g., `features/graphrag` importing from `features/scheduler`). If they need to communicate, it must be coordinated by an orchestrator service in the `services/` directory.
-
-#### **Rule 3: No Infrastructure in Features (How to keep features testable)**
-* **DO:** Design feature modules as **pure data processors** (data-in, data-out). If a feature needs external inputs, pass them as arguments or functions (callbacks / dependency injection).
-* **DO NOT:** Import database schemas, clients (`drizzle` instance), or storage drivers inside features. Features should not perform side-effects like writing directly to disk or DB.
-
-#### **Rule 4: Shared Entities**
-* **DO:** Place common types, shared domain definitions, and cross-cutting interfaces in `packages/core/src/types/`. Features and database tables can import freely from this directory to align data structures.
+1. **`apps/web` (App Shell):** Thin HTTP/UI wrapper. Parses requests, invokes `@core` orchestrators, and renders views. Contains no business logic.
+2. **`packages/core` (`@core/*`):** Lean orchestrator package. Coordinates complex workflows, pipeline execution, state machines, and cross-feature workflows.
+3. **`packages/features` (`@features/*`):** Self-contained, pure business logic modules (e.g., `document-parser`, `graphrag`, `scheduler`). Modules export a strict public API via `index.ts` and do not cross-import.
+4. **`packages/infrastructure` (`@infrastructure/*`):** Low-level driver implementations (Drizzle ORM, Supabase client, local disk storage, Cloudflare R2 / S3 storage). Exposes typed Repository interfaces to feature modules.
+5. **`packages/shared` (`@shared/*`):** Common domain models (`Document`, `Chunk`, `User`), interfaces, and error definitions imported across all layers.
 
 ---
 
-## 3. Architecture Deep Dives
+## 3. Architecture Deep Dives & Governance
 
-For specific domains, please refer to the following documents:
+For domain-specific architecture and decision records:
 
 * [**Adapters & Storage**](./architecture/adapters_and_storage.md): Pluggable database and storage interfaces (Local vs Cloud Mode).
 * [**Data Models**](./architecture/data_models.md): Database schemas and Drizzle setup.
-* [**Document Upload Flow**](../apps/web/README.md): Next.js API routes and upload strategies.
-* [**Background Ingestion & Execution**](../packages/core/README.md): Background queues, workers, and orchestration.
-
-### Future Plans & Decisions
-Future architectural plans are documented as ADRs (Architecture Decision Records).
-* [**ADR 001: Cloud Scale-Up Strategy**](./adrs/001-cloud-scale-up-strategy.md)
+* [**ADR Directory**](./adrs/): Historical decision records ([ADR 002](./adrs/002-dual-mode-architecture.md), [ADR 003](./adrs/003-modular-monolith-package-structure.md)).
+* [**Project Philosophy & Rules**](../rules/project-rules.md): Actionable coding guidelines and boundary rules.

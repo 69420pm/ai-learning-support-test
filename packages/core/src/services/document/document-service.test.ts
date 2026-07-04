@@ -1,7 +1,5 @@
+import { db, documents, type StorageService } from '@ai-learning-support/infrastructure';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { db } from '../../database/db.js';
-import { documents } from '../../database/schema/documents.js';
-import type { StorageService } from '../../storage/storage-service.js';
 import { DocumentService } from './document-service.js';
 
 describe('DocumentService', () => {

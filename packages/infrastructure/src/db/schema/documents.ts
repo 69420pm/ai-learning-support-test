@@ -1,5 +1,5 @@
+import type { DocumentStatus } from '@ai-learning-support/shared';
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import type { DocumentStatus } from '../../../shared/types/document.js';
 
 export const documents = sqliteTable(
   'documents',

@@ -1,11 +1,9 @@
 import type { Buffer } from 'node:buffer';
 import * as path from 'node:path';
+import { db, documents, type StorageService } from '@ai-learning-support/infrastructure';
+import type { DocumentEntity } from '@ai-learning-support/shared';
 import { desc, eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../../infrastructure/db/db.js';
-import { documents } from '../../infrastructure/db/schema/documents.js';
-import type { StorageService } from '../../infrastructure/storage/storage-service.js';
-import type { DocumentEntity } from '../../shared/types/document.js';
 
 export class DocumentService {
   constructor(private storageService: StorageService) {}

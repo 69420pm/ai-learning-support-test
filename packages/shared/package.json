@@ -1,8 +1,8 @@
 {
-  "name": "@ai-learning-support/core",
+  "name": "@ai-learning-support/shared",
   "version": "1.0.0",
   "private": true,
-  "description": "",
+  "description": "Shared domain types and zero-dependency contracts",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,20 +19,11 @@
     "lint": "biome lint src",
     "format": "biome format src --write",
     "typecheck": "tsc --noEmit",
-    "test": "DATABASE_PATH=../../.data/app.core.test.db vitest run --project=core"
+    "test": "vitest run --project=shared"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module",
   "devDependencies": {
     "@ai-learning-support/tsconfig": "workspace:*",
-    "@types/uuid": "^10.0.0"
-  },
-  "dependencies": {
-    "@ai-learning-support/infrastructure": "workspace:*",
-    "@ai-learning-support/shared": "workspace:*",
-    "drizzle-orm": "^0.38.3",
-    "uuid": "^11.0.0"
+    "tsup": "^8.3.5"
   }
 }

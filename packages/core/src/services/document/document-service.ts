@@ -1,12 +1,14 @@
 import type { Buffer } from 'node:buffer';
 import * as path from 'node:path';
-import { db, documents, type StorageService } from '@ai-learning-support/infrastructure';
+import type { DocumentRepository, StorageService } from '@ai-learning-support/infrastructure';
 import type { DocumentEntity } from '@ai-learning-support/shared';
-import { desc, eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
 export class DocumentService {
-  constructor(private storageService: StorageService) {}
+  constructor(
+    private storageService: StorageService,
+    private documentRepository: DocumentRepository,
+  ) {}
 
   async uploadDocument(
     userId: string,
@@ -20,28 +22,16 @@ export class DocumentService {
     // Save file content buffer to storage
     await this.storageService.uploadFile(storagePath, fileBuffer);
 
-    // Save document metadata record into database
-    const timestamp = Date.now();
+    // Save document metadata record into repository
     try {
-      const [inserted] = await db
-        .insert(documents)
-        .values({
-          id: documentId,
-          userId,
-          name: safeFilename,
-          storagePath,
-          fileSize: fileBuffer.length,
-          status: 'pending',
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        })
-        .returning();
-
-      if (!inserted) {
-        throw new Error('Failed to insert document metadata');
-      }
-
-      return inserted;
+      return await this.documentRepository.create({
+        id: documentId,
+        userId,
+        name: safeFilename,
+        storagePath,
+        fileSize: fileBuffer.length,
+        status: 'pending',
+      });
     } catch (error) {
       try {
         await this.storageService.deleteFile(storagePath);
@@ -53,11 +43,6 @@ export class DocumentService {
   }
 
   async listDocuments(userId: string): Promise<DocumentEntity[]> {
-    return await db
-      .select()
-      .from(documents)
-      .where(eq(documents.userId, userId))
-      .orderBy(desc(documents.createdAt))
-      .all();
+    return await this.documentRepository.listByUserId(userId);
   }
 }

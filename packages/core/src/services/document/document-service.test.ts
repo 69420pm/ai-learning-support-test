@@ -1,112 +1,90 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { db } from "../../database/db.js";
-import { documents } from "../../database/schema/documents.js";
-import type { StorageService } from "../../storage/storage-service.js";
-import { DocumentService } from "./document-service.js";
+import type { DocumentRepository, StorageService } from '@ai-learning-support/infrastructure';
+import type { DocumentEntity } from '@ai-learning-support/shared';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DocumentService } from './document-service.js';
 
-describe("DocumentService", () => {
-	const mockStorageService = {
-		uploadFile: vi.fn(),
-		getFile: vi.fn(),
-		deleteFile: vi.fn(),
-		getFileUrl: vi.fn(),
-	} as unknown as StorageService;
+describe('DocumentService', () => {
+  const mockStorageService = {
+    uploadFile: vi.fn(),
+    getFile: vi.fn(),
+    deleteFile: vi.fn(),
+    getFileUrl: vi.fn(),
+  } as unknown as StorageService;
 
-	const documentService = new DocumentService(mockStorageService);
+  const mockDocumentRepository = {
+    create: vi.fn(),
+    findById: vi.fn(),
+    listByUserId: vi.fn(),
+    delete: vi.fn(),
+  } as unknown as DocumentRepository;
 
-	beforeEach(async () => {
-		vi.clearAllMocks();
-		await db.delete(documents);
-	});
+  const documentService = new DocumentService(mockStorageService, mockDocumentRepository);
 
-	it("should upload document and save metadata", async () => {
-		const userId = "user-123";
-		const filename = "test-doc.pdf";
-		const fileBuffer = Buffer.from("pdf-contents");
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-		vi.mocked(mockStorageService.uploadFile).mockResolvedValue("success-path");
+  it('should upload document and save metadata via DocumentRepository', async () => {
+    const userId = 'user-123';
+    const filename = 'test-doc.pdf';
+    const fileBuffer = Buffer.from('pdf-contents');
 
-		const result = await documentService.uploadDocument(userId, filename, fileBuffer);
+    const expectedDoc: DocumentEntity = {
+      id: 'mock-doc-id',
+      userId,
+      name: filename,
+      storagePath: `users/${userId}/documents/mock-doc-id-${filename}`,
+      fileSize: fileBuffer.length,
+      status: 'pending',
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
 
-		// Assert storage upload was called
-		expect(mockStorageService.uploadFile).toHaveBeenCalledTimes(1);
-		const uploadCall = vi.mocked(mockStorageService.uploadFile).mock.calls[0];
-		expect(uploadCall).toBeDefined();
-		if (!uploadCall) {
-			throw new Error("uploadCall is undefined");
-		}
-		const storagePath = uploadCall[0];
-		expect(storagePath).toMatch(
-			new RegExp(`^users/${userId}/documents/[a-f0-9-]{36}-${filename}$`),
-		);
-		expect(uploadCall[1]).toBe(fileBuffer);
+    vi.mocked(mockStorageService.uploadFile).mockResolvedValue('success-path');
+    vi.mocked(mockDocumentRepository.create).mockResolvedValue(expectedDoc);
 
-		// Assert DB insertion
-		const allDocs = await db.select().from(documents).all();
-		expect(allDocs).toHaveLength(1);
-		const doc = allDocs[0];
-		expect(doc).toBeDefined();
-		if (!doc) {
-			throw new Error("doc is undefined");
-		}
-		expect(doc.id).toBeDefined();
-		expect(doc.userId).toBe(userId);
-		expect(doc.name).toBe(filename);
-		expect(doc.storagePath).toBe(storagePath);
-		expect(doc.fileSize).toBe(fileBuffer.length);
-		expect(doc.status).toBe("pending");
-		expect(doc.createdAt).toBeLessThanOrEqual(Date.now());
-		expect(doc.updatedAt).toBeLessThanOrEqual(Date.now());
+    const result = await documentService.uploadDocument(userId, filename, fileBuffer);
 
-		// Assert returned object
-		expect(result).toEqual(doc);
-	});
+    expect(mockStorageService.uploadFile).toHaveBeenCalledTimes(1);
+    expect(mockDocumentRepository.create).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(expectedDoc);
+  });
 
-	it("should list documents for user", async () => {
-		const userId = "user-123";
-		const otherUserId = "user-456";
+  it('should list documents for user via DocumentRepository', async () => {
+    const userId = 'user-123';
+    const docsList: DocumentEntity[] = [
+      {
+        id: 'doc-1',
+        userId,
+        name: 'test.pdf',
+        storagePath: 'path/1',
+        fileSize: 100,
+        status: 'pending',
+        createdAt: 2000,
+        updatedAt: 2000,
+      },
+    ];
 
-		// Insert records manually with different timestamps
-		await db.insert(documents).values([
-			{
-				id: "doc-1",
-				userId,
-				name: "first.pdf",
-				storagePath: "users/user-123/documents/doc-1-first.pdf",
-				fileSize: 100,
-				status: "pending",
-				createdAt: 1000,
-				updatedAt: 1000,
-			},
-			{
-				id: "doc-2",
-				userId,
-				name: "second.pdf",
-				storagePath: "users/user-123/documents/doc-2-second.pdf",
-				fileSize: 200,
-				status: "pending",
-				createdAt: 2000, // newer
-				updatedAt: 2000,
-			},
-			{
-				id: "doc-3",
-				userId: otherUserId,
-				name: "other.pdf",
-				storagePath: "users/user-456/documents/doc-3-other.pdf",
-				fileSize: 300,
-				status: "pending",
-				createdAt: 1500,
-				updatedAt: 1500,
-			},
-		]);
+    vi.mocked(mockDocumentRepository.listByUserId).mockResolvedValue(docsList);
 
-		const results = await documentService.listDocuments(userId);
+    const results = await documentService.listDocuments(userId);
 
-		// Assert ordering and filtering
-		expect(results).toHaveLength(2);
-		expect(results[0]).toBeDefined();
-		expect(results[1]).toBeDefined();
-		expect(results[0]?.id).toBe("doc-2");
-		expect(results[1]?.id).toBe("doc-1");
-	});
+    expect(mockDocumentRepository.listByUserId).toHaveBeenCalledWith(userId);
+    expect(results).toEqual(docsList);
+  });
+
+  it('should delete uploaded storage file if repository creation fails', async () => {
+    const userId = 'user-123';
+    const filename = 'test-doc.pdf';
+    const fileBuffer = Buffer.from('pdf-contents');
+
+    vi.mocked(mockStorageService.uploadFile).mockResolvedValue('success-path');
+    vi.mocked(mockDocumentRepository.create).mockRejectedValue(new Error('DB Insert Failed'));
+
+    await expect(documentService.uploadDocument(userId, filename, fileBuffer)).rejects.toThrow(
+      'DB Insert Failed',
+    );
+
+    expect(mockStorageService.deleteFile).toHaveBeenCalledTimes(1);
+  });
 });

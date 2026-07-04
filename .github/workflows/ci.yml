@@ -27,8 +27,8 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
-      - name: Setup
-        run: make setup
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Check
-        run: make check
+        run: pnpm check

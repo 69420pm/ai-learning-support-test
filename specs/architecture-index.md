@@ -71,7 +71,9 @@ graph TD
 
 For domain-specific architecture and decision records:
 
+* [**Proposed Document Intelligence & GraphRAG**](./architecture/document_intelligence_and_graphrag_PROPOSAL.md): Proposed schemas, pipelines, and hybrid context retrieval strategy (**Proposed / Unimplemented**).
 * [**Adapters & Storage**](./architecture/adapters_and_storage.md): Pluggable database and storage interfaces (Local vs Cloud Mode).
 * [**Data Models**](./architecture/data_models.md): Database schemas and Drizzle setup.
 * [**ADR Directory**](./adrs/): Historical decision records ([ADR 002](./adrs/002-dual-mode-architecture.md), [ADR 003](./adrs/003-modular-monolith-package-structure.md)).
 * [**Project Philosophy & Rules**](../rules/project-rules.md): Actionable coding guidelines and boundary rules.
+

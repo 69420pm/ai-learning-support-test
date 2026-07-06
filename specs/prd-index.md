@@ -10,8 +10,8 @@ This directory contains domain-specific Product Requirements Documents (PRDs) fo
 * **Scope:** Executive summary, problem statement, core value proposition, active guidance paradigm, target persona, document-grounded learning, strategic goals, and non-goals.
 * **Target Packages:** `apps/web`, `packages/core`.
 
-### 2. [Document Ingestion & GraphRAG](prds/02-document-ingestion-graphrag.md)
-* **Scope:** PDF extraction, lightweight GraphRAG concept graph generation, granular hierarchical summaries, smart directory mapping, and async task processing UI feedback.
+### 2. [Material Ingestion & Knowledge Structuring](prds/02-material-ingestion-knowledge-structing.md)
+* **Scope:** PDF extraction, hierarchical Table of Contents document trees, multi-level summaries, low-cost concept mapping, and hybrid contextual retrieval (Proposed / In Review).
 * **Target Packages:** `packages/core/src/features/parser`, `packages/core/src/features/graphrag`.
 
 ### 3. [Learning Plan & Analytics](prds/03-learning-plan-analytics.md)

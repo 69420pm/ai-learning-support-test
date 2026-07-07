@@ -18,23 +18,20 @@ Living record of project-specific, non-discoverable gotchas and landmines.
 * **Memory Loop:** Always log updates in [.agents/memory/session-history.md](file:///workspaces/secure-ai-learning-support/.agents/memory/session-history.md) and don't read memory when not necessary for the task. If you learned something extraordinary regarding agent performance that can improve future agent runs, note it into [.agents/memory/general-learnings.md]
 
 ## Tool: mgrep search usage guide
-`mgrep` is a CLI tool for natural-language, semantic searching across local files (code, PDFs, images) and the web. It is designed to understand the *intent* of a search rather than requiring exact regex or string matches. Prefer it whenever it makes sense over standard `grep` or `rg`.
-`pnpm mgrep search` is the default command. It can be used to search the current directory for a pattern.
+`mgrep` is a tool for natural-language, semantic searching across local files (code, PDFs, images) and the web. It is designed to understand the *intent* of a search rather than requiring exact regex or string matches.
 
-| Option | Description |
-| --- | --- |
-| `-m <max_count>` | The maximum number of results to return |
-| `-c`, `--content` | Show content of the results |
-| `-a`, `--answer` | Generate an answer to the question based on the results |
-| `-w`, `--web` | Include web search results alongside local files |
-| `--agentic` | Enable agentic search to automatically refine queries and perform multiple searches |
-| `-s`, `--sync` | Sync the local files to the store before searching |
-| `-d`, `--dry-run` | Dry run the search process (no actual file syncing) |
-| `--no-rerank` | Disable reranking of search results |
-| `--max-file-size <bytes>` | Maximum file size in bytes to upload (overrides config) |
-| `--max-file-count <count>` | Maximum number of files to upload (overrides config) |
+It is registered as a first-class MCP server in the workspace. You can use the `mcp_mgrep_mgrep_search` tool directly to perform semantic queries.
 
-**Examples:**
+### Inputs for `mcp_mgrep_mgrep_search`:
+- `query` (required): The natural language semantic query.
+- `path` (optional): File path or directory to limit search context.
+- `limit` (optional): Number of results to return (default: 10).
+- `web` (optional): Set true to include web search results alongside local files.
+- `answer` (optional): Set true to generate a natural language summary answer based on the retrieved code chunks.
+
+Alternatively, you can run search queries from the command line using the wrapper `mgrep search "query"` or `pnpm mgrep search "query"`.
+
+**Examples (via CLI):**
 ```bash
 mgrep "What code parsers are available?"  # search in the current directory
 mgrep "How are chunks defined?" src/models  # search in the src/models directory

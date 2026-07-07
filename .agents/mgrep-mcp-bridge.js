@@ -32,9 +32,9 @@ server.setRequestHandler(ListToolsRequestSchema, () => {
   return {
     tools: [
       {
-        name: 'mgrep_search',
+        name: 'search',
         description:
-          'Perform semantic search across local codebase files and/or the web using Mixedbread mgrep.',
+          'Perform semantic (intent-based) natural language search across local files and the web. Use this to find where features or concepts are implemented, feature files, or web documentation when you do not know the exact keyword or code structure. DO NOT use this for exact symbol tracing or refactoring regex; use standard grep/ripgrep for exact keyword matches.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -71,7 +71,7 @@ server.setRequestHandler(ListToolsRequestSchema, () => {
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name !== 'mgrep_search') {
+  if (request.params.name !== 'search') {
     throw new Error(`Tool not found: ${request.params.name}`);
   }
 

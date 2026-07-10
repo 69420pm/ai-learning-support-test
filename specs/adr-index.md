@@ -12,3 +12,4 @@ Architectural decisions that define active, repository-wide invariants and code 
 Decisions specific to sub-domains, background workers, or future scaling plans.
 
 - [ADR 001: Cloud Scale-Up Strategy](adrs/001-cloud-scale-up-strategy.md) — *Future cloud scaling roadmap (Cloudflare R2 storage migration, background queue/worker options)*
+- [ADR 004: LLM Provider Abstraction](adrs/004-llm-provider-abstraction.md) — *Vercel AI SDK adapter wrapped behind a domain-agnostic LlmService Port interface*

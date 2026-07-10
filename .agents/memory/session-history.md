@@ -105,3 +105,12 @@ This is a log of tasks completed, what failed, and what worked. Keep entries bri
 ## [2026-07-07] mgrep MCP Configuration
 * **Goal:** Enable the agent to use `mgrep` as a first-class tool inside Antigravity/`agy`.
 * **Outcome:** Discovered that the native `@mixedbread/mgrep` MCP server exposes zero search tools (it is designed solely for background file syncing). Implemented a custom local MCP server bridge at `.agents/mgrep-mcp-bridge.js` using `@modelcontextprotocol/sdk` (added to workspace root devDependencies). Registered this bridge in the global `~/.gemini/config/mcp_config.json`. The new setup successfully exposes the semantic search tool as `mcp_mgrep_search` to the agent while still launching the background `mgrep watch` sync automatically. Embedded the full usage guidelines directly in the tool's schema description, keeping `AGENTS.md` clean and clutter-free.
+
+## [2026-07-07] Figma MCP Setup Guide & Workspace Configuration
+* **Goal:** Provide a comprehensive guide for connecting Figma via MCP and configure a workspace-level template.
+* **Outcome:** Created a step-by-step integration guide artifact at [figma_mcp_setup_guide.md](file:///home/vscode/.gemini/antigravity-cli/brain/accb1b38-b65f-4f96-8d1e-3d4c987f5448/figma_mcp_setup_guide.md) detailing Figma Personal Access Token creation, MCP configuration (both global and workspace-level), available tools, and workflow best practices. Created a workspace-level configuration template at [.agents/mcp_config.json](file:///workspaces/secure-ai-learning-support/.agents/mcp_config.json) to jumpstart the user's setup.
+
+## [2026-07-08] Figma MCP Auth & Package Troubleshooting
+* **Goal:** Resolve npm 404 error and OAuth-based "Unauthorized" errors during Figma MCP server initialization.
+* **Outcome:** Identified that the official remote SSE server (`https://mcp.figma.com/mcp`) requires client-side interactive OAuth 2.0 flow and does not support static Personal Access Tokens (PATs). Modified workspace configuration at [.agents/mcp_config.json](file:///workspaces/secure-ai-learning-support/.agents/mcp_config.json) and setup guide at [figma_mcp_setup_guide.md](file:///home/vscode/.gemini/antigravity-cli/brain/accb1b38-b65f-4f96-8d1e-3d4c987f5448/figma_mcp_setup_guide.md) to use the NPM package `figma-developer-mcp`, which natively authenticates using the static Personal Access Token (PAT).
+

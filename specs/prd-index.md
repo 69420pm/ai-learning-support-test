@@ -33,3 +33,7 @@ This directory contains domain-specific Product Requirements Documents (PRDs) fo
 ### 7. [Business Model & Licensing Strategy](prds/07-business-model-licensing.md)
 * **Scope:** Dual-licensing strategy (ELv2 source-available vs Hosted Cloud SaaS), competitive differentiation, monetization, self-hosting privacy rights, and SaaS subscription tiers.
 * **Target Packages:** Root repository, `apps/web`.
+
+### 8. [Developer LLM Chat Playground](prds/08-llm-chat-playground.md)
+* **Scope:** End-to-end streaming chat playground, sidebar reorganization (collapsible left panel for document upload and list, main panel for general-purpose LLM streaming chat), and server-side swappable environment configuration (Google Gemini or OpenAI-compatible providers).
+* **Target Packages:** `apps/web`, `packages/core`, `packages/shared`, `packages/infrastructure`.

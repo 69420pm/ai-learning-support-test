@@ -41,6 +41,8 @@ Thumbs.db
 *.db-shm
 *.db-wal
 
-docs/context/
+context/
 
 .devcontainer/
+
+.agents/mcp_config.json

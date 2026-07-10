@@ -92,10 +92,7 @@ We build this now because it is the hard, shared prerequisite for every other fe
 | ID | Feature / Component | Description & Acceptance Criteria | Priority |
 | :--- | :--- | :--- | :--- |
 | **FR-1** | Sanity pre-check | Before substantive processing, each file/page is checked cheaply for meaningful content. Pages with no recoverable meaningful content are skipped and flagged; a file is rejected only when essentially all pages fail. The threshold is low (only near-total noise triggers it). Every skip/rejection is reported with its reason. | Must Have |
-| **FR-2** | Faithful content extraction (hybrid text + multimodal) | For every processed page, recoverable content (body text, tables, formulas, figures, and text embedded in images) is extracted. Extraction uses the embedded text layer where it reliably covers the page and escalates to multimodal understanding for image-heavy, low/no-text-layer, or spatially complex pages. Extracted text is preserved verbatim, not paraphrased. Each extracted element resolves to its origin (file + page/slide). | Must Have |
 | **FR-3** | Topic-centric map across all materials | All extracted content for a subject is organized into a topic-centric structure spanning every file. The primary navigation unit is the **topic**; each topic points to one or more original source spans (which may live in different files). The system may make organizational/grouping judgments, constrained by: it may organize and point to content but must never alter, summarize-into, or fabricate content. Given a topic, an agent can retrieve the exact original content covering it. | Must Have |
-| **FR-4** | Original content retrieval | For any addressable element (topic span, page, figure), the system returns the unaltered original — verbatim text and/or the original figure image — with its citation. No element is exposed that cannot be resolved to real source. | Must Have |
-| **FR-5** | Figure/diagram handling (image + description) | Figures and diagrams are retained as their original image **and** paired with derived descriptive metadata. Descriptions capture relational elements (e.g. arrows/connections between parts) and are clearly marked as derived (not source text) and always bound to the original image. | Must Have |
 | **FR-6** | Topic relationship map | The map captures relationships between topics: (a) **co-coverage** — the same topic addressed in multiple places/files; (b) **dependency** — prerequisite/"needed to understand" connections between topics. An agent can, from a topic, discover related and prerequisite topics. Relationships are derived structure over real content and introduce no new substantive content. | Must Have |
 | **FR-7** | Entry points | From the relationship graph, the system derives entry points — topics that can be approached without unmet prerequisites — and exposes them for query. (No full ordering/sequencing beyond this.) | Should Have |
 | **FR-8** | Question & exercise detection and parsing | Questions/exercises across all materials — including standalone exams/sheets and items interleaved in knowledge content (e.g. a question on a slide) — are detected and parsed into components (stem; options if any; solution if present; point value if present). Parsed fields resolve to their original source. | Must Have |
@@ -114,7 +111,7 @@ We build this now because it is the hard, shared prerequisite for every other fe
 ### 6.1 Data Privacy & Protection
 
 - **Learner data handling:** Uploaded materials are private to the owning learner and subject; strict per-user/per-subject isolation (FR-13). No cross-tenant access.
-- **PII in materials:** Past exams/sheets may contain names, student IDs, or grader annotations. This PRD **preserves original content faithfully** and does not scrub by default; a PII-handling decision (retain vs. redact-on-surface) is flagged as an open issue (§10) and should be resolved before handling regulated (legal/medical) data at scale.
+- **PII in materials:** Past exams/sheets may contain names, student IDs, or grader annotations. This PRD **preserves original content faithfully** and does not scrub by default; a PII-handling decision (retain vs. redact-on-surface) should be flagged as an open issue and should be resolved before handling regulated (legal/medical) data at scale.
 - **Retention & scrubbing:** Original files and derived maps persist for the life of the subject; deletion of a subject removes its materials, derived map, and stored figure images.
 
 ### 6.2 AI Safety, Grounding & Defense
@@ -136,7 +133,7 @@ Interaction states apply to the ingestion process reporting (FR-15): in-progress
 
 ## 8. Technical & Operational Constraints
 
-- **Performance & cost:** Selective multimodal use to bound cost (FR-2); concrete per-page/per-subject cost and latency budgets to be set in the architecture phase.
+- **Performance & cost:** No hard targets yet, but as fast and cheap as possible while still meeting quality standards. Needs to be architected for scale (many subjects, many pages per subject, many users) and for incremental growth (FR-14). Concrete pricing will be defined later.
 - **Data & storage:** Requires isolated per-user/per-subject persistence for original files, figure images, and the derived map/relationships/question links; must support incremental merge (FR-14) rather than full recompute.
 - **Dependencies:** Depends on multimodal document understanding capability; does not mandate a specific model/provider.
 - **Ordering dependency:** Knowledge structuring must precede test-base topic linking (FR-10).

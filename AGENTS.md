@@ -15,7 +15,7 @@ Living record of project-specific, non-discoverable gotchas and landmines.
 - `specs/`: Technical specifications, PRDs (`prds/`), architecture docs (`architecture/`), and ADRs (`adrs/`).
 
 ## Active Root Gotchas
-* **Memory Loop:** Always log updates in [.agents/memory/session-history.md](file:///workspaces/secure-ai-learning-support/.agents/memory/session-history.md) and don't read memory when not necessary for the task. If you learned something extraordinary regarding agent performance that can improve future agent runs, note it into [.agents/memory/general-learnings.md]
+* **Memory Loop:** If you learned something extraordinary regarding agent performance that can improve future agent runs, note it into [.agents/memory/general-learnings.md]
 
 ## Tool: mgrep search
 `mgrep` is registered as an MCP server. Use the `mcp_mgrep_search` tool directly to perform semantic search across the codebase or the web (see the tool's description for parameter details).

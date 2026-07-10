@@ -110,6 +110,7 @@ Compare 2 to 3 feasible architectural approaches (including the status quo) in a
 ### D. Definitive Staff Engineer Recommendation
 - Give a strong, opinionated recommendation on which path to take.
 - Explain the precise design pattern, boundary layout, and interface contract to use.
+- Don't write code yet; focus on the architectural decision and its rationale, only short explanations.
 
 ### E. Next Steps & Skill Handoffs
 - Ask clarifying questions or solicit user alignment on the proposed direction.

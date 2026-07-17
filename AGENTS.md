@@ -14,8 +14,8 @@ Living record of project-specific, non-discoverable gotchas and landmines.
 - `rules/`: Development guidelines and standards referenced by `AGENTS.md`.
 - `specs/`: Technical specifications, PRDs (`prds/`), architecture docs (`architecture/`), and ADRs (`adrs/`).
 
-## Active Root Gotchas
-* **Memory Loop:** If you learned something extraordinary regarding agent performance that can improve future agent runs, note it into [.agents/memory/general-learnings.md]
+## Agent Memory
+- always read the `.agents/memory/MEMORY.md` file before doing anything else and read in further files indexed there when they seem helpful to the task at hand.
 
 ## Tool: mgrep search
 `mgrep` is registered as an MCP server. Use the `mcp_mgrep_search` tool directly to perform semantic search across the codebase or the web (see the tool's description for parameter details).

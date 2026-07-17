@@ -46,3 +46,5 @@ context/
 .devcontainer/
 
 .agents/mcp_config.json
+
+.agents/memory/agentic-engineering-ressources/Own-the-outer-loop.pdf

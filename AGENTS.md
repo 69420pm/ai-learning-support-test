@@ -2,31 +2,18 @@
 
 Living record of project-specific, non-discoverable gotchas and landmines.
 
-## Folder Structure
-- `.agents/`: AI agent configuration, session memory (`memory/`), and custom skills (`skills/`).
-- `.changeset/`: Changeset configuration for package versioning and release management.
-- `.github/`: GitHub Actions CI/CD workflows and repository templates.
-- `apps/`: Monorepo application targets.
-  - `web/`: Next.js web application frontend.
-- `packages/`: Shared workspace packages.
-  - `core/`: Core domain logic, database schemas, and adapters.
-  - `tsconfig/`: Shared TypeScript configurations.
-- `rules/`: Development guidelines and standards referenced by `AGENTS.md`.
-- `specs/`: Technical specifications, PRDs (`prds/`), architecture docs (`architecture/`), and ADRs (`adrs/`).
+## The Flat, Un-Bureaucratic Structure
 
-## Agent Memory
-- always read the `.agents/memory/MEMORY.md` file before doing anything else and read in further files indexed there when they seem helpful to the task at hand.
+The project strictly separates human-facing specifications from agent-only memory:
+
+- `rules/` (Root): Strict, fluff-free constraints. Merges coding style, architecture, tool usage, and LLM gotchas into one place.
+- `specs/` (Root): The living truth of the software. Contains `templates/`, `prds/`, `adrs/`, and `plans/`. (Kept out of agent-only memory so humans can easily read and write them).
+- `.agents/memory/resources/`: Deep context only pulled when explicitly needed via search. Contains PDFs, domain research, and reference repos.
+- `.agents/memory/rsi/`: The recursive self-improvement engine room. Stores run logs, human satisfaction scores, and synthesized lessons waiting to be verified and promoted to `rules/`.
+
+## Dynamic Semantic Exploration
+
+Instead of static routing tables, the agent relies heavily on Semantic Search (`mgrep`). Before beginning a task, dynamically search for relevant rules and resources in the `rules/`, `specs/`, and `.agents/memory/` directories.
 
 ## Tool: mgrep search
-`mgrep` is registered as an MCP server. Use the `mcp_mgrep_search` tool directly to perform semantic search across the codebase or the web (see the tool's description for parameter details).
-
-## Rules Routing
-
-This file routes the agent to project-specific rules when needed.
-
-- Read `rules/project-rules.md` for general project constraints and philosophy.
-- Read `rules/coding-style.md` for code style guidelines.
-- Read `rules/testing.md` for testing approach and guidelines.
-- Read `rules/git-workflow.md` for branch, commit, and PR workflows.
-- Read `rules/documentation-standards.md` for doc requirements.
-- Read `rules/styling.md` when working on frontend (e.g. inside `apps/web/`).
+`mgrep` is registered as an MCP server. Use the `mcp_mgrep_search` tool directly to perform semantic search across the codebase or the web.

@@ -11,7 +11,7 @@
 ## 1. Executive Summary & Scope Boundaries
 
 ### Executive Summary
-Refactor database access in `@ai-learning-support/infrastructure` and `@ai-learning-support/core` to introduce the **Repository Pattern** and a **Core Service Factory**. This decouples core business logic from direct SQLite/Drizzle drivers, enforces Rule 8 and Rule 9 of [rules/project-rules.md](file:///workspaces/secure-ai-learning-support/rules/project-rules.md), enables dual-mode operation (Local SQLite vs. Remote Supabase), and removes raw infrastructure instantiation from `apps/web` Next.js route handlers.
+Refactor database access in `@ai-learning-support/infrastructure` and `@ai-learning-support/core` to introduce the **Repository Pattern** and a **Core Service Factory**. This decouples core business logic from direct SQLite/Drizzle drivers, enforces [rules/package-architecture.md](file:///workspaces/secure-ai-learning-support/rules/package-architecture.md), enables dual-mode operation (Local SQLite vs. Remote Supabase), and removes raw infrastructure instantiation from `apps/web` Next.js route handlers.
 
 ### In-Scope
 - [ ] Define `DocumentRepository` interface contract in `packages/infrastructure`.
@@ -28,7 +28,7 @@ Refactor database access in `@ai-learning-support/infrastructure` and `@ai-learn
 
 ## 2. Architectural Invariants & Rule Compliance Check
 
-Verify compliance with active project invariants in [rules/project-rules.md](file:///workspaces/secure-ai-learning-support/rules/project-rules.md) and monorepo structure in [specs/architecture-index.md](file:///workspaces/secure-ai-learning-support/specs/architecture-index.md):
+Verify compliance with active project invariants in [rules/package-architecture.md](file:///workspaces/secure-ai-learning-support/rules/package-architecture.md):
 
 - [x] **Unidirectional Orchestration**: Orchestration logic resides in `packages/core/src/services/`. UI API routes in `apps/web/` are thin handlers that rely on core service factories.
 - [x] **Adapter Pattern**: Storage and database operations operate strictly behind `StorageService` and `DocumentRepository` interfaces.
@@ -232,4 +232,4 @@ graph TD
 
 - [ ] All 5 atomic tasks executed in TDD order with green tests.
 - [ ] Monorepo build and check succeeds with zero type or lint errors: `pnpm check`
-- [ ] Architectural rules in [rules/project-rules.md](file:///workspaces/secure-ai-learning-support/rules/project-rules.md) fully satisfied.
+- [ ] Architectural rules in [rules/package-architecture.md](file:///workspaces/secure-ai-learning-support/rules/package-architecture.md) fully satisfied.

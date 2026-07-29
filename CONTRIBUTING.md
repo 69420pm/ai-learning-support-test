@@ -12,7 +12,7 @@ To ensure consistency and eliminate rule duplication, all engineering standards,
 
 Please refer directly to the designated rule files:
 
-- **Project Philosophy & Principles**: Read [rules/project-rules.md](rules/project-rules.md) for core principles, feature isolation, and adapter patterns.
+- **Package Architecture & Layer Boundaries**: Read [rules/package-architecture.md](rules/package-architecture.md) for package layer boundaries, feature isolation, and adapter patterns.
 - **Coding Style & Type Safety**: Read [rules/coding-style.md](rules/coding-style.md) for TypeScript strictness, naming conventions, and code structure.
 - **Testing Standards**: Read [rules/testing.md](rules/testing.md) for Vitest guidelines, test co-location, and database isolation.
 - **Git Workflow & Branching**: Read [rules/git-workflow.md](rules/git-workflow.md) for branch naming (`plan-*`, `fix-issue-*`), Conventional Commits, and PR review processes.

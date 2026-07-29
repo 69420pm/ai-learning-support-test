@@ -1,19 +1,12 @@
 # ADR 001: Cloud Scale-Up Strategy
+**Status:** Proposed | **Date:** 2026-07-02
 
-**Status:** Proposed  
-**Date:** 2026-07-02  
+## 1. The Decision
+We adopt Cloudflare R2 for scalable object storage adapters and dedicated background queues (e.g., Railway BullMQ or AWS Lambda) for long-running PDF ingestion and GraphRAG compilation once free cloud limits are exceeded.
 
-## Context
-As the platform scales beyond MVP, we will exceed the free limits for Supabase storage and encounter processing limitations with Vercel serverless functions (like the 4.5MB payload limit and short timeouts) during background ingestion of PDFs and GraphRAG compilation.
-
-## Decision / Future Plans
-
-### 1. Storage Migration (Cloudflare R2)
-Once storage needs exceed Supabase free limits, we will migrate to **Cloudflare R2**.
-* **Why:** To avoid egress/bandwidth charges and access flat $0.015/GB/month pricing. 
-* **Implementation:** Add a `CloudflareR2Storage` adapter implementing the `StorageService` interface (using the S3 API).
-
-### 2. Queue & Worker Hosting
-To handle long-running PDF text extraction and GraphRAG generation (which can exceed 10 seconds), we will move from a local in-memory worker to a dedicated background processing queue in the cloud.
-* **Option A (Railway VPS):** Deploy a standard Node.js server container running BullMQ or Inngest. This bypasses Vercel function timeouts entirely.
-* **Option B (AWS Lambda / SST):** Scale-to-zero serverless functions with a 15-minute timeout limit. Highly cost-effective (huge free tier) but requires more DevOps setup.
+## 2. Rationale & Alternatives (Concise)
+*   **Why Cloudflare R2:** Eliminates egress bandwidth fees and provides predictable $0.015/GB/month pricing with standard S3 API compatibility in `@infrastructure`.
+*   **Why Dedicated Background Workers:** Bypasses Vercel serverless function execution timeouts (>10s) and body payload limits during heavy GraphRAG processing.
+*   **Rejected Supabase Tier Scaling:** Higher tier Supabase storage costs and bandwidth charges scale less predictably than flat R2 pricing.
+*   **Rejected In-Memory Vercel Processing:** Vercel serverless timeouts crash long-running PDF parsing and knowledge graph operations.
+*   **Trade-off:** Increases cloud infrastructure operational surface area beyond a single hosting provider.

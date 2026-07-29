@@ -1,7 +1,10 @@
 import type { Buffer } from 'node:buffer';
 import * as path from 'node:path';
-import type { DocumentRepository, StorageService } from '@ai-learning-support/infrastructure';
-import type { DocumentEntity } from '@ai-learning-support/shared';
+import type {
+  DocumentEntity,
+  DocumentRepository,
+  StorageService,
+} from '@ai-learning-support/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 export class DocumentService {

@@ -1,5 +1,8 @@
-import type { DocumentRepository, StorageService } from '@ai-learning-support/infrastructure';
-import type { DocumentEntity } from '@ai-learning-support/shared';
+import type {
+  DocumentEntity,
+  DocumentRepository,
+  StorageService,
+} from '@ai-learning-support/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DocumentService } from './document-service.js';
 

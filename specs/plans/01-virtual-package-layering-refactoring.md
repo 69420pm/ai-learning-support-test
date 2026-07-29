@@ -9,7 +9,7 @@
 | **Plan ID** | `01-virtual-package-layering-refactoring` |
 | **Status** | Proposed |
 | **Target Packages** | `packages/shared`, `packages/infrastructure`, `packages/features`, `packages/core`, `apps/web` |
-| **Architectural Baseline** | [ADR 003: Modular Monolith Architecture & Layering](file:///workspaces/secure-ai-learning-support/specs/adrs/003-modular-monolith-package-structure.md), [specs/architecture-index.md](file:///workspaces/secure-ai-learning-support/specs/architecture-index.md), [rules/project-rules.md](file:///workspaces/secure-ai-learning-support/rules/project-rules.md) |
+| **Architectural Baseline** | [ADR 003: Modular Monolith Architecture & Layering](file:///workspaces/secure-ai-learning-support/specs/adrs/003-modular-monolith-package-structure.md), [rules/package-architecture.md](file:///workspaces/secure-ai-learning-support/rules/package-architecture.md) |
 | **Target Branch** | `plan-core-package-layering` |
 
 ---
@@ -46,7 +46,7 @@ Per **ADR 003**, this plan refactors the codebase into clean package-level direc
 ## 4. Architectural & Monorepo Impact Mapping
 
 ### Layer Boundary Verification
-- Code placement strictly respects [specs/architecture-index.md](file:///workspaces/secure-ai-learning-support/specs/architecture-index.md#L41-L69) and [ADR 003](file:///workspaces/secure-ai-learning-support/specs/adrs/003-modular-monolith-package-structure.md#L20-L45).
+- Code placement strictly respects [rules/package-architecture.md](file:///workspaces/secure-ai-learning-support/rules/package-architecture.md) and [ADR 003](file:///workspaces/secure-ai-learning-support/specs/adrs/003-modular-monolith-package-structure.md#L20-L45).
 - Direct imports from `@infrastructure/db/schema/*` inside `@features/*` or `@core/*` are forbidden; access must go through `@infrastructure/db` exports or `@shared/*` types.
 
 ### Path Aliases Mapping

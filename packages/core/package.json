@@ -32,7 +32,6 @@
   "dependencies": {
     "@ai-learning-support/infrastructure": "workspace:*",
     "@ai-learning-support/shared": "workspace:*",
-    "drizzle-orm": "^0.38.3",
     "uuid": "^11.0.0"
   }
 }

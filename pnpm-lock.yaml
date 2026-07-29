@@ -47,6 +47,9 @@ importers:
       '@ai-learning-support/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@ai-learning-support/infrastructure':
+        specifier: workspace:*
+        version: link:../../packages/infrastructure
       next:
         specifier: ^15.1.0
         version: 15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -81,9 +84,6 @@ importers:
       '@ai-learning-support/shared':
         specifier: workspace:*
         version: link:../shared
-      drizzle-orm:
-        specifier: ^0.38.3
-        version: 0.38.4(@types/better-sqlite3@7.6.13)(@types/react@19.2.17)(better-sqlite3@11.10.0)(kysely@0.29.2)(react@19.2.7)
       uuid:
         specifier: ^11.0.0
         version: 11.1.1

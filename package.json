@@ -18,22 +18,28 @@
   },
   "packageManager": "pnpm@11.0.8",
   "pnpm": {
-    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "lefthook"]
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "lefthook", "sharp"]
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.34",
     "@ai-sdk/google": "^4.0.37",
     "@ai-sdk/openai": "^4.0.34",
+    "@tailwindcss/postcss": "^4.3.3",
     "ai": "^7.0.56",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.40.0",
+    "lucide-react": "^1.30.0",
     "next": "^15.2.0",
     "pg": "^8.13.3",
     "pg-boss": "^10.1.2",
     "postgres": "^3.4.5",
+    "radix-ui": "^1.6.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
   },
   "devDependencies": {

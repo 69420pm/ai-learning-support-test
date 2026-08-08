@@ -3,13 +3,12 @@
 ## 1. Overview & Vision
 [Explain what we are building and why. Who is it for? Keep it concise.]
 
-## 2. Technical Architecture & Package Layering
-[Explain the system design. You MUST categorize all new components into their strict monorepo layers based on `rules/package-architecture.md`:]
+## 2. Technical Architecture & Directory Placement
+[Explain the system design. You MUST categorize all new components into their directory locations based on `rules/single-app-architecture.md`:]
 
-- **`packages/infrastructure`**: [List external API clients, DB drivers, SDKs, or third-party adapters here]
-- **`packages/core`**: [List pure domain workflow orchestrators and business logic here (NO external I/O)]
-- **`apps/web`**: [List UI components, Next.js pages, and thin API route controllers here]
-- **`packages/shared`**: [List zero-dependency domain entities, types, and DTOs here]
+- **`lib/`**: [List domain orchestrators, AI providers, DB schemas, or queue workers here]
+- **`components/`**: [List React UI components here]
+- **`app/`**: [List Next.js App Router pages and thin API route handlers here]
 
 ## 3. Out of Scope
 [What are we explicitly NOT building in this Epic?]

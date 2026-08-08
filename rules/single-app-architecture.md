@@ -6,7 +6,7 @@ This document is the **single source of truth** for the Single Next.js Applicati
 
 ## 1. Core Mental Model: Single Next.js Application Architecture
 
-The project is structured as a unified, single Next.js application (App Router). Rather than splitting domain logic across multi-package monorepo boundaries, all code is co-located in standard Next.js directory boundaries (`app/`, `components/`, `lib/`).
+The project is structured as a unified, single Next.js application (App Router). All code is co-located in standard Next.js directory boundaries (`app/`, `components/`, `lib/`).
 
 ```text
 secure-ai-learning-support/
@@ -26,7 +26,9 @@ secure-ai-learning-support/
 │   ├── queue/                  # Background job queue (pg-boss / Postgres queue)
 │   └── utils.ts                # General utilities
 ├── public/                     # Static assets
-└── specs/                      # Technical specifications & ADRs
+├── specs/                      # Architecture Decision Records, Feature Epics, and Implementation Plans
+├── tests/                      # Playwright E2E test suites
+└── docs/                       # Project documentation and analysis
 ```
 
 ---
@@ -68,6 +70,6 @@ Import path alias `@/*` maps to `./*` at the workspace root:
 ## 4. Architectural Rules & Gotchas
 
 1. **Thin Controller Rule:** `app/api/*` and Server Actions must only handle HTTP/request concerns (parsing input, checking auth) and delegate business logic to `@/lib/*`.
-2. **Co-location over Multi-package Indirection:** Keep related features co-located in `lib/` subfolders (`lib/ai`, `lib/db`, `lib/learning`, `lib/queue`). Avoid creating unnecessary abstraction layers or sub-packages.
+2. **Domain Co-location:** Keep related features co-located in `lib/` subfolders (`lib/ai`, `lib/db`, `lib/learning`, `lib/queue`). Avoid creating unnecessary abstraction layers or sub-packages.
 3. **Database Client Encapsulation:** Always import DB schema and client from `@/lib/db`. Do not instantiate raw PG or Drizzle clients in route handlers or components.
 4. **Async Worker Isolation:** Any process taking >5 seconds (PDF ingestion, GraphRAG graph building) MUST be dispatched to `@/lib/queue` for background execution.

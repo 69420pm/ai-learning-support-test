@@ -1,89 +1,101 @@
-# Coding Styles
+# Coding Style & TypeScript Guidelines
 
-Rules for writing TS/React/Next.js code. Formatting, casing, import order,
-`any`, unused code, and hook-deps are enforced by Biome — do NOT restate them here.
-This file covers only judgment the linter can't make. Follow it exactly.
+This rule defines TypeScript standards, code organization, thin controller patterns, and error handling for the **AI Learning Support** system. All LLM agents and human developers MUST adhere to these rules.
 
-## Principles
-- Optimize for the reader, not the writer. Code is read far more than written.
-- Prefer clarity over cleverness. No premature abstraction — duplicate twice
-  before extracting a shared helper (rule of three).
-- Smallest correct change. Don't refactor unrelated code in a feature commit.
+---
 
-## Naming
-- Names describe intent/domain, not type or implementation
-  (`activeUsers`, not `arr` / `dataList`).
-- Booleans read as predicates: `isLoading`, `hasAccess`, `canEdit`, `shouldRetry`.
-- Functions are verb phrases (`fetchInvoice`, `normalizeEmail`); values are nouns.
-- Event handlers: `handleX` for the impl, `onX` for the prop.
-- No abbreviations except industry-standard (`id`, `url`, `db`). No Hungarian notation.
-- Avoid vague nouns: `data`, `info`, `manager`, `helper`, `util`, `stuff`.
+## 1. TypeScript & Type Definitions
 
-## Functions
-- One job per function. If you need "and" to describe it, split it.
-- Keep them short; extract when a block needs a comment to explain what it does.
-- Max ~3 positional params. Beyond that, take a single options object.
-- Guard clauses + early returns over nested `if/else`. Fail fast at the top.
-- No boolean "mode" flags that change behavior — make two functions.
-- Pure by default: no hidden side effects; don't mutate inputs. Return new values.
+* **Strict Mode:** TypeScript `strict` mode is enabled. Never use implicit `any`.
+* **Type vs Interface:** Prefer `type` over `interface` for React component props, schema types, and domain payloads.
+  ```typescript
+  // Preferred
+  export type ChatMessageProps = {
+    message: ChatMessage;
+    onSelect?: (id: string) => void;
+  };
+  ```
+* **Explicit Return Types:** Declare explicit return types for exported domain functions, utilities, and API client methods.
+* **Zod Schemas:** Define runtime schemas for all boundary inputs (API requests, route params, forms) using Zod. Infer TypeScript types directly from schemas:
+  ```typescript
+  export const chatRequestSchema = z.object({
+    id: z.string().uuid(),
+    message: z.string().min(1),
+  });
+  export type ChatRequest = z.infer<typeof chatRequestSchema>;
+  ```
 
-## TypeScript
-- Make illegal states unrepresentable. Prefer discriminated unions over
-  optional-flag soup:
-  `{ status: 'loading' } | { status: 'error'; error: Error } | { status: 'ok'; data: T }`.
-- Type the domain, not the primitive. Avoid stringly-typed code; use unions
-  (`'draft' | 'published'`) or branded types for IDs.
-- Never use `as` to silence the compiler. Narrow with type guards / `in` / schema
-  validation instead. `as const` is fine; `as unknown as T` is banned.
-- Validate all external data (API, forms, env, `localStorage`) at the boundary
-  with a schema (e.g. Zod) and infer types from it — don't hand-write duplicate types.
-- Prefer inference for locals; write explicit types at exported/public boundaries.
-- Model absence with a single mechanism per field; avoid `null | undefined` together.
-- No enums — use `as const` object + union type.
+---
 
-## React
-- Components are pure render functions of props/state. Side effects live in
-  event handlers or `useEffect` — never during render.
-- `useEffect` is a last resort. Don't use it to transform props into state
-  (derive during render) or to react to user events (do it in the handler).
-- Composition over configuration: pass `children`/slots instead of many
-  boolean props. Split a component when it renders unrelated concerns.
-- Lift state only as high as needed; keep it colocated otherwise.
-- Keys must be stable domain IDs, never array index or random values.
-- Derive, don't duplicate: never store in state what can be computed from props/state.
-- Keep JSX flat; extract a subcomponent instead of deeply nested ternaries.
-- Custom hooks for reusable stateful logic; name them `useX` and return
-  a stable, minimal shape.
+## 2. Exports, Imports & File Conventions
 
-## Next.js (App Router)
-- Server Components by default. Add `'use client'` only when you need
-  interactivity, browser APIs, or hooks — and push it to the leaves.
-- Fetch data on the server; never expose secrets or call internal DBs from client code.
-- Keep `'use server'` actions thin: validate input, delegate to a service, return typed result.
-- Co-locate route-specific components; promote to `shared/` only when reused.
+* **Named Exports:** Use explicit named exports for components, functions, and modules.
+  ```typescript
+  export function MessageList() { ... }
+  ```
+* **Default Exports:** Use `export default` ONLY for Next.js App Router required entrypoints (`page.tsx`, `layout.tsx`, `error.tsx`).
+* **Path Aliases:** Always import using absolute path aliases (`@/lib/...`, `@/components/...`, `@/app/...`). Never use relative back-tracking (`../../`).
+* **File Naming:** Use `kebab-case` for file names (`chat-message.tsx`, `get-weather.ts`, `auth-provider.ts`).
 
-## Async & errors
-- No floating promises — `await` or explicitly handle every promise.
-- Run independent async work concurrently (`Promise.all`), not sequentially.
-- Throw `Error` (or subclasses) with actionable messages; never throw strings.
-- Catch only where you can add context or recover; otherwise let it propagate.
-- Handle the failure/empty/loading path explicitly — don't assume the happy path.
-- Never swallow errors silently (empty `catch`). Log with context or rethrow.
+---
 
-## Comments
-- Explain *why*, not *what*. The code shows what; comments justify non-obvious decisions.
-- Comment tradeoffs, workarounds, invariants, and links to issues/specs.
-- No commented-out code, no changelog/TODO-with-name noise — use git and the tracker.
-- Keep comments truthful: update or delete them when the code changes.
+## 3. Thin Controller Pattern
 
-## Structure
-- One primary export per file; file name matches it.
-- Order top-down: exported/public API first, helpers below (readable as prose).
-- No barrel `index.ts` files that re-export whole folders (hurts tree-shaking/clarity).
-- Keep modules cohesive — group by feature/domain, not by technical layer.
+Next.js API route handlers (`app/api/*`) and Server Actions (`"use server"`) are **thin controllers**. They MUST NOT contain SQL queries or complex business logic.
 
-## Testing
-- Test behavior and public contracts, not implementation details.
-- Names state the expectation: `returns 401 when token is expired`.
-- Cover edge cases: empty, boundary, error, and concurrent paths.
-- No logic in tests (no loops/conditionals deciding assertions); keep them flat and obvious.
+* **Controller Responsibility:**
+  1. Parse & validate request payload with Zod.
+  2. Perform authentication and authorization checks.
+  3. Call domain modules in `@/lib/*`.
+  4. Return a structured JSON response or error.
+
+  ```typescript
+  // app/api/chat/route.ts
+  export async function POST(request: Request) {
+    const json = await request.json();
+    const body = chatRequestSchema.parse(json);
+    const session = await auth();
+    if (!session?.user) return new ChatbotError("unauthorized:chat").toResponse();
+    
+    return processChatMessage(body, session.user);
+  }
+  ```
+
+---
+
+## 4. Structured Error Handling
+
+* **Domain Error Class:** Standardize error handling using `ChatbotError` subclassing `Error`. Error utilities should be defined in and imported from `@/lib/errors`. If there are helper functions referenced like `getMessageByErrorCode` and `getStatusCode`, they should also be exported from `@/lib/errors`.
+* **Typed Error Codes:** Formulate error codes as `${ErrorType}:${Surface}` (e.g., `bad_request:api`, `unauthorized:chat`, `not_found:document`).
+* **Response Normalization:** Use `error.toResponse()` to return uniform HTTP responses without exposing sensitive internal stack traces to clients.
+
+```typescript
+export type ErrorType = "bad_request" | "unauthorized" | "forbidden" | "not_found" | "rate_limit";
+export type Surface = "chat" | "auth" | "api" | "database" | "document";
+export type ErrorCode = `${ErrorType}:${Surface}`;
+
+export class ChatbotError extends Error {
+  constructor(public code: ErrorCode, cause?: string) {
+    super(getMessageByErrorCode(code));
+  }
+  toResponse() {
+    return Response.json({ code: this.code, message: this.message }, { status: getStatusCode(this.code) });
+  }
+}
+```
+
+---
+
+## 5. Asynchronous & Background Workloads
+
+* **Serverless Timeout Limit:** Next.js route handlers capped at 60s max execution (`export const maxDuration = 60`).
+* **Background Tasks:** Long-running tasks (>5s, e.g., PDF parsing, GraphRAG compilation) MUST be dispatched to `@/lib/queue`.
+* **Non-Blocking Hooks:** Use Next.js `after()` (`import { after } from 'next/server'`) for non-blocking logging, telemetry, or cache invalidation after returning responses.
+
+---
+
+### Logging Conventions
+
+- **Server-side (`lib/`):** Use structured logging. Never use raw `console.log` in production code. Use `console.error` for genuine errors only.
+- **Client-side (`components/`):** `console.warn` for development-only warnings is acceptable. Remove or guard with `process.env.NODE_ENV` checks.
+- **API Routes (`app/api/`):** Log request context (method, path, userId) on errors. Never log sensitive data (API keys, passwords, tokens).

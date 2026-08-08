@@ -14,7 +14,7 @@ Follow these steps strictly to verify the UI:
 ### 1. Start the Dev Server
 The project uses `pnpm`. Start the development server as a background task.
 Use the `run_command` tool:
-- `Cwd`: `/workspaces/secure-ai-learning-support/apps/web` (or the relevant app directory)
+- `Cwd`: `/workspaces/secure-ai-learning-support`
 - `CommandLine`: `pnpm dev`
 - `WaitMsBeforeAsync`: 5000 (give it a few seconds to boot up)
 *Note: Read the output to find the exact localhost port (usually 3000).*

@@ -21,9 +21,11 @@
     "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "lefthook"]
   },
   "dependencies": {
-    "@ai-sdk/google": "^1.1.15",
-    "@ai-sdk/openai": "^1.2.5",
-    "ai": "^4.1.54",
+    "@ai-sdk/anthropic": "^4.0.34",
+    "@ai-sdk/google": "^4.0.37",
+    "@ai-sdk/openai": "^4.0.34",
+    "ai": "^7.0.56",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.40.0",
     "next": "^15.2.0",
     "pg": "^8.13.3",
@@ -31,6 +33,7 @@
     "postgres": "^3.4.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.6.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

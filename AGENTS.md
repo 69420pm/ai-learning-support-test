@@ -1,32 +1,24 @@
 # AGENTS.md
 
-Living record of project-specific, non-discoverable gotchas and landmines.
+## Project Context & Architecture Overview
 
-## Folder Structure
-- `.agents/`: AI agent configuration, session memory (`memory/`), and custom skills (`skills/`).
-- `.changeset/`: Changeset configuration for package versioning and release management.
-- `.github/`: GitHub Actions CI/CD workflows and repository templates.
-- `apps/`: Monorepo application targets.
-  - `web/`: Next.js web application frontend.
-- `packages/`: Shared workspace packages.
-  - `core/`: Core domain logic, database schemas, and adapters.
-  - `tsconfig/`: Shared TypeScript configurations.
-- `rules/`: Development guidelines and standards referenced by `AGENTS.md`.
-- `specs/`: Technical specifications, PRDs (`prds/`), architecture docs (`architecture/`), and ADRs (`adrs/`).
+**AI Learning Support** is a document-grounded, active-learning system combining PDF/material ingestion, GraphRAG knowledge structuring, dynamic learning plan synthesis, and pedagogical science engines (FSRS spaced repetition scheduling, Feynman explanation audits, guided encoding).
 
-## Active Root Gotchas
-* **Memory Loop:** If you learned something extraordinary regarding agent performance that can improve future agent runs, note it into [.agents/memory/general-learnings.md]
+The project is structured as a **Single Next.js Application Architecture** (App Router):
+- **`app/`**: Presentation shell containing App Router pages (`layout.tsx`, `page.tsx`), CSS styling (`globals.css`), and thin HTTP API route handlers (`app/api/*`).
+- **`components/`**: Modular React UI components (`components/ui`, `components/chat`, `components/document`).
+- **`lib/`**: Core domain logic, database schemas, AI providers, and background queue processors (`lib/db`, `lib/ai`, `lib/learning`, `lib/queue`).
 
-## Tool: mgrep search
-`mgrep` is registered as an MCP server. Use the `mcp_mgrep_search` tool directly to perform semantic search across the codebase or the web (see the tool's description for parameter details).
+> 📖 **Architecture & Rules Routing:**
+> - For application architecture blueprints, co-location rules, and directory standards, see [rules/single-app-architecture.md](file:///workspaces/secure-ai-learning-support/rules/single-app-architecture.md).
+> - For coding standards, testing, styling, and git workflows, see [rules/coding-style.md](file:///workspaces/secure-ai-learning-support/rules/coding-style.md), [rules/testing.md](file:///workspaces/secure-ai-learning-support/rules/testing.md), [rules/styling.md](file:///workspaces/secure-ai-learning-support/rules/styling.md), and [rules/git-workflow.md](file:///workspaces/secure-ai-learning-support/rules/git-workflow.md).
 
 ## Rules Routing
 
 This file routes the agent to project-specific rules when needed.
 
-- Read `rules/project-rules.md` for general project constraints and philosophy.
+- Read `rules/single-app-architecture.md` for application architecture, co-location rules, and directory boundaries.
 - Read `rules/coding-style.md` for code style guidelines.
-- Read `rules/testing.md` for testing approach and guidelines.
-- Read `rules/git-workflow.md` for branch, commit, and PR workflows.
-- Read `rules/documentation-standards.md` for doc requirements.
-- Read `rules/styling.md` when working on frontend (e.g. inside `apps/web/`).
+- Read `rules/testing.md` for Playwright E2E and Vitest unit testing guidelines.
+- Read `rules/git-workflow.md` for commit and PR workflows.
+- Read `rules/styling.md` for frontend styling guidelines.

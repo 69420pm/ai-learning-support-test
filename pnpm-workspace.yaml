@@ -1,0 +1,10 @@
+allowBuilds:
+  '@biomejs/biome': true
+  esbuild: true
+  lefthook: true
+  sharp: true
+onlyBuiltDependencies:
+  - '@biomejs/biome'
+  - esbuild
+  - lefthook
+  - sharp

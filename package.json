@@ -18,7 +18,7 @@
   },
   "packageManager": "pnpm@11.0.8",
   "pnpm": {
-    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "lefthook"]
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "lefthook", "sharp"]
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.34",

@@ -1,11 +1,11 @@
-# ADR 005: Pluggable Multi-Provider LLM Strategy
-**Status:** Proposed | **Date:** 2026-07-23
+# ADR 005: Multi-Provider & Bring-Your-Own-Key (BYOK) LLM Configuration
+**Status:** Accepted | **Date:** 2026-08-08
 
 ## 1. The Decision
-We implement a pluggable multi-provider factory (`ILlmProviderFactory`) in `packages/infrastructure/src/llm/` that instantiates model adapters (OpenWebUI, Gemini, Anthropic, OpenAI) behind a unified interface to ensure zero vendor lock-in.
+We implement a multi-provider LLM registry in `lib/ai/providers.ts` using Vercel AI SDK providers (OpenAI, Gemini, OpenWebUI, Anthropic) supporting per-user Bring-Your-Own-Key (BYOK) dynamic instantiation.
 
 ## 2. Rationale & Alternatives (Concise)
-*   **Why Factory Pattern:** Allows switching LLM providers or enabling Bring-Your-Own-Key (BYOK) via runtime configuration without altering downstream `@core` workflow or UI code.
-*   **Why OpenWebUI Adapter as Initial Target:** Provides immediate support for self-hosted OpenAI-compatible deployments while keeping the architecture open to direct Google Gemini or Anthropic integrations.
-*   **Rejected Hardcoded Provider Clients:** Tightly coupling code to OpenWebUI or OpenAI APIs creates severe vendor lock-in and high refactoring debt for multi-provider support.
-*   **Trade-off:** Requires maintaining small provider adapter wrappers inside `packages/infrastructure/src/llm/adapters/`.
+*   **Why Dynamic BYOK & Multi-Provider Registry:** Allows users to configure custom API keys or self-hosted endpoint models at runtime without code changes or service restarts.
+*   **Why Vercel AI SDK Provider Interface:** Provider adapters conform natively to standard `LanguageModelV1` / `EmbeddingModelV1` interfaces.
+*   **Rejected Single Hardcoded LLM Provider:** Tightly coupling to one LLM vendor creates vendor lock-in and prevents self-hosting or cost-optimized model routing.
+*   **Trade-off:** Requires validating user-provided API keys and base URLs dynamically on request.

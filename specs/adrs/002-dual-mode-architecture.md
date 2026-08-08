@@ -1,12 +1,11 @@
-# ADR 002: Dual-Mode Architecture (Local Self-Hosted vs. Cloud SaaS)
-**Status:** Accepted | **Date:** 2026-07-03
+# ADR 002: PostgreSQL + pgvector & Drizzle ORM Strategy
+**Status:** Accepted | **Date:** 2026-08-08
 
 ## 1. The Decision
-We adopt a Dual-Mode Pluggable Adapter Architecture using dependency inversion to support both local-first self-hosting (SQLite, local disk) and cloud SaaS (Supabase PostgreSQL, S3 storage) from a single shared codebase governed by `LOCAL_MODE` configuration.
+We adopt PostgreSQL with `pgvector` as the single database engine standard across all environments (managed via Supabase Cloud in production and local Docker compose in development), using Drizzle ORM in `lib/db` for type-safe database queries and vector similarity searches.
 
 ## 2. Rationale & Alternatives (Concise)
-*   **Why Dual-Mode Adapters:** Allows 99.9% of domain logic in `@core` to be shared without code forks or conditional branching, satisfying both privacy-focused self-hosters and non-technical SaaS subscribers.
-*   **Why Drizzle ORM + StorageService Abstractions:** Enables seamless switching between SQLite/local disk and Supabase PG/S3 storage while keeping `@core` completely environment-agnostic.
-*   **Rejected Separate SaaS Repository/Fork:** Maintaining a proprietary private fork creates high maintenance overhead, feature drift, and loss of open-source community trust.
-*   **Rejected Cloud-Only Architecture:** Violates the privacy-first self-hosting requirement for open-source contributors and local users.
-*   **Trade-off:** Requires maintaining and testing Drizzle ORM schemas across both SQLite and PostgreSQL target database engines.
+*   **Why PostgreSQL + pgvector + Drizzle ORM:** Standardizes vector embeddings, relational schemas, and background job queue storage on a single database engine. Eliminates dual-dialect SQL translation bugs between SQLite and PostgreSQL.
+*   **Why Local Docker Compose + Supabase Cloud:** Ensures 100% feature parity between local development and cloud production deployments without behavioral divergence.
+*   **Rejected SQLite / Dual-Dialect Support:** Dual-dialect ORM abstractions created subtle SQL incompatibility bugs, fragile migration scripts, and vector extension mismatches.
+*   **Trade-off:** Requires developers to run local Docker for PostgreSQL development.

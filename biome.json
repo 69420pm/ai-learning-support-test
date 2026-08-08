@@ -1,7 +1,10 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignoreUnknown": true },
+  "files": {
+    "ignoreUnknown": true,
+    "ignore": [".next/**", "node_modules/**", "dist/**", ".turbo/**"]
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -18,14 +21,8 @@
       "arrowParentheses": "always"
     }
   },
-  "assist": {
-    "enabled": true,
-    "actions": {
-      "source": {
-        "organizeImports": "on",
-        "useSortedKeys": "off"
-      }
-    }
+  "organizeImports": {
+    "enabled": true
   },
   "linter": {
     "enabled": true,
@@ -99,9 +96,6 @@
           "level": "warn",
           "options": { "maxAllowedComplexity": 15 }
         }
-      },
-      "nursery": {
-        "noFloatingPromises": "error"
       },
       "a11y": {
         "recommended": true

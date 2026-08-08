@@ -1,8 +1,4 @@
-packages:
-  - "packages/*"
-  - "apps/*"
 allowBuilds:
-  better-sqlite3: true
-  esbuild: false
-  lefthook: true
-  sharp: true
+  '@biomejs/biome': set this to true or false
+  esbuild: set this to true or false
+  lefthook: set this to true or false

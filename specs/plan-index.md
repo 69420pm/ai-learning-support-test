@@ -8,10 +8,11 @@ All plans are generated using the [plan](file:///.agents/skills/plan/SKILL.md) s
 
 ## Index of Implementation Plans
 
-- [Plan 01: Core Virtual Package Layering Refactoring](plans/01-virtual-package-layering-refactoring.md) — *Refactor `packages/core/src/` into 4-tier virtual package layers (`shared`, `infrastructure`, `features`, `core`) per ADR 003*
-- [Plan 02: Database Repository Pattern & Core Service Factory](plans/02-database-repository-factory-refactoring.md) — *Decouple core from raw SQLite/Drizzle drivers with DocumentRepository and introduce createDocumentService factory*
-- [Plan 03: LLM Chat Playground & Sidebar Document Integration](plans/03-llm-chat-playground.md) — *Restructure workspace layout to support collapsible sidebar and general streaming chat interface via Vercel AI SDK integration*
-- [Epic: OpenWebUI Chat Interface & Core LLM Orchestrator](epics/chat-interface-openwebui.md) — *Extensible ChatGPT-style interface powered by Vercel AI SDK & OpenWebUI, backed by SQLite persistence*
+- [Plan 01: Core Virtual Package Layering Refactoring](plans/01-virtual-package-layering-refactoring.md) — *Refactor packages/core/src/ into 4-tier virtual package layers (deprecated by Plan 03)*
+- [Plan 02: Database Repository Pattern & Core Service Factory](plans/02-database-repository-factory-refactoring.md) — *Decouple core from raw drivers (deprecated by Plan 03)*
+- [Plan 03: Single-App Architecture Overhaul & Repository Restructuring](plans/03-single-app-architecture-overhaul.md) — *Collapse 4-tier monorepo into Vercel-style single Next.js app, Postgres job queue, and Vercel AI SDK*
+- [Epic: OpenWebUI Chat Interface & Core LLM Orchestrator](epics/chat-interface-openwebui.md) — *Extensible ChatGPT-style interface powered by Vercel AI SDK*
+
 
 
 

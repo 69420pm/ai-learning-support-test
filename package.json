@@ -1,42 +1,48 @@
 {
   "name": "ai-learning-support",
   "version": "1.0.0",
-  "description": "",
   "private": true,
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "lint": "turbo lint",
-    "format": "turbo format",
-    "typecheck": "turbo typecheck",
-    "test": "turbo test",
-    "check": "turbo build lint typecheck test",
-    "release": "turbo build && changeset publish"
+    "dev": "next dev --turbo",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "packageManager": "pnpm@11.0.8",
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "lefthook",
-      "sharp"
-    ]
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "lefthook"]
   },
-  "devEngines": {},
-  "type": "module",
+  "dependencies": {
+    "@ai-sdk/google": "^1.1.15",
+    "@ai-sdk/openai": "^1.2.5",
+    "ai": "^4.1.54",
+    "drizzle-orm": "^0.40.0",
+    "next": "^15.2.0",
+    "pg": "^8.13.3",
+    "pg-boss": "^10.1.2",
+    "postgres": "^3.4.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.2"
+  },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
-    "@changesets/cli": "^2.31.0",
-    "@mixedbread/mgrep": "^0.1.13",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@types/node": "^25.6.0",
-    "lefthook": "^2.1.6",
-    "tsup": "^8.5.1",
-    "tsx": "^4.21.0",
-    "turbo": "^2.9.9",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.13.1",
+    "@types/pg": "^8.11.11",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "drizzle-kit": "^0.30.5",
+    "lefthook": "^1.11.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
   }
 }

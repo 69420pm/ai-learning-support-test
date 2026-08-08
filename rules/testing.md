@@ -4,6 +4,14 @@ This document outlines the testing architecture, Playwright E2E standards, Page 
 
 ---
 
+## 🎯 Core Philosophy: Objective-Driven Testing
+
+* **Test Higher-Level Objectives, Not Implementation Code:** Tests must be written against the **Definition of Done (DoD) and user goals** defined in the plan—NEVER against the specific internal implementation functions.
+* **Avoid Testing Bad Code:** If implementation code is flawed or over-engineered, writing tests that strictly mirror that code locks in bad architecture ("testing code that doesn't make sense"). If a test fails because the code misses the high-level objective, fix the code to meet the standard.
+* **Agent Workflow:** Features are implemented, visually verified via `agentic-ui-verification`, and then codified into Playwright E2E / Vitest tests using the `test-writer` skill (`.agents/skills/test-writer/SKILL.md`) before opening a PR.
+
+---
+
 ## 1. Playwright E2E Framework
 
 * **Framework:** Primary end-to-end testing is powered by Playwright (`@playwright/test`).
@@ -95,6 +103,21 @@ test("handles API error gracefully", async ({ page }) => {
   await expect(page.getByText(/error|failed/i).first()).toBeVisible();
 });
 ```
+
+---
+
+## 5.1 AI SDK Provider Mocks & Streaming Simulation
+
+* **Deterministic Stream Mocking:** Never hit real LLM APIs in automated tests.
+* **Test Environment Flag:** Set `isTestEnvironment = true` (triggered when running via Playwright).
+* **Mock Provider:** Use the mock `LanguageModel` in `lib/ai/models.mock.ts` to stream deterministic `text-delta` chunks with artificial delays to test UI streaming mechanics, stop buttons, and auto-scrolling without API costs.
+
+---
+
+## 5.2 Database & Guest Auth Bypass
+
+* **Unmocked Postgres DB:** Playwright E2E tests run against real local Postgres DB using Drizzle ORM.
+* **Guest Auth Bypass:** Middleware (`proxy.ts`) automatically intercepts unauthenticated requests in test mode and provisions a guest session via `/api/auth/guest`. Do not write explicit login UI flows unless testing auth features specifically.
 
 ---
 

@@ -31,5 +31,5 @@ You are responsible for designing large features and systems by creating **Epics
    - At the end of the Epic, split the entire feature into a sequence of implementation steps.
    - **Crucial Sizing Rule:** Each step should be sized to be exactly **one agent implementation large**. That means one unit of reviewable code that a human can easily review in one session. Do not make steps too massive.
    - Each step will be executed by another skill/agent later. *Do not write the detailed implementation plans yourself.* Just define what the step is.
-   - For each step, you MUST write a broad, robust **Definition of Done (DoD)** designed to be verified by an AI agent (like the `agentic-ui-verification` skill). 
-   - Good DoDs for AI include executable tasks: "Start the web app using `pnpm dev`, navigate to `/feature-url`, click the 'Submit' button, and verify the resulting success state visually using screenshots."
+   - For each step, you MUST write a broad, robust **Definition of Done (DoD)** designed to be verified visually by an AI agent (via `agentic-ui-verification` subagent) and codified into permanent objective-driven tests (via `test-writer` skill). 
+   - Good DoDs for AI include executable tasks: "Start the web app using `pnpm dev`, navigate to `/feature-url`, click the 'Submit' button, verify the resulting success state visually using screenshots, and automate as an E2E Playwright test."

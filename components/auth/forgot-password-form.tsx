@@ -74,7 +74,7 @@ export function ForgotPasswordForm() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2" data-invalid={Boolean(error) || undefined}>
           <Label htmlFor="email">Email</Label>
           <div className="relative flex items-center">
@@ -88,12 +88,18 @@ export function ForgotPasswordForm() {
               aria-invalid={Boolean(error)}
               className="pl-9"
               disabled={isPending}
+              data-testid="auth-email-input"
             />
           </div>
           {error && <p className="font-medium text-destructive text-xs">{error}</p>}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isPending}
+          data-testid="auth-submit-button"
+        >
           {isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" data-icon="inline-start" />

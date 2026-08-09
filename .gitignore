@@ -46,3 +46,7 @@ context/
 .devcontainer/
 
 .agents/mcp_config.json
+
+# Test outputs
+test-results/
+playwright-report/

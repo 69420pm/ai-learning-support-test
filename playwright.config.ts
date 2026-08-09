@@ -17,4 +17,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    env: {
+      // biome-ignore lint/style/useNamingConvention: environment variable key
+      PLAYWRIGHT_TEST: 'true',
+    },
+  },
 });

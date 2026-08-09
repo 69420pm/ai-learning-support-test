@@ -72,7 +72,7 @@ export function ResetPasswordForm() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2" data-invalid={Boolean(errors.password) || undefined}>
           <Label htmlFor="password">New Password</Label>
           <div className="relative flex items-center">
@@ -86,6 +86,7 @@ export function ResetPasswordForm() {
               aria-invalid={Boolean(errors.password)}
               className="pl-9"
               disabled={isPending}
+              data-testid="auth-password-input"
             />
           </div>
           {errors.password && (
@@ -109,6 +110,7 @@ export function ResetPasswordForm() {
               aria-invalid={Boolean(errors.confirmPassword)}
               className="pl-9"
               disabled={isPending}
+              data-testid="auth-confirmpassword-input"
             />
           </div>
           {errors.confirmPassword && (
@@ -116,7 +118,12 @@ export function ResetPasswordForm() {
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isPending}
+          data-testid="auth-submit-button"
+        >
           {isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" data-icon="inline-start" />

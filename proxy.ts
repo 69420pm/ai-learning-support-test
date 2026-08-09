@@ -1,5 +1,5 @@
-import { updateSession } from '@/lib/supabase/proxy';
 import { type NextRequest, NextResponse } from 'next/server';
+import { updateSession } from '@/lib/supabase/proxy';
 
 const PROTECTED_ROUTES = ['/dashboard', '/learn', '/review', '/settings'];
 const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password'];

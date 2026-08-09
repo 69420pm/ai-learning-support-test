@@ -1,7 +1,7 @@
-import { proxy } from '@/proxy';
 import type { User } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { describe, expect, it, vi } from 'vitest';
+import { proxy } from '@/proxy';
 import { updateSession } from './proxy';
 
 vi.mock('@/lib/supabase/proxy', () => ({

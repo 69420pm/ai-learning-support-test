@@ -4,4 +4,9 @@ This directory contains technical implementation plans for feature development, 
 
 ---
 
-## Index of Implementation Plans
+## Index of Epics & Plans
+
+- **[Epic 001: Basic Email & Password Authentication](epics/001-email-password-auth.md)**
+  - Status: Specified / Ready for Implementation
+  - Provider: Supabase Auth (`@supabase/ssr`) with Drizzle ORM Profile linkage
+

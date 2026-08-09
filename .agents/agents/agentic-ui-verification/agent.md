@@ -74,11 +74,18 @@ Execute the script using `run_command`:
 - `CommandLine`: `npx playwright install chromium && node /tmp/verify_ui.js`
 *(Installing chromium ensures Playwright has the binary it needs in the container).*
 
-### 4. Visually Inspect the Result
-Once the script completes, use the `view_file` tool to inspect `/tmp/verify_result.png`.
+### 4. Next.js Runtime & Compilation Check (next-dev-loop)
+Follow the `next-dev-loop` skill protocol to cross-check Next.js framework health:
+- Query `/_next/mcp` or run `next-devtools-mcp` diagnostics to verify:
+  - `get_compilation_issues`: Ensure 0 Turbopack compilation errors or warnings.
+  - `get_errors`: Ensure 0 runtime errors, server exceptions, or React hydration mismatches occurred during the interaction.
+
+### 5. Visually Inspect the Result
+Once the Playwright script completes, use the `view_file` tool to inspect `/tmp/verify_result.png`.
 Look closely at the visual state of the application.
 
-### 5. Evaluate and Report
-Compare what you see in the screenshot against the Definition of Done provided in your prompt.
-- **If it passes:** Report back clearly that the DoD is met, providing details on what was visually verified.
-- **If it fails:** Provide explicit, actionable feedback on what is visually missing or incorrect (e.g., "The modal did not appear after clicking the button," or "The alignment of the header is broken"). Describe exactly what is rendered.
+### 6. Evaluate and Report
+Compare what you see in the screenshot AND the `next-dev-loop` runtime diagnostics against the Definition of Done provided in your prompt:
+- **If it passes:** Report back clearly that the DoD is met, confirming both visual correctness and clean Next.js runtime/compilation health (0 errors).
+- **If it fails:** Provide explicit, actionable feedback detailing whether the failure is visual (e.g., broken layout, missing element) or framework/runtime (e.g., hydration mismatch, compilation error on route).
+

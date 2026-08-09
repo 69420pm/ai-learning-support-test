@@ -22,5 +22,34 @@ Before creating a commit or PR, agents MUST follow this checklist:
 5. **Push and create PR:**
    ```bash
    git push origin <branch-name>
-   gh pr create --title "<type>(scope): description" --body "## Summary\n\n<what and why>\n\n## Changes\n\n- <list of changes>\n\n## Verification\n\n- [ ] `pnpm check` passes\n- [ ] Manual testing done"
+   gh pr create --title "<type>(scope): description" --body "<use PR template below>"
    ```
+
+---
+
+## PR Body Template
+
+Use this template for all PR descriptions. Omit sections that don't apply (e.g., skip "Definition of Done" for standalone fixes without a plan).
+
+```markdown
+## Summary
+
+<What changed and why. Link the plan if one exists: `Implements plan: specs/plans/<file>.md`>
+
+## Changes
+
+- <list key changes>
+
+## Definition of Done
+
+- [x] <DoD item 1 — verified>
+- [x] <DoD item 2 — verified>
+
+## Verification
+
+- [x] `pnpm check` passes (lint + typecheck + test)
+- [x] Runtime verified via next-dev-loop (0 compilation/runtime errors)
+- [x] UI verified via agentic-ui-verification (if applicable)
+- [x] E2E tests written and passing
+- [x] Unit tests written and passing (if applicable)
+```

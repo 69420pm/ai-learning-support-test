@@ -9,16 +9,17 @@ The project is structured as a **Single Next.js Application Architecture** (App 
 - **`components/`**: Modular React UI components (`components/ui`, `components/chat`, `components/document`).
 - **`lib/`**: Core domain logic, database schemas, AI providers, and background queue processors (`lib/db`, `lib/ai`, `lib/learning`, `lib/queue`).
 
-> 📖 **Architecture & Rules Routing:**
-> - For application architecture blueprints, co-location rules, and directory standards, see [rules/single-app-architecture.md](file:///workspaces/secure-ai-learning-support/rules/single-app-architecture.md).
-> - For coding standards, testing, styling, and git workflows, see [rules/coding-style.md](file:///workspaces/secure-ai-learning-support/rules/coding-style.md), [rules/testing.md](file:///workspaces/secure-ai-learning-support/rules/testing.md), [rules/styling.md](file:///workspaces/secure-ai-learning-support/rules/styling.md), and [rules/git-workflow.md](file:///workspaces/secure-ai-learning-support/rules/git-workflow.md).
-
-## Rules Routing
-
-This file routes the agent to project-specific rules when needed.
-
+## Routing
 - Read `rules/single-app-architecture.md` for application architecture, co-location rules, and directory boundaries.
+- Read `rules/tech-stack.md` for package versions and official/local documentation sources.
 - Read `rules/coding-style.md` for code style guidelines.
 - Read `rules/testing.md` for Playwright E2E and Vitest unit testing guidelines.
 - Read `rules/git-workflow.md` for commit and PR workflows.
 - Read `rules/styling.md` for frontend styling guidelines.
+- Read `specs/adr-index.md` for architectural decision records.
+
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+ 
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->

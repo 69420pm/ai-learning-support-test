@@ -11,11 +11,13 @@
 - **`app/`**: [List Next.js App Router pages and thin API route handlers here]
 
 ## 3. Out of Scope
-[What are we explicitly NOT building in this Epic?]
+[What are we explicitly NOT building in this Epic? Be specific — vague filler like "future enhancements" is not acceptable.]
 
 ## 4. Implementation Steps
 [Break the feature down into sequential implementation steps. Each step must be exactly one agent implementation large (one unit of reviewable code in one session for a human). For each step, provide a clear, AI-verifiable Definition of Done.]
 
 ### Step 1: [Name of Step 1]
 - **Goal:** [Brief description]
+- **Key packages:** [List specific packages from `rules/tech-stack.md` this step touches]
+- **Required reading:** [List skills and/or rule files the implementing agent MUST read before starting, e.g., "`ai-sdk` skill", "`rules/styling.md`"]
 - **Definition of Done:** [AI-verifiable steps, e.g., "Run dev server, navigate to `/path`, verify success state visually."]

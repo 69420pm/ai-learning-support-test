@@ -1,3 +1,4 @@
+import { ArrowRight, BookOpen, Brain, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ArrowRight, BookOpen, Brain, Sparkles } from 'lucide-react';
 
 export default function Home() {
   return (

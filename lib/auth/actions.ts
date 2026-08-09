@@ -28,19 +28,24 @@ export async function signIn(input: LoginInput): Promise<AuthActionResult> {
   }
 
   const { email, password } = parseResult.data;
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    return { success: false, error: error.message };
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
+    return { success: false, error: msg };
   }
-
-  revalidatePath('/', 'layout');
-  return { success: true };
 }
 
 export async function signUp(input: SignUpInput): Promise<AuthActionResult> {
@@ -50,45 +55,54 @@ export async function signUp(input: SignUpInput): Promise<AuthActionResult> {
   }
 
   const { email, password, fullName } = parseResult.data;
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        // biome-ignore lint/style/useNamingConvention: Supabase metadata key
-        full_name: fullName,
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          // biome-ignore lint/style/useNamingConvention: Supabase metadata key
+          full_name: fullName,
+        },
       },
-    },
-  });
+    });
 
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  if (data.user) {
-    try {
-      await db
-        .insert(profiles)
-        .values({
-          id: data.user.id,
-          email: data.user.email ?? email,
-          fullName: fullName,
-        })
-        .onConflictDoNothing();
-    } catch (dbError) {
-      console.error('Failed to create user profile in Drizzle:', dbError);
+    if (error) {
+      return { success: false, error: error.message };
     }
-  }
 
-  revalidatePath('/', 'layout');
-  return { success: true };
+    if (data.user) {
+      try {
+        await db
+          .insert(profiles)
+          .values({
+            id: data.user.id,
+            email: data.user.email ?? email,
+            fullName: fullName,
+          })
+          .onConflictDoNothing();
+      } catch (dbError) {
+        console.error('Failed to create user profile in Drizzle:', dbError);
+      }
+    }
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
+    return { success: false, error: msg };
+  }
 }
 
 export async function signOut(): Promise<void> {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.error('Failed to sign out from Supabase:', err);
+  }
   revalidatePath('/', 'layout');
   redirect('/login');
 }
@@ -100,20 +114,25 @@ export async function requestPasswordReset(input: ForgotPasswordInput): Promise<
   }
 
   const { email } = parseResult.data;
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const redirectTo = `${origin}/auth/callback?redirectTo=/reset-password`;
+    const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const redirectTo = `${origin}/auth/callback?redirectTo=/reset-password`;
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo,
-  });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
 
-  if (error) {
-    return { success: false, error: error.message };
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
+    return { success: false, error: msg };
   }
-
-  return { success: true };
 }
 
 export async function updatePassword(input: ResetPasswordInput): Promise<AuthActionResult> {
@@ -123,16 +142,21 @@ export async function updatePassword(input: ResetPasswordInput): Promise<AuthAct
   }
 
   const { password } = parseResult.data;
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const { error } = await supabase.auth.updateUser({
-    password,
-  });
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
 
-  if (error) {
-    return { success: false, error: error.message };
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
+    return { success: false, error: msg };
   }
-
-  revalidatePath('/', 'layout');
-  return { success: true };
 }

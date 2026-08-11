@@ -4,6 +4,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import type React from 'react';
 import { useMemo, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat/chat-header';
 import { ChatInput } from '@/components/chat/chat-input';
 import { ChatMessages } from '@/components/chat/chat-messages';
@@ -14,6 +15,7 @@ import { cn, generateUUID } from '@/lib/utils';
 export type ChatProps = {
   id?: string;
   initialMessages?: ChatMessage[];
+  initialTitle?: string;
   selectedModelId?: string;
   onModelChange?: (modelId: string) => void;
   className?: string;
@@ -22,14 +24,17 @@ export type ChatProps = {
 export function Chat({
   id: initialId,
   initialMessages = [],
+  initialTitle = 'New Chat',
   selectedModelId = 'gemini-2.5-flash',
   onModelChange,
   className,
 }: ChatProps) {
   const [chatId] = useState(() => initialId || generateUUID());
   const [input, setInput] = useState('');
-  const [title, setTitle] = useState('New Chat');
+  const [title, setTitle] = useState(initialTitle);
+  const [hasNavigated, setHasNavigated] = useState(Boolean(initialId));
   const [dataStreamParts, setDataStreamParts] = useState<CustomStreamPart[]>([]);
+  const { mutate } = useSWRConfig();
 
   const transport = useMemo(
     () =>
@@ -58,6 +63,13 @@ export function Chat({
     if (e) e.preventDefault();
     if (!input.trim() || status === 'streaming' || status === 'submitted') return;
 
+    if (!initialId && !hasNavigated) {
+      setHasNavigated(true);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', `/chat/${chatId}`);
+      }
+    }
+
     const userText = input;
     setInput('');
 
@@ -69,6 +81,7 @@ export function Chat({
 
   const handleChatTitle = (newTitle: string) => {
     setTitle(newTitle);
+    mutate('/api/history');
   };
 
   return (

@@ -62,6 +62,9 @@ test.describe('Authentication System E2E', () => {
     await authPage.signUp(user.fullName, user.email, user.password);
     await expect(page.getByText('Check your email')).toBeVisible();
 
+    // Clear mock auth cookie set during signup so user can access /login
+    await page.context().clearCookies();
+
     // 2. Sign In with credentials
     await authPage.gotoLogin();
     await authPage.login(user.email, user.password);

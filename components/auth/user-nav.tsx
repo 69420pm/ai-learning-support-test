@@ -39,7 +39,11 @@ export function UserNav({ user }: UserNavProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative size-9 rounded-full">
+        <Button
+          variant="ghost"
+          className="relative size-9 rounded-full"
+          data-testid="user-nav-trigger"
+        >
           <Avatar className="size-9">
             {user.avatarUrl && (
               <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
@@ -52,7 +56,9 @@ export function UserNav({ user }: UserNavProps) {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col gap-1">
             <p className="font-medium text-sm leading-none">{user.fullName || 'User'}</p>
-            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+            <p className="text-xs leading-none text-muted-foreground" data-testid="user-nav-email">
+              {user.email}
+            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -73,6 +79,7 @@ export function UserNav({ user }: UserNavProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer text-destructive focus:text-destructive"
+          data-testid="user-nav-logout"
           onClick={() => signOut()}
         >
           <LogOut className="mr-2 size-4" />

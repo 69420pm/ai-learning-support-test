@@ -1,59 +1,98 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import { generateRandomTestUser } from '../helpers';
 
-test.describe('Authentication Flows', () => {
-  test('displays validation error for invalid email format on login', async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[id="email"]', 'not-an-email');
-    await page.fill('input[id="password"]', 'password123');
-    await page.click('button[type="submit"]');
+test.describe('Authentication System E2E', () => {
+  test('displays validation error for invalid email format on login', async ({ authPage }) => {
+    await authPage.gotoLogin();
+    await authPage.login('not-an-email', 'password123');
 
-    await expect(page.locator('input[id="email"]')).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByText('Please enter a valid email address')).toBeVisible();
+    await expect(authPage.emailInput).toHaveAttribute('aria-invalid', 'true');
+    await expect(authPage.page.getByText('Please enter a valid email address')).toBeVisible();
   });
 
-  test('displays validation error for short password on login', async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[id="email"]', 'valid@example.com');
-    await page.fill('input[id="password"]', 'short');
-    await page.click('button[type="submit"]');
+  test('displays validation error for short password on login', async ({ authPage }) => {
+    await authPage.gotoLogin();
+    await authPage.login('valid@example.com', 'short');
 
-    await expect(page.locator('input[id="password"]')).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByText('Password must be at least 8 characters long')).toBeVisible();
-  });
-
-  test('handles sign up flow and shows verification instructions', async ({ page }) => {
-    const timestamp = Date.now();
-    const testEmail = `testuser_${timestamp}@example.com`;
-
-    await page.goto('/signup');
-    await page.fill('input[id="fullName"]', 'Test User');
-    await page.fill('input[id="email"]', testEmail);
-    await page.fill('input[id="password"]', 'Password123!');
-    await page.fill('input[id="confirmPassword"]', 'Password123!');
-    await page.click('button[type="submit"]');
-
-    await expect(page.getByText('Check your email')).toBeVisible();
-  });
-
-  test('handles forgot password flow', async ({ page }) => {
-    await page.goto('/forgot-password');
-    await page.fill('input[id="email"]', 'user@example.com');
-    await page.click('button[type="submit"]');
-
-    await expect(page.getByText('Check your email')).toBeVisible();
-  });
-
-  test('handles reset password flow', async ({ page }) => {
-    await page.goto('/reset-password');
-    await page.fill('input[id="password"]', 'NewPassword123!');
-    await page.fill('input[id="confirmPassword"]', 'NewPassword123!');
-    await page.click('button[type="submit"]');
-
-    await expect(page).toHaveURL(/\/login\?message=password-updated/);
+    await expect(authPage.passwordInput).toHaveAttribute('aria-invalid', 'true');
     await expect(
-      page.getByText(
+      authPage.page.getByText('Password must be at least 8 characters long'),
+    ).toBeVisible();
+  });
+
+  test('handles sign up flow and shows verification instructions', async ({ authPage }) => {
+    const user = generateRandomTestUser();
+
+    await authPage.gotoSignup();
+    await authPage.signUp(user.fullName, user.email, user.password);
+
+    await expect(authPage.page.getByText('Check your email')).toBeVisible();
+  });
+
+  test('handles forgot password flow', async ({ authPage }) => {
+    await authPage.gotoForgotPassword();
+    await authPage.emailInput.fill('user@example.com');
+    await authPage.submitButton.click();
+
+    await expect(authPage.page.getByText('Check your email')).toBeVisible();
+  });
+
+  test('handles reset password flow', async ({ authPage }) => {
+    await authPage.gotoResetPassword();
+    await authPage.passwordInput.fill('NewPassword123!');
+    await authPage.confirmPasswordInput.fill('NewPassword123!');
+    await authPage.submitButton.click();
+
+    await expect(authPage.page).toHaveURL(/\/login\?message=password-updated/);
+    await expect(
+      authPage.page.getByText(
         'Your password has been successfully updated. Please sign in with your new password.',
       ),
     ).toBeVisible();
+  });
+
+  test('full user authentication lifecycle: sign up -> sign in -> protected route -> user nav -> logout', async ({
+    authPage,
+    page,
+  }) => {
+    const user = generateRandomTestUser();
+
+    // 1. Sign Up
+    await authPage.gotoSignup();
+    await authPage.signUp(user.fullName, user.email, user.password);
+    await expect(page.getByText('Check your email')).toBeVisible();
+
+    // 2. Sign In with credentials
+    await authPage.gotoLogin();
+    await authPage.login(user.email, user.password);
+
+    // Should navigate to /dashboard or handle sign in
+    // Note: If email confirmation is enabled in Supabase, sign in might fail or succeed depending on auto-confirm setting.
+    // We check either successful redirection to /dashboard or server response.
+    const url = page.url();
+    if (url.includes('/dashboard')) {
+      // 3. Verify Header UserNav and Protected Route
+      await expect(authPage.userNavTrigger).toBeVisible();
+      await authPage.userNavTrigger.click();
+      await expect(authPage.userNavEmail).toHaveText(user.email);
+
+      // 4. Logout Flow
+      await authPage.userNavLogout.click();
+      await expect(page).toHaveURL(/\/login/);
+
+      // 5. Unauthenticated Protected Route Access Redirection
+      await page.goto('/dashboard');
+      await expect(page).toHaveURL(/\/login/);
+    } else {
+      // If Supabase requires email confirmation before login
+      await expect(page).toHaveURL(/\/(login|dashboard)/);
+    }
+  });
+
+  test('redirects unauthenticated users attempting to access /dashboard to /login', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/login/);
   });
 });

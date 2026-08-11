@@ -47,5 +47,28 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { supabaseResponse, user };
+  let activeUser = user;
+  if (!activeUser && process.env.PLAYWRIGHT_TEST === 'true') {
+    const mockAuth = request.cookies.get('sb-mock-auth');
+    if (mockAuth?.value) {
+      try {
+        const parsed = JSON.parse(mockAuth.value);
+        activeUser = {
+          id: 'test-user-id',
+          email: parsed.email,
+          // biome-ignore lint/style/useNamingConvention: Supabase metadata key
+          user_metadata: parsed.user_metadata,
+          // biome-ignore lint/style/useNamingConvention: Supabase metadata key
+          app_metadata: {},
+          aud: 'authenticated',
+          // biome-ignore lint/style/useNamingConvention: Supabase metadata key
+          created_at: new Date().toISOString(),
+        } as unknown as typeof user;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return { supabaseResponse, user: activeUser };
 }

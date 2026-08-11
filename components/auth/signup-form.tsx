@@ -98,7 +98,7 @@ export function SignupForm() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2" data-invalid={Boolean(errors.fullName) || undefined}>
           <Label htmlFor="fullName">Full Name</Label>
           <div className="relative flex items-center">
@@ -112,6 +112,7 @@ export function SignupForm() {
               aria-invalid={Boolean(errors.fullName)}
               className="pl-9"
               disabled={isPending}
+              data-testid="auth-fullname-input"
             />
           </div>
           {errors.fullName && (
@@ -132,6 +133,7 @@ export function SignupForm() {
               aria-invalid={Boolean(errors.email)}
               className="pl-9"
               disabled={isPending}
+              data-testid="auth-email-input"
             />
           </div>
           {errors.email && <p className="font-medium text-destructive text-xs">{errors.email}</p>}
@@ -150,6 +152,7 @@ export function SignupForm() {
               aria-invalid={Boolean(errors.password)}
               className="pl-9"
               disabled={isPending}
+              data-testid="auth-password-input"
             />
           </div>
           {errors.password && (
@@ -173,6 +176,7 @@ export function SignupForm() {
               aria-invalid={Boolean(errors.confirmPassword)}
               className="pl-9"
               disabled={isPending}
+              data-testid="auth-confirmpassword-input"
             />
           </div>
           {errors.confirmPassword && (
@@ -180,7 +184,12 @@ export function SignupForm() {
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isPending}
+          data-testid="auth-submit-button"
+        >
           {isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" data-icon="inline-start" />

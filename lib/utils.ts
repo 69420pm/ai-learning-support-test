@@ -39,3 +39,11 @@ export function getTextFromMessage(message: ChatMessage | UIMessage): string {
   }
   return '';
 }
+
+export async function fetcher<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error('An error occurred while fetching data.');
+  }
+  return res.json();
+}

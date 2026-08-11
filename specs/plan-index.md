@@ -14,3 +14,12 @@ This directory contains technical implementation plans for feature development, 
   - **[Plan 003: Auth Server Actions & Auth Callback Route](plans/003-auth-server-actions-callback.md)** — Completed ([PR #48](https://github.com/69420pm/ai-learning-support-test/pull/48))
   - **[Plan 004: Auth UI Components & Pages](plans/004-auth-ui-components-pages.md)** — Completed ([PR #49](https://github.com/69420pm/ai-learning-support-test/pull/49))
   - **[Plan 005: Header User Navigation Dropdown & Playwright E2E Auth Test Suite](plans/005-user-nav-e2e-tests.md)** — In Review
+
+- **[Epic: Chat Interface & Extensible AI Message Foundation](epics/chat-interface-foundation.md)**
+  - Status: In Progress
+  - Provider: Vercel AI SDK v7 (`streamText`), Drizzle ORM, Supabase Auth
+  - **[Plan 006: Chat Database Schema & Query Encapsulation](plans/006-chat-database-schema-queries.md)** — Completed ([PR #51](https://github.com/69420pm/ai-learning-support-test/pull/51))
+  - **[Plan 007: Multi-LLM Provider & Streaming API Controller](plans/007-chat-ai-providers-streaming-api.md)** — Ready for Implementation
+  - **[Plan 008: Interactive Chat UI & Code Syntax Highlighting](plans/008-chat-ui-components.md)** — Ready for Implementation
+  - **[Plan 009: Page Routing, App Proxy Guard & Sidebar Thread History](plans/009-chat-routing-proxy-sidebar.md)** — Ready for Implementation
+

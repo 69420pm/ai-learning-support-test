@@ -19,7 +19,7 @@ export async function Header() {
         fullName: (user.user_metadata?.full_name as string | undefined) ?? undefined,
         avatarUrl: (user.user_metadata?.avatar_url as string | undefined) ?? undefined,
       };
-    } else if (process.env.PLAYWRIGHT_TEST === 'true') {
+    } else if (process.env.PLAYWRIGHT_TEST === 'true' || process.env.LOCAL_DEV_AUTH === 'true') {
       const cookieStore = await cookies();
       const mockAuth = cookieStore.get('sb-mock-auth');
       if (mockAuth?.value) {

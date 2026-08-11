@@ -1,33 +1,24 @@
-import { type CookieOptions, createServerClient } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
-/**
- * Refreshes the user's Supabase Auth session token and updates request/response cookies.
- * MUST be called by the root Next.js proxy on every matched request.
- *
- * @param request - Incoming NextRequest from Next.js proxy
- * @returns Object containing the modified NextResponse (with updated cookies) and authenticated User (if valid)
- */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    );
+  if (!url || !anonKey) {
+    return { supabaseResponse, user: null };
   }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+      setAll(cookiesToSet) {
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
@@ -41,20 +32,27 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // IMPORTANT: Do NOT insert business logic between createServerClient and getUser().
-  // Using getUser() instead of getSession() ensures cryptographically secure JWT verification on the server.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refreshing the auth token
+  let activeUser = null;
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    activeUser = user;
+  } catch {
+    // Supabase auth service offline or unreachable in local dev
+  }
 
-  let activeUser = user;
-  if (!activeUser && process.env.PLAYWRIGHT_TEST === 'true') {
+  if (
+    !activeUser &&
+    (process.env.PLAYWRIGHT_TEST === 'true' || process.env.LOCAL_DEV_AUTH === 'true')
+  ) {
     const mockAuth = request.cookies.get('sb-mock-auth');
     if (mockAuth?.value) {
       try {
         const parsed = JSON.parse(mockAuth.value);
         activeUser = {
-          id: 'test-user-id',
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
           email: parsed.email,
           // biome-ignore lint/style/useNamingConvention: Supabase metadata key
           user_metadata: parsed.user_metadata,
@@ -63,7 +61,7 @@ export async function updateSession(request: NextRequest) {
           aud: 'authenticated',
           // biome-ignore lint/style/useNamingConvention: Supabase metadata key
           created_at: new Date().toISOString(),
-        } as unknown as typeof user;
+        } as unknown as typeof activeUser;
       } catch {
         // ignore
       }

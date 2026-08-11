@@ -29,6 +29,18 @@ export async function signIn(input: LoginInput): Promise<AuthActionResult> {
   }
 
   const { email, password } = parseResult.data;
+
+  if (process.env.LOCAL_DEV_AUTH === 'true' || process.env.PLAYWRIGHT_TEST === 'true') {
+    const cookieStore = await cookies();
+    cookieStore.set(
+      'sb-mock-auth',
+      // biome-ignore lint/style/useNamingConvention: Supabase metadata keys
+      JSON.stringify({ email, user_metadata: { full_name: 'Dev User' } }),
+    );
+    revalidatePath('/', 'layout');
+    return { success: true };
+  }
+
   try {
     const supabase = await createClient();
 
@@ -38,32 +50,12 @@ export async function signIn(input: LoginInput): Promise<AuthActionResult> {
     });
 
     if (error) {
-      if (process.env.PLAYWRIGHT_TEST === 'true') {
-        const cookieStore = await cookies();
-        cookieStore.set(
-          'sb-mock-auth',
-          // biome-ignore lint/style/useNamingConvention: Supabase metadata keys
-          JSON.stringify({ email, user_metadata: { full_name: 'Test User' } }),
-        );
-        revalidatePath('/', 'layout');
-        return { success: true };
-      }
       return { success: false, error: error.message };
     }
 
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (err) {
-    if (process.env.PLAYWRIGHT_TEST === 'true') {
-      const cookieStore = await cookies();
-      cookieStore.set(
-        'sb-mock-auth',
-        // biome-ignore lint/style/useNamingConvention: Supabase metadata keys
-        JSON.stringify({ email, user_metadata: { full_name: 'Test User' } }),
-      );
-      revalidatePath('/', 'layout');
-      return { success: true };
-    }
     const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
     return { success: false, error: msg };
   }
@@ -76,6 +68,18 @@ export async function signUp(input: SignUpInput): Promise<AuthActionResult> {
   }
 
   const { email, password, fullName } = parseResult.data;
+
+  if (process.env.LOCAL_DEV_AUTH === 'true' || process.env.PLAYWRIGHT_TEST === 'true') {
+    const cookieStore = await cookies();
+    cookieStore.set(
+      'sb-mock-auth',
+      // biome-ignore lint/style/useNamingConvention: Supabase metadata keys
+      JSON.stringify({ email, user_metadata: { full_name: fullName || 'Dev User' } }),
+    );
+    revalidatePath('/', 'layout');
+    return { success: true };
+  }
+
   try {
     const supabase = await createClient();
 
@@ -91,10 +95,6 @@ export async function signUp(input: SignUpInput): Promise<AuthActionResult> {
     });
 
     if (error) {
-      if (process.env.PLAYWRIGHT_TEST === 'true') {
-        revalidatePath('/', 'layout');
-        return { success: true };
-      }
       return { success: false, error: error.message };
     }
 
@@ -116,10 +116,6 @@ export async function signUp(input: SignUpInput): Promise<AuthActionResult> {
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (err) {
-    if (process.env.PLAYWRIGHT_TEST === 'true') {
-      revalidatePath('/', 'layout');
-      return { success: true };
-    }
     const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
     return { success: false, error: msg };
   }
@@ -133,7 +129,7 @@ export async function signOut(): Promise<void> {
     console.error('Failed to sign out from Supabase:', err);
   }
 
-  if (process.env.PLAYWRIGHT_TEST === 'true') {
+  if (process.env.PLAYWRIGHT_TEST === 'true' || process.env.LOCAL_DEV_AUTH === 'true') {
     const cookieStore = await cookies();
     cookieStore.delete('sb-mock-auth');
   }
@@ -149,6 +145,11 @@ export async function requestPasswordReset(input: ForgotPasswordInput): Promise<
   }
 
   const { email } = parseResult.data;
+
+  if (process.env.LOCAL_DEV_AUTH === 'true' || process.env.PLAYWRIGHT_TEST === 'true') {
+    return { success: true };
+  }
+
   try {
     const supabase = await createClient();
 
@@ -160,17 +161,11 @@ export async function requestPasswordReset(input: ForgotPasswordInput): Promise<
     });
 
     if (error) {
-      if (process.env.PLAYWRIGHT_TEST === 'true') {
-        return { success: true };
-      }
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (err) {
-    if (process.env.PLAYWRIGHT_TEST === 'true') {
-      return { success: true };
-    }
     const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
     return { success: false, error: msg };
   }
@@ -183,6 +178,12 @@ export async function updatePassword(input: ResetPasswordInput): Promise<AuthAct
   }
 
   const { password } = parseResult.data;
+
+  if (process.env.LOCAL_DEV_AUTH === 'true' || process.env.PLAYWRIGHT_TEST === 'true') {
+    revalidatePath('/', 'layout');
+    return { success: true };
+  }
+
   try {
     const supabase = await createClient();
 
@@ -191,20 +192,12 @@ export async function updatePassword(input: ResetPasswordInput): Promise<AuthAct
     });
 
     if (error) {
-      if (process.env.PLAYWRIGHT_TEST === 'true') {
-        revalidatePath('/', 'layout');
-        return { success: true };
-      }
       return { success: false, error: error.message };
     }
 
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (err) {
-    if (process.env.PLAYWRIGHT_TEST === 'true') {
-      revalidatePath('/', 'layout');
-      return { success: true };
-    }
     const msg = err instanceof Error ? err.message : 'Authentication service unavailable';
     return { success: false, error: msg };
   }

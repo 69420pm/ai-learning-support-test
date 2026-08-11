@@ -24,6 +24,7 @@ export async function saveChat({
         visibility,
         createdAt: new Date(),
       })
+      .onConflictDoNothing()
       .returning();
     return insertedChat;
   } catch (error) {
@@ -47,6 +48,7 @@ export async function getChatById({
       .select()
       .from(chats)
       .where(and(...conditions));
+
     return selectedChat ?? null;
   } catch (error) {
     throw new ChatbotError('bad_request:database', { cause: error });
@@ -117,15 +119,39 @@ export async function getChatsByUserId({
     }
 
     const hasMore = filteredChats.length > limit;
+    const items = hasMore ? filteredChats.slice(0, limit) : filteredChats;
 
     return {
-      chats: hasMore ? filteredChats.slice(0, limit) : filteredChats,
+      chats: items,
       hasMore,
     };
   } catch (error) {
-    if (error instanceof ChatbotError) {
-      throw error;
+    if (error instanceof ChatbotError) throw error;
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export async function updateChatTitleById({
+  chatId,
+  title,
+}: {
+  chatId: string;
+  title: string;
+}): Promise<Chat> {
+  try {
+    const [updatedChat] = await db
+      .update(chats)
+      .set({ title })
+      .where(eq(chats.id, chatId))
+      .returning();
+
+    if (!updatedChat) {
+      throw new ChatbotError('not_found:database', `Chat with id ${chatId} not found`);
     }
+
+    return updatedChat;
+  } catch (error) {
+    if (error instanceof ChatbotError) throw error;
     throw new ChatbotError('bad_request:database', { cause: error });
   }
 }
@@ -135,17 +161,12 @@ export async function deleteChatById({
   userId,
 }: {
   id: string;
-  userId?: string;
+  userId: string;
 }): Promise<Chat | null> {
   try {
-    const conditions = [eq(chats.id, id)];
-    if (userId) {
-      conditions.push(eq(chats.userId, userId));
-    }
-
     const [deletedChat] = await db
       .delete(chats)
-      .where(and(...conditions))
+      .where(and(eq(chats.id, id), eq(chats.userId, userId)))
       .returning();
 
     return deletedChat ?? null;
@@ -161,7 +182,7 @@ export async function saveMessages({
 }): Promise<DBMessage[]> {
   try {
     if (newMessages.length === 0) return [];
-    return await db.insert(messages).values(newMessages).returning();
+    return await db.insert(messages).values(newMessages).onConflictDoNothing().returning();
   } catch (error) {
     throw new ChatbotError('bad_request:database', { cause: error });
   }
@@ -174,25 +195,6 @@ export async function getMessagesByChatId({ chatId }: { chatId: string }): Promi
       .from(messages)
       .where(eq(messages.chatId, chatId))
       .orderBy(asc(messages.createdAt));
-  } catch (error) {
-    throw new ChatbotError('bad_request:database', { cause: error });
-  }
-}
-
-export async function updateChatTitleById({
-  chatId,
-  title,
-}: {
-  chatId: string;
-  title: string;
-}): Promise<Chat | null> {
-  try {
-    const [updatedChat] = await db
-      .update(chats)
-      .set({ title })
-      .where(eq(chats.id, chatId))
-      .returning();
-    return updatedChat ?? null;
   } catch (error) {
     throw new ChatbotError('bad_request:database', { cause: error });
   }

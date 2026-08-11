@@ -19,10 +19,16 @@ import {
 import { ChatbotError } from '@/lib/errors';
 import { createClient } from '@/lib/supabase/server';
 import type { ChatMessage } from '@/lib/types';
-import { convertToUIMessages, getTextFromMessage } from '@/lib/utils';
+import { convertToUIMessages, generateUUID, getTextFromMessage } from '@/lib/utils';
 import { type PostRequestBody, postRequestBodySchema } from './schema';
 
 export const maxDuration = 60;
+
+function ensureUUID(id: string): string {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : generateUUID();
+}
 
 async function prepareChatState({
   id,
@@ -67,7 +73,7 @@ async function prepareChatState({
     await saveMessages({
       messages: [
         {
-          id: userMessage.id,
+          id: ensureUUID(userMessage.id),
           chatId: id,
           role: 'user',
           parts: userMessage.parts,
@@ -151,7 +157,7 @@ export async function POST(request: Request) {
         if (finishedMessages.length > 0) {
           await saveMessages({
             messages: finishedMessages.map((msg) => ({
-              id: msg.id,
+              id: ensureUUID(msg.id),
               chatId: id,
               role: msg.role as 'user' | 'assistant' | 'system',
               parts: msg.parts,
@@ -168,15 +174,15 @@ export async function POST(request: Request) {
       return error.toResponse();
     }
     console.error('Unhandled error in POST /api/chat:', error);
-    return new ChatbotError('offline:chat').toResponse();
+    return new ChatbotError('bad_request:api').toResponse();
   }
 }
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
 
     if (!id) {
       return new ChatbotError('bad_request:api').toResponse();
@@ -193,17 +199,22 @@ export async function DELETE(request: Request) {
 
     const chat = await getChatById({ id, userId: user.id });
 
-    if (!chat || chat.userId !== user.id) {
+    if (!chat) {
+      return new ChatbotError('not_found:chat').toResponse();
+    }
+
+    if (chat.userId !== user.id) {
       return new ChatbotError('forbidden:chat').toResponse();
     }
 
-    const deletedChat = await deleteChatById({ id, userId: user.id });
+    await deleteChatById({ id, userId: user.id });
 
-    return Response.json(deletedChat, { status: 200 });
+    return new Response('Chat deleted successfully', { status: 200 });
   } catch (error) {
     if (error instanceof ChatbotError) {
       return error.toResponse();
     }
-    return new ChatbotError('offline:chat').toResponse();
+    console.error('Unhandled error in DELETE /api/chat:', error);
+    return new ChatbotError('bad_request:api').toResponse();
   }
 }

@@ -116,7 +116,7 @@ describe('Chat API Handler (/api/chat)', () => {
         body: JSON.stringify({
           id: '550e8400-e29b-41d4-a716-446655440000',
           message: {
-            id: 'msg-user-1',
+            id: '11111111-2222-4444-8888-999999999999',
             role: 'user',
             parts: [{ type: 'text', text: 'Tell me a joke' }],
           },
@@ -147,7 +147,7 @@ describe('Chat API Handler (/api/chat)', () => {
       expect(mockSaveMessages).toHaveBeenCalledWith({
         messages: expect.arrayContaining([
           expect.objectContaining({
-            id: 'msg-user-1',
+            id: '11111111-2222-4444-8888-999999999999',
             chatId: '550e8400-e29b-41d4-a716-446655440000',
             role: 'user',
           }),

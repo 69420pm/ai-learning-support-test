@@ -25,9 +25,17 @@ export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {
 }
 
 export function getTextFromMessage(message: ChatMessage | UIMessage): string {
-  if (!message.parts) return '';
-  return message.parts
-    .filter((part) => part.type === 'text')
-    .map((part) => (part as { type: 'text'; text: string }).text)
-    .join('');
+  if (message.parts && message.parts.length > 0) {
+    return message.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => (part as { type: 'text'; text: string }).text)
+      .join('');
+  }
+  if (
+    'content' in message &&
+    typeof (message as unknown as { content?: string }).content === 'string'
+  ) {
+    return (message as unknown as { content: string }).content;
+  }
+  return '';
 }

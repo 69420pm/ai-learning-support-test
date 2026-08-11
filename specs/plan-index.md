@@ -22,4 +22,3 @@ This directory contains technical implementation plans for feature development, 
   - **[Plan 007: Multi-LLM Provider & Streaming API Controller](plans/007-chat-ai-providers-streaming-api.md)** — Completed ([PR #52](https://github.com/69420pm/ai-learning-support-test/pull/52))
   - **[Plan 008: Interactive Chat UI & Code Syntax Highlighting](plans/008-chat-ui-components.md)** — Ready for Implementation
   - **[Plan 009: Page Routing, App Proxy Guard & Sidebar Thread History](plans/009-chat-routing-proxy-sidebar.md)** — Ready for Implementation
-

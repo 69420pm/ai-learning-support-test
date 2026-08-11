@@ -1,0 +1,92 @@
+'use client';
+
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import type React from 'react';
+import { useMemo, useState } from 'react';
+import { ChatHeader } from '@/components/chat/chat-header';
+import { ChatInput } from '@/components/chat/chat-input';
+import { ChatMessages } from '@/components/chat/chat-messages';
+import { type CustomStreamPart, DataStreamHandler } from '@/components/chat/data-stream-handler';
+import type { ChatMessage } from '@/lib/types';
+import { cn, generateUUID } from '@/lib/utils';
+
+export type ChatProps = {
+  id?: string;
+  initialMessages?: ChatMessage[];
+  selectedModelId?: string;
+  onModelChange?: (modelId: string) => void;
+  className?: string;
+};
+
+export function Chat({
+  id: initialId,
+  initialMessages = [],
+  selectedModelId = 'gemini-2.5-flash',
+  onModelChange,
+  className,
+}: ChatProps) {
+  const [chatId] = useState(() => initialId || generateUUID());
+  const [input, setInput] = useState('');
+  const [title, setTitle] = useState('New Chat');
+  const [dataStreamParts, setDataStreamParts] = useState<CustomStreamPart[]>([]);
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/chat',
+        body: {
+          id: chatId,
+          selectedChatModel: selectedModelId,
+        },
+      }),
+    [chatId, selectedModelId],
+  );
+
+  const { messages, sendMessage, stop, status } = useChat({
+    id: chatId,
+    messages: initialMessages,
+    transport,
+    onData: (data: unknown) => {
+      if (data && typeof data === 'object') {
+        setDataStreamParts((prev) => [...prev, data as CustomStreamPart]);
+      }
+    },
+  });
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!input.trim() || status === 'streaming' || status === 'submitted') return;
+
+    const userText = input;
+    setInput('');
+
+    sendMessage({
+      role: 'user',
+      parts: [{ type: 'text', text: userText }],
+    });
+  };
+
+  const handleChatTitle = (newTitle: string) => {
+    setTitle(newTitle);
+  };
+
+  return (
+    <div className={cn('flex h-full w-full flex-col overflow-hidden bg-background', className)}>
+      <ChatHeader title={title} selectedModelId={selectedModelId} onModelChange={onModelChange} />
+      <ChatMessages
+        messages={messages}
+        isLoading={status === 'streaming' || status === 'submitted'}
+      />
+      <ChatInput
+        input={input}
+        setInput={setInput}
+        onSubmit={handleSubmit}
+        status={status}
+        stop={stop}
+        isLoading={status === 'streaming' || status === 'submitted'}
+      />
+      <DataStreamHandler dataStream={dataStreamParts} onChatTitle={handleChatTitle} />
+    </div>
+  );
+}

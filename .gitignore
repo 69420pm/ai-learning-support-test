@@ -50,3 +50,8 @@ context/
 # Test outputs
 test-results/
 playwright-report/
+
+# Supabase temp & system trash
+supabase/.temp/
+.Trash-501/
+

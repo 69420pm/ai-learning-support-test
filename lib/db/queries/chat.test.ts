@@ -42,6 +42,9 @@ describe('Chat DB Queries', () => {
 
       mockInsert.mockReturnValueOnce({
         values: vi.fn().mockReturnValueOnce({
+          onConflictDoNothing: vi.fn().mockReturnValueOnce({
+            returning: vi.fn().mockResolvedValueOnce([mockChat]),
+          }),
           returning: vi.fn().mockResolvedValueOnce([mockChat]),
         }),
       });
@@ -229,6 +232,9 @@ describe('Chat DB Queries', () => {
 
       mockInsert.mockReturnValueOnce({
         values: vi.fn().mockReturnValueOnce({
+          onConflictDoNothing: vi.fn().mockReturnValueOnce({
+            returning: vi.fn().mockResolvedValueOnce(savedMessages),
+          }),
           returning: vi.fn().mockResolvedValueOnce(savedMessages),
         }),
       });

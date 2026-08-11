@@ -21,4 +21,4 @@ This directory contains technical implementation plans for feature development, 
   - **[Plan 006: Chat Database Schema & Query Encapsulation](plans/006-chat-database-schema-queries.md)** — Completed ([PR #51](https://github.com/69420pm/ai-learning-support-test/pull/51))
   - **[Plan 007: Multi-LLM Provider & Streaming API Controller](plans/007-chat-ai-providers-streaming-api.md)** — Completed ([PR #52](https://github.com/69420pm/ai-learning-support-test/pull/52))
   - **[Plan 008: Interactive Chat UI & Code Syntax Highlighting](plans/008-chat-ui-components.md)** — Completed ([PR #53](https://github.com/69420pm/ai-learning-support-test/pull/53))
-  - **[Plan 009: Page Routing, App Proxy Guard & Sidebar Thread History](plans/009-chat-routing-proxy-sidebar.md)** — Ready for Implementation
+  - **[Plan 009: Page Routing, App Proxy Guard & Sidebar Thread History](plans/009-chat-routing-proxy-sidebar.md)** — Completed ([PR #54](https://github.com/69420pm/ai-learning-support-test/pull/54))

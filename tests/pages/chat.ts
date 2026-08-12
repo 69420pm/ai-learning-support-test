@@ -28,9 +28,15 @@ export class ChatPage {
   }
 
   getNewChatButton() {
-    return this.page
-      .getByRole('button', { name: 'New Chat' })
-      .or(this.page.getByRole('link', { name: 'New Chat' }));
+    return this.page.getByTestId('new-chat-button');
+  }
+
+  getModelSelectorTrigger() {
+    return this.page.getByTestId('model-selector-trigger');
+  }
+
+  getModelOption(modelId: string) {
+    return this.page.getByTestId(`model-option-${modelId}`);
   }
 
   getScrollToBottomButton() {

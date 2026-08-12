@@ -69,11 +69,8 @@ test.describe('Authentication System E2E', () => {
     await authPage.gotoLogin();
     await authPage.login(user.email, user.password);
 
-    // Should navigate to /dashboard or handle sign in
-    // Note: If email confirmation is enabled in Supabase, sign in might fail or succeed depending on auto-confirm setting.
-    // We check either successful redirection to /dashboard or server response.
     const url = page.url();
-    if (url.includes('/dashboard')) {
+    if (url.includes('/chat') || url.endsWith('/') || url.includes('/dashboard')) {
       // 3. Verify Header UserNav and Protected Route
       await expect(authPage.userNavTrigger).toBeVisible();
       await authPage.userNavTrigger.click();
@@ -84,18 +81,16 @@ test.describe('Authentication System E2E', () => {
       await expect(page).toHaveURL(/\/login/);
 
       // 5. Unauthenticated Protected Route Access Redirection
-      await page.goto('/dashboard');
+      await page.goto('/chat');
       await expect(page).toHaveURL(/\/login/);
     } else {
       // If Supabase requires email confirmation before login
-      await expect(page).toHaveURL(/\/(login|dashboard)/);
+      await expect(page).toHaveURL(/\/(login|chat)/);
     }
   });
 
-  test('redirects unauthenticated users attempting to access /dashboard to /login', async ({
-    page,
-  }) => {
-    await page.goto('/dashboard');
+  test('redirects unauthenticated users attempting to access /chat to /login', async ({ page }) => {
+    await page.goto('/chat');
     await expect(page).toHaveURL(/\/login/);
   });
 });

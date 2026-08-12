@@ -61,7 +61,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       await expect(page).toHaveURL(/\/chat/);
 
       await expect(chatPage.getChatTitle()).toHaveText('New Chat');
-      await expect(page.getByText('gemini-2.5-flash')).toBeVisible();
+      await expect(chatPage.getModelSelectorTrigger()).toHaveText(/Gemini 3.5 Flash/);
 
       await chatPage.sendUserMessage('Write a Python quicksort function');
       await expect(page.getByText(/Here is a Python quicksort/i)).toBeVisible({ timeout: 10000 });
@@ -71,6 +71,56 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       const copyBtn = page.getByRole('button', { name: 'Copy code' });
       await copyBtn.click();
       await expect(page.getByText('Copied')).toBeVisible();
+    });
+
+    test('verifies model popover selection updates active model and request payload', async ({
+      page,
+    }) => {
+      let capturedModel = '';
+
+      await page.route('**/api/chat', async (route) => {
+        const postData = route.request().postDataJSON();
+        capturedModel = postData?.selectedChatModel || postData?.model || '';
+
+        const sseBody = [
+          'event: message',
+          'data: {"type":"text-start","id":"part-1"}',
+          '',
+          'event: message',
+          'data: {"type":"text-delta","id":"part-1","delta":"Response from model"}',
+          '',
+          'event: message',
+          'data: {"type":"text-end","id":"part-1"}',
+          '',
+          'event: message',
+          'data: {"type":"finish","finishReason":"stop"}',
+          '',
+        ].join('\n');
+
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'x-vercel-ai-ui-stream': 'v1',
+          },
+          body: sseBody,
+        });
+      });
+
+      const chatPage = new ChatPage(page);
+      await chatPage.goto();
+
+      await expect(chatPage.getModelSelectorTrigger()).toHaveText(/Gemini 3.5 Flash/);
+
+      await chatPage.getModelSelectorTrigger().click();
+      await expect(chatPage.getModelOption('gpt-4o-mini')).toBeVisible();
+
+      await chatPage.getModelOption('gpt-4o-mini').click();
+      await expect(chatPage.getModelSelectorTrigger()).toHaveText(/GPT-4o Mini/);
+
+      await chatPage.sendUserMessage('Test model switch');
+      await expect(page.getByText('Response from model')).toBeVisible();
+      expect(capturedModel).toBe('gpt-4o-mini');
     });
 
     test('verifies thread URL replacement, sidebar history, thread switching, and deletion', async ({

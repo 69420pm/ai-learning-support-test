@@ -9,6 +9,7 @@ import { ChatHeader } from '@/components/chat/chat-header';
 import { ChatInput } from '@/components/chat/chat-input';
 import { ChatMessages } from '@/components/chat/chat-messages';
 import { type CustomStreamPart, DataStreamHandler } from '@/components/chat/data-stream-handler';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/providers';
 import type { ChatMessage } from '@/lib/types';
 import { cn, generateUUID } from '@/lib/utils';
 
@@ -25,16 +26,24 @@ export function Chat({
   id: initialId,
   initialMessages = [],
   initialTitle = 'New Chat',
-  selectedModelId = 'gemini-2.5-flash',
+  selectedModelId: initialSelectedModelId = DEFAULT_MODEL_ID,
   onModelChange,
   className,
 }: ChatProps) {
   const [chatId] = useState(() => initialId || generateUUID());
+  const [selectedModelId, setSelectedModelId] = useState(
+    initialSelectedModelId || DEFAULT_MODEL_ID,
+  );
   const [input, setInput] = useState('');
   const [title, setTitle] = useState(initialTitle);
   const [hasNavigated, setHasNavigated] = useState(Boolean(initialId));
   const [dataStreamParts, setDataStreamParts] = useState<CustomStreamPart[]>([]);
   const { mutate } = useSWRConfig();
+
+  const handleModelChange = (newModelId: string) => {
+    setSelectedModelId(newModelId);
+    onModelChange?.(newModelId);
+  };
 
   const transport = useMemo(
     () =>
@@ -43,6 +52,7 @@ export function Chat({
         body: {
           id: chatId,
           selectedChatModel: selectedModelId,
+          model: selectedModelId,
         },
       }),
     [chatId, selectedModelId],
@@ -86,7 +96,11 @@ export function Chat({
 
   return (
     <div className={cn('flex h-full w-full flex-col overflow-hidden bg-background', className)}>
-      <ChatHeader title={title} selectedModelId={selectedModelId} onModelChange={onModelChange} />
+      <ChatHeader
+        title={title}
+        selectedModelId={selectedModelId}
+        onModelChange={handleModelChange}
+      />
       <ChatMessages
         messages={messages}
         isLoading={status === 'streaming' || status === 'submitted'}

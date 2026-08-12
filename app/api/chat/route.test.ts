@@ -57,6 +57,9 @@ const mockLanguageModel = {
 };
 
 vi.mock('@/lib/ai/providers', () => ({
+  // biome-ignore lint/style/useNamingConvention: constant name export
+  DEFAULT_MODEL_ID: 'gemini-3.5-flash',
+  getProviderForModel: vi.fn().mockReturnValue('google'),
   getLanguageModel: vi.fn().mockImplementation(() => mockLanguageModel),
   getTitleModel: vi.fn().mockImplementation(() => mockLanguageModel),
 }));

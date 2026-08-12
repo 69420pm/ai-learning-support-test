@@ -7,7 +7,13 @@ import {
   toUIMessageStream,
 } from 'ai';
 import { systemPrompt, titlePrompt } from '@/lib/ai/prompts';
-import { getLanguageModel, getTitleModel, type ProviderName } from '@/lib/ai/providers';
+import {
+  DEFAULT_MODEL_ID,
+  getLanguageModel,
+  getProviderForModel,
+  getTitleModel,
+  type ProviderName,
+} from '@/lib/ai/providers';
 import {
   deleteChatById,
   getChatById,
@@ -113,7 +119,8 @@ export async function POST(request: Request) {
       return new ChatbotError('unauthorized:chat').toResponse();
     }
 
-    const modelId = model ?? selectedChatModel;
+    const modelId = model ?? selectedChatModel ?? DEFAULT_MODEL_ID;
+    const resolvedProvider = provider ?? getProviderForModel(modelId);
     const userMessage =
       message ?? (messages && messages.length > 0 ? messages[messages.length - 1] : undefined);
 
@@ -121,7 +128,7 @@ export async function POST(request: Request) {
       id,
       userId: user.id,
       userMessage,
-      provider,
+      provider: resolvedProvider,
       apiKey,
     });
 
@@ -129,7 +136,11 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer: dataStream }) => {
-        const languageModel = getLanguageModel({ provider, modelId, apiKey });
+        const languageModel = getLanguageModel({
+          provider: resolvedProvider,
+          modelId,
+          apiKey,
+        });
 
         const result = streamText({
           model: languageModel,

@@ -9,20 +9,18 @@ vi.mock('@/lib/supabase/proxy', () => ({
 }));
 
 describe('proxy route guards', () => {
-  it('redirects unauthenticated user accessing protected route /dashboard to /login?redirectTo=/dashboard', async () => {
+  it('redirects unauthenticated user accessing protected route /chat to /login?redirectTo=/chat', async () => {
     const mockResponse = NextResponse.next();
     vi.mocked(updateSession).mockResolvedValue({
       supabaseResponse: mockResponse,
       user: null,
     });
 
-    const request = new NextRequest('http://localhost:3000/dashboard');
+    const request = new NextRequest('http://localhost:3000/chat');
     const response = await proxy(request);
 
     expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe(
-      'http://localhost:3000/login?redirectTo=%2Fdashboard',
-    );
+    expect(response.headers.get('location')).toBe('http://localhost:3000/login?redirectTo=%2Fchat');
   });
 
   it('redirects unauthenticated user accessing sub-path of protected route /learn/123', async () => {
@@ -41,7 +39,7 @@ describe('proxy route guards', () => {
     );
   });
 
-  it('redirects authenticated user accessing auth route /login to /dashboard', async () => {
+  it('redirects authenticated user accessing auth route /login to /', async () => {
     const mockResponse = NextResponse.next();
     const mockUser = { id: 'user-123', email: 'test@example.com' } as User;
     vi.mocked(updateSession).mockResolvedValue({
@@ -53,7 +51,7 @@ describe('proxy route guards', () => {
     const response = await proxy(request);
 
     expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard');
+    expect(response.headers.get('location')).toBe('http://localhost:3000/');
   });
 
   it('allows unauthenticated user to access auth route /login', async () => {
@@ -69,7 +67,7 @@ describe('proxy route guards', () => {
     expect(response).toBe(mockResponse);
   });
 
-  it('allows authenticated user to access protected route /dashboard', async () => {
+  it('allows authenticated user to access protected route /chat', async () => {
     const mockResponse = NextResponse.next();
     const mockUser = { id: 'user-123', email: 'test@example.com' } as User;
     vi.mocked(updateSession).mockResolvedValue({
@@ -77,7 +75,7 @@ describe('proxy route guards', () => {
       user: mockUser,
     });
 
-    const request = new NextRequest('http://localhost:3000/dashboard');
+    const request = new NextRequest('http://localhost:3000/chat');
     const response = await proxy(request);
 
     expect(response).toBe(mockResponse);

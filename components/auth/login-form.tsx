@@ -44,7 +44,7 @@ export function LoginForm({ redirectTo, initialMessage }: LoginFormProps) {
     startTransition(async () => {
       const res = await signIn({ email, password });
       if (res.success) {
-        const destination = redirectTo || '/dashboard';
+        const destination = redirectTo || '/';
         router.push(destination);
         router.refresh();
       } else {

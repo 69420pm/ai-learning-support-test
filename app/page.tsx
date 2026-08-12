@@ -31,6 +31,7 @@ export default async function Home() {
       user = {
         id: authUser.id,
         email: authUser.email ?? '',
+        // biome-ignore lint/style/useNamingConvention: Supabase user metadata structure
         user_metadata: authUser.user_metadata,
       };
     } else if (process.env.PLAYWRIGHT_TEST === 'true' || process.env.LOCAL_DEV_AUTH === 'true') {
@@ -42,6 +43,7 @@ export default async function Home() {
           user = {
             id: parsed.id ?? 'mock-user-id',
             email: parsed.email ?? '',
+            // biome-ignore lint/style/useNamingConvention: Supabase user metadata structure
             user_metadata: parsed.user_metadata,
           };
         } catch {
@@ -87,12 +89,7 @@ export default async function Home() {
                 </p>
               </CardContent>
               <CardFooter className="pt-2">
-                <Button
-                  asChild
-                  size="sm"
-                  className="w-full gap-2"
-                  data-testid="go-to-ai-chat-btn"
-                >
+                <Button asChild size="sm" className="w-full gap-2" data-testid="go-to-ai-chat-btn">
                   <Link href="/chat">
                     <span>Go to AI Chat</span>
                     <ArrowRight className="size-4" />

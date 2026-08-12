@@ -39,30 +39,35 @@ describe('lib/ai/providers', () => {
 
   it('returns MockLanguageModelV4 when no API key or URL is configured', () => {
     const model = getLanguageModel();
-    expect(model.provider).toBe('mock-provider');
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK LanguageModel union type cast for provider inspection
+    expect((model as any).provider).toBe('mock-provider');
   });
 
   it('instantiates Google provider when GOOGLE_GENERATIVE_AI_API_KEY is set', () => {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = 'test-google-key';
     const model = getLanguageModel({ modelId: 'gemini-3.5-flash' });
-    expect(model.provider).toBe('google.generative-ai');
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK LanguageModel union type cast for provider inspection
+    expect((model as any).provider).toBe('google.generative-ai');
   });
 
   it('instantiates Google provider when GEMINI_API_KEY alias is set', () => {
     process.env.GEMINI_API_KEY = 'test-gemini-key';
     const model = getLanguageModel({ modelId: 'gemini-1.5-pro' });
-    expect(model.provider).toBe('google.generative-ai');
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK LanguageModel union type cast for provider inspection
+    expect((model as any).provider).toBe('google.generative-ai');
   });
 
   it('automatically resolves OpenAI provider when OpenAI modelId is provided', () => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
     const model = getLanguageModel({ modelId: 'gpt-4o-mini' });
-    expect(model.provider).toMatch(/^openai\./);
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK LanguageModel union type cast for provider inspection
+    expect((model as any).provider).toMatch(/^openai\./);
   });
 
   it('instantiates OpenRouter provider when OPENROUTER_API_KEY is set', () => {
     process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
     const model = getLanguageModel({ provider: 'openrouter' });
-    expect(model.provider).toMatch(/^openai\./);
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK LanguageModel union type cast for provider inspection
+    expect((model as any).provider).toMatch(/^openai\./);
   });
 });

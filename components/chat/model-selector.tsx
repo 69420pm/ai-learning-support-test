@@ -13,11 +13,7 @@ export type ModelSelectorProps = {
   className?: string;
 };
 
-export function ModelSelector({
-  selectedModelId,
-  onModelChange,
-  className,
-}: ModelSelectorProps) {
+export function ModelSelector({ selectedModelId, onModelChange, className }: ModelSelectorProps) {
   const [open, setOpen] = React.useState(false);
 
   const selectedModel =

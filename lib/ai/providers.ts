@@ -5,6 +5,13 @@ import { MockLanguageModelV4 } from 'ai/test';
 
 export type ProviderName = 'google' | 'openai' | 'openrouter';
 
+export type SupportedModel = {
+  id: string;
+  name: string;
+  provider: ProviderName;
+  description: string;
+};
+
 export type GetLanguageModelOptions = {
   provider?: ProviderName;
   modelId?: string;
@@ -12,14 +19,58 @@ export type GetLanguageModelOptions = {
 };
 
 export const DEFAULT_PROVIDER: ProviderName = 'google';
-export const DEFAULT_MODEL_ID = 'gemini-2.5-flash';
+export const DEFAULT_MODEL_ID = 'gemini-3.5-flash';
+
+export const SUPPORTED_MODELS: SupportedModel[] = [
+  {
+    id: 'gemini-3.5-flash-lite',
+    name: 'Gemini 3.5 Flash Lite',
+    provider: 'google',
+    description: 'Fastest model for simple queries',
+  },
+  {
+    id: 'gemini-3.5-flash',
+    name: 'Gemini 3.5 Flash',
+    provider: 'google',
+    description: 'Balanced speed and capability for general tasks',
+  },
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    provider: 'google',
+    description: 'Complex reasoning and detailed explanations',
+  },
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    provider: 'openai',
+    description: 'Affordable, fast OpenAI model',
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    provider: 'openai',
+    description: 'High intelligence OpenAI flagship model',
+  },
+];
+
+export function getProviderForModel(modelId: string): ProviderName {
+  const model = SUPPORTED_MODELS.find((m) => m.id === modelId);
+  return model ? model.provider : DEFAULT_PROVIDER;
+}
 
 export function getLanguageModel({
-  provider = DEFAULT_PROVIDER,
+  provider,
   modelId = DEFAULT_MODEL_ID,
   apiKey,
 }: GetLanguageModelOptions = {}): LanguageModel {
-  const hasKey = apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.OPENAI_API_KEY;
+  const resolvedProvider = provider ?? getProviderForModel(modelId);
+  const hasKey =
+    apiKey ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.OPENROUTER_API_KEY;
 
   if (!hasKey || process.env.PLAYWRIGHT_TEST === 'true') {
     return new MockLanguageModelV4({
@@ -58,7 +109,7 @@ export function getLanguageModel({
     });
   }
 
-  switch (provider) {
+  switch (resolvedProvider) {
     case 'google': {
       if (apiKey) {
         return createGoogle({ apiKey })(modelId);
@@ -79,15 +130,17 @@ export function getLanguageModel({
       })(modelId);
     }
     default: {
-      throw new Error(`Unsupported AI provider: ${provider}`);
+      throw new Error(`Unsupported AI provider: ${resolvedProvider}`);
     }
   }
 }
 
 export function getTitleModel(options: GetLanguageModelOptions = {}): LanguageModel {
+  const modelId = options.modelId ?? DEFAULT_MODEL_ID;
+  const provider = options.provider ?? getProviderForModel(modelId);
   return getLanguageModel({
-    provider: options.provider ?? DEFAULT_PROVIDER,
-    modelId: options.modelId ?? DEFAULT_MODEL_ID,
+    provider,
+    modelId,
     apiKey: options.apiKey,
   });
 }

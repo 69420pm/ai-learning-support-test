@@ -22,3 +22,9 @@ This directory contains technical implementation plans for feature development, 
   - **[Plan 007: Multi-LLM Provider & Streaming API Controller](plans/007-chat-ai-providers-streaming-api.md)** — Completed ([PR #52](https://github.com/69420pm/ai-learning-support-test/pull/52))
   - **[Plan 008: Interactive Chat UI & Code Syntax Highlighting](plans/008-chat-ui-components.md)** — Completed ([PR #53](https://github.com/69420pm/ai-learning-support-test/pull/53))
   - **[Plan 009: Page Routing, App Proxy Guard & Sidebar Thread History](plans/009-chat-routing-proxy-sidebar.md)** — Completed ([PR #54](https://github.com/69420pm/ai-learning-support-test/pull/54))
+
+- **[Epic 002a: Chat UI Refinements, Interactive Model Selection & Unified Dashboard Routing](epics/002a-chat-ui-refinements-model-selection.md)**
+  - Status: In Review
+  - Provider: Vercel AI SDK v7, Radix UI Popover, Supabase Auth
+  - **[Plan 010: Chat UI Refinements, Model Selection & Unified Dashboard Routing](plans/010-chat-ui-refinements-model-selection-unified-dashboard-routing.md)** — In Review ([PR #55](https://github.com/69420pm/ai-learning-support-test/pull/55))
+

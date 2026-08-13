@@ -12,11 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  DEFAULT_MODEL_ID,
-  type ModelOption,
-  SUPPORTED_MODELS,
-} from '@/lib/ai/providers';
+import { DEFAULT_MODEL_ID, type ModelOption, SUPPORTED_MODELS } from '@/lib/ai/providers';
 import { cn } from '@/lib/utils';
 
 export type ModelSelectorProps = {
@@ -36,11 +32,7 @@ function getProviderIcon(provider: 'google' | 'openai') {
   }
 }
 
-export function ModelSelector({
-  selectedModelId,
-  onModelChange,
-  className,
-}: ModelSelectorProps) {
+export function ModelSelector({ selectedModelId, onModelChange, className }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
 
   const activeModel = useMemo(() => {
@@ -51,15 +43,9 @@ export function ModelSelector({
     );
   }, [selectedModelId]);
 
-  const googleModels = useMemo(
-    () => SUPPORTED_MODELS.filter((m) => m.provider === 'google'),
-    [],
-  );
+  const googleModels = useMemo(() => SUPPORTED_MODELS.filter((m) => m.provider === 'google'), []);
 
-  const openaiModels = useMemo(
-    () => SUPPORTED_MODELS.filter((m) => m.provider === 'openai'),
-    [],
-  );
+  const openaiModels = useMemo(() => SUPPORTED_MODELS.filter((m) => m.provider === 'openai'), []);
 
   const renderModelItem = (model: ModelOption) => {
     const isSelected = selectedModelId === model.id;
@@ -92,9 +78,7 @@ export function ModelSelector({
           </span>
         </div>
 
-        {isSelected && (
-          <Check className="size-4 shrink-0 text-primary self-center" />
-        )}
+        {isSelected && <Check className="size-4 shrink-0 text-primary self-center" />}
       </DropdownMenuItem>
     );
   };

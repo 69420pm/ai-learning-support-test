@@ -28,6 +28,6 @@ This directory contains technical implementation plans for feature development, 
   - Provider: Vercel AI SDK v7, Google Gemini, OpenAI, Supabase Auth
   - **[Plan 010: Model Selection Component & Provider Configuration](plans/010-model-selection-provider-config.md)** — Ready
   - **[Plan 011: Chat Header Refactoring & Model Payload Plumbing](plans/011-chat-header-model-plumbing.md)** — Ready
-  - **[Plan 012: Top Navigation Alignment & Unified Dashboard](plans/012-header-alignment-unified-dashboard.md)** — Ready
+  - **[Plan 012: Top Navigation Alignment & Unified Dashboard](plans/012-header-alignment-unified-dashboard.md)** — Completed ([PR #57](https://github.com/69420pm/ai-learning-support-test/pull/57))
   - **[Plan 013: Verification & E2E Test Suite Updates](plans/013-e2e-verification-suite.md)** — Ready
 

@@ -61,7 +61,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       await expect(page).toHaveURL(/\/chat/);
 
       await expect(chatPage.getChatTitle()).toHaveText('New Chat');
-      await expect(page.getByText('gemini-2.5-flash')).toBeVisible();
+      await expect(page.getByText('Gemini 2.5 Flash')).toBeVisible();
 
       await chatPage.sendUserMessage('Write a Python quicksort function');
       await expect(page.getByText(/Here is a Python quicksort/i)).toBeVisible({ timeout: 10000 });

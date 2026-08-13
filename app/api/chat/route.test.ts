@@ -56,9 +56,12 @@ const mockLanguageModel = {
   }),
 };
 
+const mockGetLanguageModel = vi.fn().mockImplementation(() => mockLanguageModel);
+const mockGetTitleModel = vi.fn().mockImplementation(() => mockLanguageModel);
+
 vi.mock('@/lib/ai/providers', () => ({
-  getLanguageModel: vi.fn().mockImplementation(() => mockLanguageModel),
-  getTitleModel: vi.fn().mockImplementation(() => mockLanguageModel),
+  getLanguageModel: (...args: unknown[]) => mockGetLanguageModel(...args),
+  getTitleModel: (...args: unknown[]) => mockGetTitleModel(...args),
 }));
 
 describe('Chat API Handler (/api/chat)', () => {
@@ -153,6 +156,44 @@ describe('Chat API Handler (/api/chat)', () => {
           }),
         ]),
       });
+    });
+
+    it('passes selected model parameter to getLanguageModel', async () => {
+      const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
+      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockGetChatById.mockResolvedValueOnce(null);
+
+      const request = new Request('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          message: {
+            id: '11111111-2222-4444-8888-999999999999',
+            role: 'user',
+            parts: [{ type: 'text', text: 'Hello' }],
+          },
+          model: 'gpt-4o-mini',
+        }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(200);
+
+      const reader = response.body?.getReader();
+      if (reader) {
+        let done = false;
+        while (!done) {
+          const res = await reader.read();
+          done = res.done;
+        }
+      }
+
+      expect(mockGetLanguageModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: 'gpt-4o-mini',
+        }),
+      );
     });
 
     it('returns 403 Forbidden if user tries to post to another user chat', async () => {

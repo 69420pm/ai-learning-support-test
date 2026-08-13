@@ -49,6 +49,7 @@ export function Chat({
         api: '/api/chat',
         body: {
           id: chatId,
+          model: selectedModelId,
           selectedChatModel: selectedModelId,
         },
       }),

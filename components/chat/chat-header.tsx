@@ -1,8 +1,10 @@
 'use client';
 
-import { PlusIcon, Sparkles } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import Link from 'next/link';
+import { ModelSelector } from '@/components/chat/model-selector';
 import { Button } from '@/components/ui/button';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/providers';
 import { cn } from '@/lib/utils';
 
 export type ChatHeaderProps = {
@@ -15,8 +17,8 @@ export type ChatHeaderProps = {
 
 export function ChatHeader({
   title = 'New Chat',
-  selectedModelId = 'gemini-2.5-flash',
-  onModelChange: _onModelChange,
+  selectedModelId = DEFAULT_MODEL_ID,
+  onModelChange,
   onNewChat,
   className,
 }: ChatHeaderProps) {
@@ -32,10 +34,10 @@ export function ChatHeader({
           <h1 className="truncate font-semibold text-foreground text-sm sm:text-base">{title}</h1>
         </div>
 
-        <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground">
-          <Sparkles className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{selectedModelId}</span>
-        </div>
+        <ModelSelector
+          selectedModelId={selectedModelId}
+          onModelChange={onModelChange ?? (() => {})}
+        />
       </div>
 
       <div className="flex items-center gap-2">
@@ -61,3 +63,4 @@ export function ChatHeader({
     </header>
   );
 }
+

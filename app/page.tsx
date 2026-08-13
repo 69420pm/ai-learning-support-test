@@ -13,13 +13,7 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function Home() {
@@ -71,11 +65,15 @@ export default async function Home() {
                     Active Learning Platform
                   </Badge>
                 </div>
-                <CardTitle className="font-bold text-2xl sm:text-3xl tracking-tight" data-testid="dashboard-heading">
+                <CardTitle
+                  className="font-bold text-2xl sm:text-3xl tracking-tight"
+                  data-testid="dashboard-heading"
+                >
                   Dashboard
                 </CardTitle>
                 <CardDescription className="text-base" data-testid="dashboard-welcome">
-                  Welcome back, <span className="font-semibold text-foreground">{displayName}</span>! Ready to continue your learning session?
+                  Welcome back, <span className="font-semibold text-foreground">{displayName}</span>
+                  ! Ready to continue your learning session?
                 </CardDescription>
               </div>
               <Button asChild size="lg" className="gap-2 shrink-0 font-medium shadow-xs">
@@ -189,17 +187,19 @@ export default async function Home() {
                   <Sparkles className="size-5 text-primary" />
                   Pedagogical Engines
                 </CardTitle>
-                <CardDescription>
-                  Core learning science powering your progress.
-                </CardDescription>
+                <CardDescription>Core learning science powering your progress.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-xs text-muted-foreground">
                 <div className="rounded-md bg-muted/40 p-3 border border-border/50">
-                  <div className="font-medium text-foreground text-xs mb-1">FSRS Spaced Repetition</div>
+                  <div className="font-medium text-foreground text-xs mb-1">
+                    FSRS Spaced Repetition
+                  </div>
                   Optimizes review intervals dynamically based on memory decay algorithms.
                 </div>
                 <div className="rounded-md bg-muted/40 p-3 border border-border/50">
-                  <div className="font-medium text-foreground text-xs mb-1">Feynman Explanation Audits</div>
+                  <div className="font-medium text-foreground text-xs mb-1">
+                    Feynman Explanation Audits
+                  </div>
                   Evaluates your understanding by checking for gaps in self-explanations.
                 </div>
               </CardContent>
@@ -224,7 +224,8 @@ export default async function Home() {
             Document-Grounded Active Learning
           </h1>
           <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
-            Combine PDF ingestion, GraphRAG knowledge structuring, FSRS spaced repetition, and Feynman explanation audits into a personalized AI learning engine.
+            Combine PDF ingestion, GraphRAG knowledge structuring, FSRS spaced repetition, and
+            Feynman explanation audits into a personalized AI learning engine.
           </p>
         </div>
 

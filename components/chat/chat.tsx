@@ -25,16 +25,22 @@ export function Chat({
   id: initialId,
   initialMessages = [],
   initialTitle = 'New Chat',
-  selectedModelId = 'gemini-2.5-flash',
-  onModelChange,
+  selectedModelId: propSelectedModelId = 'gemini-2.5-flash',
+  onModelChange: propOnModelChange,
   className,
 }: ChatProps) {
   const [chatId] = useState(() => initialId || generateUUID());
   const [input, setInput] = useState('');
   const [title, setTitle] = useState(initialTitle);
+  const [selectedModelId, setSelectedModelId] = useState(propSelectedModelId);
   const [hasNavigated, setHasNavigated] = useState(Boolean(initialId));
   const [dataStreamParts, setDataStreamParts] = useState<CustomStreamPart[]>([]);
   const { mutate } = useSWRConfig();
+
+  const handleModelChange = (modelId: string) => {
+    setSelectedModelId(modelId);
+    propOnModelChange?.(modelId);
+  };
 
   const transport = useMemo(
     () =>
@@ -42,6 +48,7 @@ export function Chat({
         api: '/api/chat',
         body: {
           id: chatId,
+          model: selectedModelId,
           selectedChatModel: selectedModelId,
         },
       }),
@@ -86,7 +93,11 @@ export function Chat({
 
   return (
     <div className={cn('flex h-full w-full flex-col overflow-hidden bg-background', className)}>
-      <ChatHeader title={title} selectedModelId={selectedModelId} onModelChange={onModelChange} />
+      <ChatHeader
+        title={title}
+        selectedModelId={selectedModelId}
+        onModelChange={handleModelChange}
+      />
       <ChatMessages
         messages={messages}
         isLoading={status === 'streaming' || status === 'submitted'}

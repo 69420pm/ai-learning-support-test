@@ -64,7 +64,7 @@ export function UserNav({ user }: UserNavProps) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href="/dashboard" className="flex w-full items-center gap-2 cursor-pointer">
+            <Link href="/" className="flex w-full items-center gap-2 cursor-pointer">
               <LayoutDashboard className="size-4" />
               Dashboard
             </Link>

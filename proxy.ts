@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/proxy';
 
-const PROTECTED_ROUTES = ['/dashboard', '/chat', '/learn', '/review', '/settings'];
+const PROTECTED_ROUTES = ['/chat', '/learn', '/review', '/settings'];
 const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password'];
 
 /**
@@ -31,9 +31,9 @@ export async function proxy(request: NextRequest) {
 
   // Guard 2: Redirect authenticated users attempting to access auth routes
   if (isAuthRoute && user) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/dashboard';
-    return NextResponse.redirect(dashboardUrl);
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = '/';
+    return NextResponse.redirect(homeUrl);
   }
 
   return supabaseResponse;

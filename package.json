@@ -18,6 +18,9 @@
     "scan:arch": "tsx scripts/check-architecture.ts",
     "scan:specs": "tsx scripts/check-specs.ts",
     "scan:all": "pnpm lint && pnpm typecheck && pnpm scan:specs && pnpm scan:arch && pnpm scan:dead && pnpm scan:duplicates",
+    "git:sync": "tsx scripts/git-sync.ts",
+    "git:health": "tsx scripts/check-branch-health.ts",
+    "git:pr:finish": "gh pr merge --squash --delete-branch && pnpm git:sync",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

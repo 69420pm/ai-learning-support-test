@@ -1,33 +1,46 @@
 # Git Workflow
 
 - **Branch Naming**: 
-  - For features: `plan-<description>-<slug>`
+  - For epics: `epic-<slug>`
+  - For features / plans: `plan-<description>-<slug>`
   - For standalone fixes: `fix-issue-<issue_number or description>`
 - **Commits**: Follow Conventional Commits format (e.g., `feat(ui): ...`, `fix(db): ...`).
-- **Parallel Work**: Use `git worktree` when running multiple agents in parallel to isolate their working directories.
+- **Parallel Work & Epic Execution**: Use `git worktree` (under `.worktrees/`) for epic orchestration and multi-agent runs so the root workspace remains clean on `main`.
 - **PR Process**: Create PRs via `gh pr create`. Review via `gh pr review`.
-- **Merge Strategy**: We use Squash and Merge for PRs to keep the main history clean.
-- **Pre-Push Check**: Lefthook handles pre-commit linting/testing and pre-push typechecking automatically. Run `pnpm check` for full project validation.
+- **Merge Strategy**: Squash and Merge for PRs to keep the main history clean.
+- **Pre-Commit / Pre-Push Checks**: Lefthook automatically validates branch health, linting, tests, and typechecking. Run `pnpm check` for full validation.
+- **Sync & Cleanup**: Use `pnpm git:sync` to return to `main`, pull remote changes, prune deleted remote branches, and remove stale merged local branches.
 
 ---
 
-## Epic-Level PR Strategy
+## Epic-Level PR & Worktree Strategy
 
 When an epic is being executed across multiple plans:
 
 - **One PR per epic, not per plan.** Individual plans get their own branches for isolation, but they merge into an epic integration branch. Only the epic branch gets a PR against `main`.
+- **Worktree Isolation:** The Epic Orchestrator creates and operates inside a dedicated worktree (`.worktrees/epic-<slug>`). This ensures the user's root editor remains on `main` without disruption or risk of clobbering uncommitted work.
 - **Branch structure:**
   ```
-  main
-  └── epic-<slug>              ← integration branch (PR target)
-      ├── plan-<plan-010-slug>  ← merged after self-check passes
-      ├── plan-<plan-011-slug>  ← merged after self-check passes
-      └── plan-<plan-012-slug>  ← merged after self-check passes
+  main (root workspace)
+  └── .worktrees/epic-<slug>  ← integration branch in worktree (PR target)
+      ├── plan-<plan-010-slug> ← merged into epic branch
+      ├── plan-<plan-011-slug> ← merged into epic branch
+      └── plan-<plan-012-slug> ← merged into epic branch
   ```
-- **Exception:** If a plan is genuinely independent (no dependency on other plans in the epic, no shared UI surface), the orchestrator may create a standalone PR for it.
-- **Integration checkpoints:** Full verification (verifier + agentic-ui-verification) runs on the epic branch at orchestrator-defined checkpoints, not after every individual plan.
+- **Post-PR Cleanup:** After `gh pr create` is run:
+  1. The orchestrator deletes the temporary worktree: `git worktree remove .worktrees/epic-<slug>`.
+  2. The root workspace confirms it is on `main`.
+  3. When the PR is merged on GitHub, running `pnpm git:sync` or `pnpm git:pr:finish` pulls the latest changes and cleans up the local branch.
 
-When a single plan is executed standalone (not as part of an epic), the normal per-plan PR strategy applies.
+---
+
+## Workspace Sync Commands
+
+| Command | Action |
+|---|---|
+| `pnpm git:sync` | Switches to `main`, pulls latest `origin/main`, prunes remote refs, and cleans merged local branches |
+| `pnpm git:health` | Checks if current branch is stale or already merged into `main` |
+| `pnpm git:pr:finish` | Merges current PR via `gh pr merge --squash --delete-branch` and runs `pnpm git:sync` |
 
 ---
 
@@ -44,6 +57,7 @@ Before creating a commit or PR, agents MUST follow this checklist:
    git push origin <branch-name>
    gh pr create --title "<type>(scope): description" --body "<use PR template below>"
    ```
+6. **Ensure Root is on Main:** If not in a worktree, switch back to `main` (`git checkout main`) after PR creation and notify the user.
 
 ---
 

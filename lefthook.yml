@@ -4,13 +4,26 @@
 pre-commit:
   parallel: false
   commands:
+    branch-health:
+      run: pnpm tsx scripts/check-branch-health.ts --strict
     lint-format:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}"
       run: pnpm biome check --write --no-errors-on-unmatched {staged_files} && git add {staged_files}
     tests:
       glob: "*.{js,ts,jsx,tsx,cjs,mjs}"
       run: pnpm vitest related {staged_files} --run --passWithNoTests
+
 pre-push:
   commands:
     typecheck:
       run: pnpm run typecheck
+
+post-checkout:
+  commands:
+    branch-health:
+      run: pnpm tsx scripts/check-branch-health.ts
+
+post-merge:
+  commands:
+    prune-worktrees:
+      run: git worktree prune

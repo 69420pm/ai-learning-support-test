@@ -49,7 +49,8 @@ Before writing any code:
 
 5. **Create the feature branch:**
    ```bash
-   git checkout -b plan-<slug> main
+   git fetch origin main
+   git checkout -b plan-<slug> origin/main
    ```
    Derive `<slug>` from the plan filename or title (e.g., `plan-fsrs-scheduling-engine`).
 
@@ -202,6 +203,13 @@ When running standalone, follow [`rules/git-workflow.md`](file:///workspaces/sec
    Fill in all DoD items from the plan as checked checkboxes in the "Definition of Done" section.
 
 4. **Update the plan index.** Add an entry to [`specs/plan-index.md`](file:///workspaces/secure-ai-learning-support/specs/plan-index.md) recording the plan, its status, and the PR link.
+
+5. **Return to main:**
+   ```bash
+   git checkout main
+   ```
+   Output to the user:
+   > *"Plan implementation complete! PR opened at `<link>`. Switched local branch back to `main`. After merging on GitHub, run `pnpm git:sync`."*
 
 ---
 

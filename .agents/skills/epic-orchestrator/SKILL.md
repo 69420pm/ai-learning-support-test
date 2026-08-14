@@ -51,10 +51,13 @@ Before executing any plans:
 
    Document your checkpoint plan before starting execution.
 
-5. **Create the epic integration branch:**
+5. **Create the epic integration worktree (Recommended) or branch:**
    ```bash
-   git checkout -b epic-<slug> main
+   git fetch origin main
+   # Create isolated worktree so root workspace stays undisturbed on main:
+   git worktree add -b epic-<slug> .worktrees/epic-<slug> origin/main
    ```
+   *(If not using worktrees, fallback: `git checkout -b epic-<slug> origin/main`)*
    Derive `<slug>` from the epic title (e.g., `epic-graph-rag-pipeline`).
 
 ---
@@ -261,6 +264,18 @@ Create a single PR for the entire epic:
 5. **Update the plan index** for all plans in the epic:
    - Add/update entries in [`specs/plan-index.md`](file:///workspaces/secure-ai-learning-support/specs/plan-index.md)
    - Record the shared PR link for all plans
+
+6. **Cleanup & Return to Main:**
+   - If worktree was used, remove it:
+     ```bash
+     git worktree remove .worktrees/epic-<slug>
+     ```
+   - Ensure the root workspace is checked out to `main`:
+     ```bash
+     git checkout main
+     ```
+   - Output clear instructions to the user:
+     > *"Epic completed! PR opened at `<link>`. The worktree has been pruned and your root workspace is on `main`. After merging on GitHub, run `pnpm git:sync`."*
 
 ---
 

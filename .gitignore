@@ -56,4 +56,8 @@ playwright-report/
 supabase/.temp/
 .Trash-501/
 
+# Git Worktrees
+.worktrees/
+
+
 

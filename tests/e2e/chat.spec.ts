@@ -61,7 +61,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       await expect(page).toHaveURL(/\/chat/);
 
       await expect(chatPage.getChatTitle()).toHaveText('New Chat');
-      await expect(page.getByText('Gemini 2.5 Flash')).toBeVisible();
+      await expect(page.getByText('Gemini 3.7 Flash')).toBeVisible();
 
       await chatPage.sendUserMessage('Write a Python quicksort function');
       await expect(page.getByText(/Here is a Python quicksort/i)).toBeVisible({ timeout: 10000 });
@@ -174,15 +174,15 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
 
       const modelTrigger = page.getByTestId('model-selector-trigger');
       await expect(modelTrigger).toBeVisible();
-      await expect(modelTrigger).toHaveText(/Gemini 2\.5 Flash/);
+      await expect(modelTrigger).toHaveText(/Gemini 3\.7 Flash/);
 
       await modelTrigger.click();
 
-      const gpt4oOption = page.getByTestId('model-selector-item-gpt-4o');
-      await expect(gpt4oOption).toBeVisible();
-      await gpt4oOption.click();
+      const flashLiteOption = page.getByTestId('model-selector-item-gemini-3.5-flash-lite');
+      await expect(flashLiteOption).toBeVisible();
+      await flashLiteOption.click();
 
-      await expect(modelTrigger).toHaveText(/GPT-4o/);
+      await expect(modelTrigger).toHaveText(/Gemini 3\.5 Flash-Lite/);
     });
   });
 });

@@ -50,6 +50,7 @@ context/
 # Test outputs
 test-results/
 playwright-report/
+.jscpd/
 
 # Supabase temp & system trash
 supabase/.temp/

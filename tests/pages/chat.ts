@@ -16,7 +16,7 @@ export class ChatPage {
   }
 
   getModelOption(modelId: string) {
-    return this.page.getByTestId(`model-option-${modelId}`);
+    return this.page.getByTestId(`model-selector-item-${modelId}`);
   }
 
   async selectModel(modelId: string) {

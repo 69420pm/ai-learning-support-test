@@ -60,10 +60,10 @@ test.describe('Chat Model Selection & Header E2E', () => {
     const chatPage = new ChatPage(page);
     await chatPage.goto();
 
-    // 1. Verify ChatHeader renders active model trigger badge (default Gemini 3.6 Flash)
+    // 1. Verify ChatHeader renders active model trigger badge (default Gemini 3.7 Flash)
     const modelTrigger = chatPage.getModelSelectorTrigger();
     await expect(modelTrigger).toBeVisible();
-    await expect(modelTrigger).toContainText('Google Gemini 3.6 Flash');
+    await expect(modelTrigger).toContainText('Gemini 3.7 Flash');
 
     // 2. Verify ChatHeader does NOT render a top-right "New Chat" button inside the header banner
     const headerBanner = chatPage.getChatHeader();
@@ -73,18 +73,15 @@ test.describe('Chat Model Selection & Header E2E', () => {
     await modelTrigger.click();
 
     // 4. Verify popover opens showing list of SUPPORTED_MODELS
-    await expect(page.getByTestId('model-option-gemini-3.6-flash')).toBeVisible();
-    await expect(page.getByTestId('model-option-gemini-3.5-flash-lite')).toBeVisible();
-    await expect(page.getByTestId('model-option-gemini-3.5-flash')).toBeVisible();
-    await expect(page.getByTestId('model-option-gemini-3.5-pro')).toBeVisible();
-    await expect(page.getByTestId('model-option-gemini-2.5-flash')).toBeVisible();
+    await expect(page.getByTestId('model-selector-item-gemini-3.7-flash')).toBeVisible();
+    await expect(page.getByTestId('model-selector-item-gemini-3.5-flash-lite')).toBeVisible();
 
-    // 5. Select "Google Gemini 3.5 Pro" option
-    await page.getByTestId('model-option-gemini-3.5-pro').click();
+    // 5. Select "Gemini 3.5 Flash-Lite" option
+    await page.getByTestId('model-selector-item-gemini-3.5-flash-lite').click();
 
     // 6. Verify popover closes and trigger badge updates text
-    await expect(modelTrigger).toContainText('Google Gemini 3.5 Pro');
-    await expect(page.getByTestId('model-option-gemini-3.5-pro')).not.toBeVisible();
+    await expect(modelTrigger).toContainText('Gemini 3.5 Flash-Lite');
+    await expect(page.getByTestId('model-selector-item-gemini-3.5-flash-lite')).not.toBeVisible();
 
     // 7. Send message and verify payload model parameter
     await chatPage.sendUserMessage('Hello, test model selection');
@@ -94,7 +91,7 @@ test.describe('Chat Model Selection & Header E2E', () => {
 
     const payload = capturedRequestBody as Record<string, string> | null;
     expect(payload).not.toBeNull();
-    expect(payload?.model || payload?.selectedChatModel).toBe('gemini-3.5-pro');
+    expect(payload?.model || payload?.selectedChatModel).toBe('gemini-3.5-flash-lite');
 
     // 8. Click sidebar top "New Chat" button to verify clean chat re-initialization
     const sidebarNewChat = chatPage.getNewChatButton().first();

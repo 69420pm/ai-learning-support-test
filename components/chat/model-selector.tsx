@@ -16,8 +16,8 @@ import { DEFAULT_MODEL_ID, type ModelOption, SUPPORTED_MODELS } from '@/lib/ai/p
 import { cn } from '@/lib/utils';
 
 export type ModelSelectorProps = {
-  selectedModelId: string;
-  onModelChange: (modelId: string) => void;
+  selectedModelId?: string;
+  onModelChange?: (modelId: string) => void;
   className?: string;
 };
 
@@ -32,7 +32,11 @@ function getProviderIcon(provider: 'google' | 'openai') {
   }
 }
 
-export function ModelSelector({ selectedModelId, onModelChange, className }: ModelSelectorProps) {
+export function ModelSelector({
+  selectedModelId = DEFAULT_MODEL_ID,
+  onModelChange,
+  className,
+}: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
 
   const activeModel = useMemo(() => {
@@ -54,7 +58,7 @@ export function ModelSelector({ selectedModelId, onModelChange, className }: Mod
       <DropdownMenuItem
         key={model.id}
         onSelect={() => {
-          onModelChange(model.id);
+          onModelChange?.(model.id);
           setOpen(false);
         }}
         className="flex cursor-pointer items-start justify-between gap-3 p-2.5 rounded-md focus:bg-accent focus:text-accent-foreground"
@@ -102,17 +106,27 @@ export function ModelSelector({ selectedModelId, onModelChange, className }: Mod
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-[300px] p-1.5">
-        <DropdownMenuLabel className="px-2.5 py-1 font-semibold text-[10px] text-muted-foreground tracking-wider uppercase">
-          Google Gemini
-        </DropdownMenuLabel>
-        {googleModels.map(renderModelItem)}
+        {googleModels.length > 0 && (
+          <>
+            <DropdownMenuLabel className="px-2.5 py-1 font-semibold text-[10px] text-muted-foreground tracking-wider uppercase">
+              Google Gemini
+            </DropdownMenuLabel>
+            {googleModels.map(renderModelItem)}
+          </>
+        )}
 
-        <DropdownMenuSeparator className="my-1" />
+        {googleModels.length > 0 && openaiModels.length > 0 && (
+          <DropdownMenuSeparator className="my-1" />
+        )}
 
-        <DropdownMenuLabel className="px-2.5 py-1 font-semibold text-[10px] text-muted-foreground tracking-wider uppercase">
-          OpenAI
-        </DropdownMenuLabel>
-        {openaiModels.map(renderModelItem)}
+        {openaiModels.length > 0 && (
+          <>
+            <DropdownMenuLabel className="px-2.5 py-1 font-semibold text-[10px] text-muted-foreground tracking-wider uppercase">
+              OpenAI
+            </DropdownMenuLabel>
+            {openaiModels.map(renderModelItem)}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -8,35 +8,35 @@ import {
 } from './providers';
 
 describe('AI Providers Registry', () => {
-  it('exports DEFAULT_MODEL_ID as gemini-2.5-flash', () => {
-    expect(DEFAULT_MODEL_ID).toBe('gemini-2.5-flash');
+  it('exports DEFAULT_MODEL_ID as gemini-3.7-flash', () => {
+    expect(DEFAULT_MODEL_ID).toBe('gemini-3.7-flash');
     expect(DEFAULT_PROVIDER).toBe('google');
   });
 
-  it('exports SUPPORTED_MODELS list with Google and OpenAI models', () => {
+  it('exports SUPPORTED_MODELS list with Google Gemini models', () => {
     expect(SUPPORTED_MODELS).toBeDefined();
     expect(Array.isArray(SUPPORTED_MODELS)).toBe(true);
-    expect(SUPPORTED_MODELS.length).toBe(4);
+    expect(SUPPORTED_MODELS.length).toBe(2);
 
     const modelIds = SUPPORTED_MODELS.map((m) => m.id);
-    expect(modelIds).toContain('gemini-2.5-flash');
-    expect(modelIds).toContain('gemini-1.5-pro');
-    expect(modelIds).toContain('gpt-4o-mini');
-    expect(modelIds).toContain('gpt-4o');
+    expect(modelIds).toContain('gemini-3.7-flash');
+    expect(modelIds).toContain('gemini-3.5-flash-lite');
   });
 
-  it('resolves OpenAI model gpt-4o-mini without throwing', () => {
-    const model = getLanguageModel({ modelId: 'gpt-4o-mini' });
+  it('resolves Google model gemini-3.7-flash without throwing', () => {
+    const model = getLanguageModel({ modelId: 'gemini-3.7-flash' });
     expect(model).toBeDefined();
   });
 
-  it('resolves Google model gemini-1.5-pro without throwing', () => {
-    const model = getLanguageModel({ modelId: 'gemini-1.5-pro' });
+  it('resolves Google model gemini-3.5-flash-lite without throwing', () => {
+    const model = getLanguageModel({ modelId: 'gemini-3.5-flash-lite' });
     expect(model).toBeDefined();
   });
 
   it('falls back to DEFAULT_MODEL_ID and logs warning when given invalid modelId', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* noop */
+    });
 
     const model = getLanguageModel({ modelId: 'non-existent-model' });
 

@@ -20,33 +20,21 @@ export type GetLanguageModelOptions = {
 };
 
 export const DEFAULT_PROVIDER: ProviderName = 'google';
-export const DEFAULT_MODEL_ID = 'gemini-2.5-flash';
+export const DEFAULT_MODEL_ID = 'gemini-3.7-flash';
 
 export const SUPPORTED_MODELS: ModelOption[] = [
   {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
+    id: 'gemini-3.7-flash',
+    name: 'Gemini 3.7 Flash',
     provider: 'google',
     description: 'Fast & versatile model for multimodal tasks',
     badge: 'Default',
   },
   {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
+    id: 'gemini-3.5-flash-lite',
+    name: 'Gemini 3.5 Flash-Lite',
     provider: 'google',
-    description: 'Complex reasoning with 2M token context',
-  },
-  {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o mini',
-    provider: 'openai',
-    description: 'Fast, lightweight model for high-speed tasks',
-  },
-  {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    provider: 'openai',
-    description: 'High-intelligence flagship model',
+    description: 'Ultra-fast, lightweight model for high-throughput tasks',
   },
 ];
 

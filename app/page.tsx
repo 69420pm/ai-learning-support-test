@@ -9,45 +9,14 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react';
-import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth/session';
 
 export default async function Home() {
-  let authenticatedUser: { email: string; fullName?: string } | null = null;
-
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      authenticatedUser = {
-        email: user.email ?? '',
-        fullName: (user.user_metadata?.full_name as string | undefined) ?? undefined,
-      };
-    } else if (process.env.PLAYWRIGHT_TEST === 'true' || process.env.LOCAL_DEV_AUTH === 'true') {
-      const cookieStore = await cookies();
-      const mockAuth = cookieStore.get('sb-mock-auth');
-      if (mockAuth?.value) {
-        try {
-          const parsed = JSON.parse(mockAuth.value);
-          authenticatedUser = {
-            email: parsed.email ?? '',
-            fullName: (parsed.user_metadata?.full_name as string | undefined) ?? undefined,
-          };
-        } catch {
-          // ignore invalid json
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Failed to fetch user session in Home page:', error);
-  }
+  const authenticatedUser = await getCurrentUser();
 
   if (authenticatedUser) {
     const displayName = authenticatedUser.fullName || authenticatedUser.email;

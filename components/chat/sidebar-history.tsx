@@ -176,75 +176,34 @@ export function SidebarHistory({ user, onSelectChat }: SidebarHistoryProps) {
 
   const activeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : null;
 
+  const sections = [
+    { label: 'Today', items: grouped.today },
+    { label: 'Yesterday', items: grouped.yesterday },
+    { label: 'Last 7 Days', items: grouped.lastWeek },
+    { label: 'Older', items: grouped.older },
+  ] as const;
+
   return (
     <>
       <div className="flex flex-col gap-4 overflow-y-auto p-2" data-testid="sidebar-history-list">
-        {grouped.today.length > 0 && (
-          <div className="space-y-1">
-            <div className="px-2 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
-              Today
-            </div>
-            {grouped.today.map((chat) => (
-              <SidebarHistoryItem
-                key={chat.id}
-                chat={chat}
-                isActive={chat.id === activeId}
-                onDelete={handleShowDeleteDialog}
-                onSelect={onSelectChat}
-              />
-            ))}
-          </div>
-        )}
-
-        {grouped.yesterday.length > 0 && (
-          <div className="space-y-1">
-            <div className="px-2 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
-              Yesterday
-            </div>
-            {grouped.yesterday.map((chat) => (
-              <SidebarHistoryItem
-                key={chat.id}
-                chat={chat}
-                isActive={chat.id === activeId}
-                onDelete={handleShowDeleteDialog}
-                onSelect={onSelectChat}
-              />
-            ))}
-          </div>
-        )}
-
-        {grouped.lastWeek.length > 0 && (
-          <div className="space-y-1">
-            <div className="px-2 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
-              Last 7 Days
-            </div>
-            {grouped.lastWeek.map((chat) => (
-              <SidebarHistoryItem
-                key={chat.id}
-                chat={chat}
-                isActive={chat.id === activeId}
-                onDelete={handleShowDeleteDialog}
-                onSelect={onSelectChat}
-              />
-            ))}
-          </div>
-        )}
-
-        {grouped.older.length > 0 && (
-          <div className="space-y-1">
-            <div className="px-2 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
-              Older
-            </div>
-            {grouped.older.map((chat) => (
-              <SidebarHistoryItem
-                key={chat.id}
-                chat={chat}
-                isActive={chat.id === activeId}
-                onDelete={handleShowDeleteDialog}
-                onSelect={onSelectChat}
-              />
-            ))}
-          </div>
+        {sections.map(
+          (section) =>
+            section.items.length > 0 && (
+              <div key={section.label} className="space-y-1">
+                <div className="px-2 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {section.label}
+                </div>
+                {section.items.map((chat) => (
+                  <SidebarHistoryItem
+                    key={chat.id}
+                    chat={chat}
+                    isActive={chat.id === activeId}
+                    onDelete={handleShowDeleteDialog}
+                    onSelect={onSelectChat}
+                  />
+                ))}
+              </div>
+            ),
         )}
       </div>
 

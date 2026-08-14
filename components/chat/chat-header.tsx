@@ -1,9 +1,6 @@
 'use client';
 
-import { PlusIcon } from 'lucide-react';
-import Link from 'next/link';
 import { ModelSelector } from '@/components/chat/model-selector';
-import { Button } from '@/components/ui/button';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/providers';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +15,6 @@ export function ChatHeader({
   title = 'New Chat',
   selectedModelId = DEFAULT_MODEL_ID,
   onModelChange,
-  onNewChat,
   className,
 }: ChatHeaderProps) {
   return (
@@ -33,31 +29,7 @@ export function ChatHeader({
           <h1 className="truncate font-semibold text-foreground text-sm sm:text-base">{title}</h1>
         </div>
 
-        <ModelSelector
-          selectedModelId={selectedModelId}
-          onModelChange={onModelChange ?? (() => {})}
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        {onNewChat ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onNewChat}
-            className="h-8 gap-1.5 rounded-lg text-xs"
-          >
-            <PlusIcon className="size-3.5" />
-            <span>New Chat</span>
-          </Button>
-        ) : (
-          <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg text-xs">
-            <Link href="/chat">
-              <PlusIcon className="size-3.5" />
-              <span>New Chat</span>
-            </Link>
-          </Button>
-        )}
+        <ModelSelector selectedModelId={selectedModelId} onModelChange={onModelChange} />
       </div>
     </header>
   );

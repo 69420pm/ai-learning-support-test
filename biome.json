@@ -10,6 +10,7 @@
       "!**/dist",
       "!**/.turbo",
       "!**/.agents",
+      "!**/.jscpd",
       "!**/next-env.d.ts"
     ]
   },

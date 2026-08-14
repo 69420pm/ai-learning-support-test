@@ -11,11 +11,11 @@ import {
 import { DEFAULT_MODEL_ID, SUPPORTED_MODELS } from '@/lib/ai/providers';
 import { cn } from '@/lib/utils';
 
-export interface ModelSelectorProps {
+export type ModelSelectorProps = {
   selectedModelId?: string;
   onModelChange?: (modelId: string) => void;
   className?: string;
-}
+};
 
 export function ModelSelector({
   selectedModelId = DEFAULT_MODEL_ID,

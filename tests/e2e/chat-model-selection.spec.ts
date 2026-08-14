@@ -60,10 +60,10 @@ test.describe('Chat Model Selection & Header E2E', () => {
     const chatPage = new ChatPage(page);
     await chatPage.goto();
 
-    // 1. Verify ChatHeader renders active model trigger badge (default Gemini 2.5 Flash)
+    // 1. Verify ChatHeader renders active model trigger badge (default Gemini 3.6 Flash)
     const modelTrigger = chatPage.getModelSelectorTrigger();
     await expect(modelTrigger).toBeVisible();
-    await expect(modelTrigger).toContainText('Google Gemini 2.5 Flash');
+    await expect(modelTrigger).toContainText('Google Gemini 3.6 Flash');
 
     // 2. Verify ChatHeader does NOT render a top-right "New Chat" button inside the header banner
     const headerBanner = chatPage.getChatHeader();
@@ -73,17 +73,18 @@ test.describe('Chat Model Selection & Header E2E', () => {
     await modelTrigger.click();
 
     // 4. Verify popover opens showing list of SUPPORTED_MODELS
+    await expect(page.getByTestId('model-option-gemini-3.6-flash')).toBeVisible();
+    await expect(page.getByTestId('model-option-gemini-3.5-flash-lite')).toBeVisible();
+    await expect(page.getByTestId('model-option-gemini-3.5-flash')).toBeVisible();
+    await expect(page.getByTestId('model-option-gemini-3.5-pro')).toBeVisible();
     await expect(page.getByTestId('model-option-gemini-2.5-flash')).toBeVisible();
-    await expect(page.getByTestId('model-option-gemini-1.5-pro')).toBeVisible();
-    await expect(page.getByTestId('model-option-gpt-4o-mini')).toBeVisible();
-    await expect(page.getByTestId('model-option-gpt-4o')).toBeVisible();
 
-    // 5. Select "OpenAI GPT-4o Mini" option
-    await page.getByTestId('model-option-gpt-4o-mini').click();
+    // 5. Select "Google Gemini 3.5 Pro" option
+    await page.getByTestId('model-option-gemini-3.5-pro').click();
 
     // 6. Verify popover closes and trigger badge updates text
-    await expect(modelTrigger).toContainText('OpenAI GPT-4o Mini');
-    await expect(page.getByTestId('model-option-gpt-4o-mini')).not.toBeVisible();
+    await expect(modelTrigger).toContainText('Google Gemini 3.5 Pro');
+    await expect(page.getByTestId('model-option-gemini-3.5-pro')).not.toBeVisible();
 
     // 7. Send message and verify payload model parameter
     await chatPage.sendUserMessage('Hello, test model selection');
@@ -93,7 +94,7 @@ test.describe('Chat Model Selection & Header E2E', () => {
 
     const payload = capturedRequestBody as Record<string, string> | null;
     expect(payload).not.toBeNull();
-    expect(payload?.model || payload?.selectedChatModel).toBe('gpt-4o-mini');
+    expect(payload?.model || payload?.selectedChatModel).toBe('gemini-3.5-pro');
 
     // 8. Click sidebar top "New Chat" button to verify clean chat re-initialization
     const sidebarNewChat = chatPage.getNewChatButton().first();

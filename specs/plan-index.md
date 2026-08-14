@@ -15,7 +15,7 @@ This directory contains technical implementation plans for feature development, 
   - **[Plan 004: Auth UI Components & Pages](plans/004-auth-ui-components-pages.md)** — Completed ([PR #49](https://github.com/69420pm/ai-learning-support-test/pull/49))
   - **[Plan 005: Header User Navigation Dropdown & Playwright E2E Auth Test Suite](plans/005-user-nav-e2e-tests.md)** — In Review
 
-- **[Epic: Chat Interface & Extensible AI Message Foundation](epics/chat-interface-foundation.md)**
+- **[Epic 002: Chat Interface & Extensible AI Message Foundation](epics/002-chat-interface-foundation.md)**
   - Status: Completed
   - Provider: Vercel AI SDK v7 (`streamText`), Drizzle ORM, Supabase Auth
   - **[Plan 006: Chat Database Schema & Query Encapsulation](plans/006-chat-database-schema-queries.md)** — Completed ([PR #51](https://github.com/69420pm/ai-learning-support-test/pull/51))

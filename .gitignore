@@ -54,6 +54,5 @@ playwright-report/
 # Supabase temp & system trash
 supabase/.temp/
 .Trash-501/
-.agents/agents/
 
 

@@ -37,7 +37,11 @@
         "noUnusedFunctionParameters": "error",
         "useExhaustiveDependencies": "error",
         "useHookAtTopLevel": "error",
-        "noChildrenProp": "error"
+        "noChildrenProp": "error",
+        "noConstantCondition": "error",
+        "noInvalidUseBeforeDeclaration": "error",
+        "noUndeclaredVariables": "error",
+        "noUnusedPrivateClassMembers": "error"
       },
       "suspicious": {
         "noExplicitAny": "error",
@@ -49,7 +53,16 @@
         },
         "noDebugger": "error",
         "noThenProperty": "error",
-        "useAwait": "error"
+        "useAwait": "error",
+        "noAsyncPromiseExecutor": "error",
+        "noCatchAssign": "error",
+        "noDuplicateParameters": "error",
+        "noDuplicateCase": "error",
+        "noEmptyBlockStatements": "error",
+        "noFallthroughSwitchClause": "error",
+        "noRedeclare": "error",
+        "noShadowRestrictedNames": "error",
+        "noUnsafeDeclarationMerging": "error"
       },
       "style": {
         "noNonNullAssertion": "error",
@@ -64,6 +77,13 @@
         "useNumberNamespace": "error",
         "useSelfClosingElements": "error",
         "useEnumInitializers": "off",
+        "useAsConstAssertion": "error",
+        "noInferrableTypes": "error",
+        "useCollapsedElseIf": "error",
+        "useConsistentTypeDefinitions": {
+          "level": "error",
+          "options": { "style": "type" }
+        },
         "useConsistentArrayType": {
           "level": "error",
           "options": { "syntax": "shorthand" }
@@ -95,6 +115,12 @@
         "noUselessFragments": "error",
         "noBannedTypes": "error",
         "noForEach": "off",
+        "noUselessEmptyExport": "error",
+        "noUselessTypeConstraint": "error",
+        "noUselessUndefinedInitialization": "error",
+        "useDateNow": "error",
+        "useFlatMap": "error",
+        "noUselessTernary": "error",
         "noExcessiveCognitiveComplexity": {
           "level": "warn",
           "options": { "maxAllowedComplexity": 15 }
@@ -104,5 +130,17 @@
         "preset": "recommended"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
 }

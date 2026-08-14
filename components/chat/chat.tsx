@@ -9,6 +9,7 @@ import { ChatHeader } from '@/components/chat/chat-header';
 import { ChatInput } from '@/components/chat/chat-input';
 import { ChatMessages } from '@/components/chat/chat-messages';
 import { type CustomStreamPart, DataStreamHandler } from '@/components/chat/data-stream-handler';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/providers';
 import type { ChatMessage } from '@/lib/types';
 import { cn, generateUUID } from '@/lib/utils';
 
@@ -25,7 +26,7 @@ export function Chat({
   id: initialId,
   initialMessages = [],
   initialTitle = 'New Chat',
-  selectedModelId: propSelectedModelId = 'gemini-2.5-flash',
+  selectedModelId: propSelectedModelId = DEFAULT_MODEL_ID,
   onModelChange: propOnModelChange,
   className,
 }: ChatProps) {

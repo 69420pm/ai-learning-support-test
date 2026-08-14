@@ -9,3 +9,5 @@ export type CustomUIDataTypes = {
 };
 
 export type ChatMessage = UIMessage;
+
+export type { Chat } from '@/lib/db/schema';

@@ -1,4 +1,4 @@
-export const regularPrompt = `You are a helpful learning assistant for AI Learning Support. Keep responses concise, direct, and focused on active learning, clear explanations, and helping the user master complex concepts step-by-step.`;
+export const systemPrompt = `You are a helpful learning assistant for AI Learning Support. Keep responses concise, direct, and focused on active learning, clear explanations, and helping the user master complex concepts step-by-step.`;
 
 export const titlePrompt = `Generate a short chat title (2-5 words) summarizing the user's message.
 
@@ -11,5 +11,3 @@ Examples:
 - "explain fsrs spaced repetition" -> FSRS Spaced Repetition
 
 Never output hashtags, prefixes like "Title:", or quotes.`;
-
-export const systemPrompt = regularPrompt;

@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { Chat } from '@/lib/db/schema';
+import type { Chat } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 export type SidebarHistoryItemProps = {

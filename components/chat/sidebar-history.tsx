@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Chat } from '@/lib/db/schema';
+import type { Chat } from '@/lib/types';
 import { fetcher } from '@/lib/utils';
 
 export type SidebarHistoryProps = {

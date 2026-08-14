@@ -11,6 +11,26 @@
 
 ---
 
+## Epic-Level PR Strategy
+
+When an epic is being executed across multiple plans:
+
+- **One PR per epic, not per plan.** Individual plans get their own branches for isolation, but they merge into an epic integration branch. Only the epic branch gets a PR against `main`.
+- **Branch structure:**
+  ```
+  main
+  └── epic-<slug>              ← integration branch (PR target)
+      ├── plan-<plan-010-slug>  ← merged after self-check passes
+      ├── plan-<plan-011-slug>  ← merged after self-check passes
+      └── plan-<plan-012-slug>  ← merged after self-check passes
+  ```
+- **Exception:** If a plan is genuinely independent (no dependency on other plans in the epic, no shared UI surface), the orchestrator may create a standalone PR for it.
+- **Integration checkpoints:** Full verification (verifier + agentic-ui-verification) runs on the epic branch at orchestrator-defined checkpoints, not after every individual plan.
+
+When a single plan is executed standalone (not as part of an epic), the normal per-plan PR strategy applies.
+
+---
+
 ## Agent Pre-Commit & PR Checklist
 
 Before creating a commit or PR, agents MUST follow this checklist:

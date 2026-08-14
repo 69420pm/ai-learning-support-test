@@ -1,4 +1,4 @@
-import { BookOpen, MessageSquare } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { UserNav } from '@/components/auth/user-nav';
@@ -48,12 +48,6 @@ export async function Header() {
         <div className="flex items-center gap-4">
           {navUser ? (
             <div className="flex items-center gap-3">
-              <Button asChild variant="ghost" size="sm" className="gap-1.5 font-medium">
-                <Link href="/chat">
-                  <MessageSquare className="size-4" />
-                  <span>Chat</span>
-                </Link>
-              </Button>
               <UserNav user={navUser} />
             </div>
           ) : (

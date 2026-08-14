@@ -13,41 +13,67 @@ export type ModelOption = {
   badge?: string;
 };
 
-export const DEFAULT_PROVIDER: ProviderName = 'google';
-export const DEFAULT_MODEL_ID = 'gemini-3.7-flash';
-
-export const SUPPORTED_MODELS: ModelOption[] = [
-  {
-    id: 'gemini-3.7-flash',
-    name: 'Google Gemini 3.7 Flash',
-    provider: 'google',
-    description: 'High-performance multimodal Flash model with near-Pro intelligence.',
-    badge: 'Default',
-  },
-  {
-    id: 'gemini-3.5-flash',
-    name: 'Google Gemini 3.5 Flash',
-    provider: 'google',
-    description: 'Fast, efficient multimodal reasoning model.',
-  },
-];
-
 export type GetLanguageModelOptions = {
   provider?: ProviderName;
   modelId?: string;
   apiKey?: string;
 };
 
+export const DEFAULT_PROVIDER: ProviderName = 'google';
+export const DEFAULT_MODEL_ID = 'gemini-2.5-flash';
+
+export const SUPPORTED_MODELS: ModelOption[] = [
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'google',
+    description: 'Fast & versatile model for multimodal tasks',
+    badge: 'Default',
+  },
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    provider: 'google',
+    description: 'Complex reasoning with 2M token context',
+  },
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o mini',
+    provider: 'openai',
+    description: 'Fast, lightweight model for high-speed tasks',
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    provider: 'openai',
+    description: 'High-intelligence flagship model',
+  },
+];
+
 export function getLanguageModel({
   provider,
   modelId = DEFAULT_MODEL_ID,
   apiKey,
 }: GetLanguageModelOptions = {}): LanguageModel {
-  const modelOption = SUPPORTED_MODELS.find((m) => m.id === modelId);
-  const resolvedProvider: ProviderName = provider ?? modelOption?.provider ?? DEFAULT_PROVIDER;
-  const resolvedModelId = modelOption ? modelId : DEFAULT_MODEL_ID;
+  let targetModel = SUPPORTED_MODELS.find((m) => m.id === modelId);
+  let resolvedModelId = modelId;
 
-  const hasKey = apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.OPENAI_API_KEY;
+  if (!targetModel) {
+    console.warn(
+      `Unrecognized modelId "${modelId}". Falling back to default model: ${DEFAULT_MODEL_ID}`,
+    );
+    targetModel = SUPPORTED_MODELS.find((m) => m.id === DEFAULT_MODEL_ID);
+    resolvedModelId = DEFAULT_MODEL_ID;
+  }
+
+  const resolvedProvider: ProviderName =
+    provider ?? (targetModel ? targetModel.provider : DEFAULT_PROVIDER);
+
+  const hasKey =
+    apiKey ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.OPENROUTER_API_KEY;
 
   if (!hasKey || process.env.PLAYWRIGHT_TEST === 'true') {
     return new MockLanguageModelV4({

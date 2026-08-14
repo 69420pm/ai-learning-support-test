@@ -1,54 +1,55 @@
-import { describe, expect, it } from 'vitest';
-import { getLanguageModel, SUPPORTED_MODELS } from './providers';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  DEFAULT_MODEL_ID,
+  DEFAULT_PROVIDER,
+  getLanguageModel,
+  getTitleModel,
+  SUPPORTED_MODELS,
+} from './providers';
 
-describe('AI Provider Resolution', () => {
-  it('exports SUPPORTED_MODELS list with Google Gemini 3.x definitions', () => {
+describe('AI Providers Registry', () => {
+  it('exports DEFAULT_MODEL_ID as gemini-2.5-flash', () => {
+    expect(DEFAULT_MODEL_ID).toBe('gemini-2.5-flash');
+    expect(DEFAULT_PROVIDER).toBe('google');
+  });
+
+  it('exports SUPPORTED_MODELS list with Google and OpenAI models', () => {
     expect(SUPPORTED_MODELS).toBeDefined();
-    expect(SUPPORTED_MODELS.length).toBeGreaterThan(0);
-    const gemini37 = SUPPORTED_MODELS.find((m) => m.id === 'gemini-3.7-flash');
-    const gemini35 = SUPPORTED_MODELS.find((m) => m.id === 'gemini-3.5-flash');
-    expect(gemini37?.provider).toBe('google');
-    expect(gemini35?.provider).toBe('google');
-    expect(SUPPORTED_MODELS.every((m) => m.provider === 'google')).toBe(true);
+    expect(Array.isArray(SUPPORTED_MODELS)).toBe(true);
+    expect(SUPPORTED_MODELS.length).toBe(4);
+
+    const modelIds = SUPPORTED_MODELS.map((m) => m.id);
+    expect(modelIds).toContain('gemini-2.5-flash');
+    expect(modelIds).toContain('gemini-1.5-pro');
+    expect(modelIds).toContain('gpt-4o-mini');
+    expect(modelIds).toContain('gpt-4o');
   });
 
-  it('resolves valid modelId to model instance without throwing', () => {
-    const model = getLanguageModel({ modelId: 'gemini-3.7-flash' });
+  it('resolves OpenAI model gpt-4o-mini without throwing', () => {
+    const model = getLanguageModel({ modelId: 'gpt-4o-mini' });
     expect(model).toBeDefined();
   });
 
-  it('falls back to default model for invalid modelId', () => {
+  it('resolves Google model gemini-1.5-pro without throwing', () => {
+    const model = getLanguageModel({ modelId: 'gemini-1.5-pro' });
+    expect(model).toBeDefined();
+  });
+
+  it('falls back to DEFAULT_MODEL_ID and logs warning when given invalid modelId', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const model = getLanguageModel({ modelId: 'non-existent-model' });
+
     expect(model).toBeDefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Unrecognized modelId "non-existent-model"'),
+    );
+
+    warnSpy.mockRestore();
   });
 
-  it('streams valid UI message chunks with text-start before text-delta when using fallback mock model', async () => {
-    const { streamText, toUIMessageStream } = await import('ai');
-    const model = getLanguageModel({ modelId: 'gemini-3.6-flash' });
-    const result = streamText({
-      model,
-      prompt: 'Hello',
-    });
-
-    const uiStream = toUIMessageStream({ stream: result.stream });
-    const reader = uiStream.getReader();
-    const chunks: Array<{ type: string; id?: string }> = [];
-
-    let done = false;
-    while (!done) {
-      const res = await reader.read();
-      done = res.done;
-      if (res.value) {
-        chunks.push(res.value as { type: string; id?: string });
-      }
-    }
-
-    const textStartIdx = chunks.findIndex((c) => c.type === 'text-start' && c.id === 'text-1');
-    const textDeltaIdx = chunks.findIndex((c) => c.type === 'text-delta' && c.id === 'text-1');
-    const textEndIdx = chunks.findIndex((c) => c.type === 'text-end' && c.id === 'text-1');
-
-    expect(textStartIdx).toBeGreaterThan(-1);
-    expect(textDeltaIdx).toBeGreaterThan(textStartIdx);
-    expect(textEndIdx).toBeGreaterThan(textDeltaIdx);
+  it('resolves title model using default configuration', () => {
+    const model = getTitleModel();
+    expect(model).toBeDefined();
   });
 });

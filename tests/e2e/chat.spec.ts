@@ -61,7 +61,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       await expect(page).toHaveURL(/\/chat/);
 
       await expect(chatPage.getChatTitle()).toHaveText('New Chat');
-      await expect(page.getByText(/Gemini 3.6 Flash/i)).toBeVisible();
+      await expect(page.getByText('Gemini 2.5 Flash')).toBeVisible();
 
       await chatPage.sendUserMessage('Write a Python quicksort function');
       await expect(page.getByText(/Here is a Python quicksort/i)).toBeVisible({ timeout: 10000 });
@@ -165,6 +165,24 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       // 7. Delete thread from sidebar
       await chatPage.deleteChat(seededChatId);
       await expect(page.getByTestId(`chat-history-item-${seededChatId}`)).not.toBeVisible();
+    });
+
+    test('allows user to switch AI model using model selector dropdown', async ({ page }) => {
+      const chatPage = new ChatPage(page);
+      await chatPage.goto();
+      await expect(page).toHaveURL(/\/chat/);
+
+      const modelTrigger = page.getByTestId('model-selector-trigger');
+      await expect(modelTrigger).toBeVisible();
+      await expect(modelTrigger).toHaveText(/Gemini 2\.5 Flash/);
+
+      await modelTrigger.click();
+
+      const gpt4oOption = page.getByTestId('model-selector-item-gpt-4o');
+      await expect(gpt4oOption).toBeVisible();
+      await gpt4oOption.click();
+
+      await expect(modelTrigger).toHaveText(/GPT-4o/);
     });
   });
 });

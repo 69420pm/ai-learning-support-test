@@ -3,7 +3,15 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/.next", "!**/node_modules", "!**/dist", "!**/.turbo", "!**/.agents"]
+    "includes": [
+      "**",
+      "!**/.next",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.turbo",
+      "!**/.agents",
+      "!**/next-env.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

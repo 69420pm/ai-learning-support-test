@@ -26,11 +26,12 @@ export function Chat({
   id: initialId,
   initialMessages = [],
   initialTitle = 'New Chat',
-  selectedModelId: propSelectedModelId = DEFAULT_MODEL_ID,
-  onModelChange: propOnModelChange,
+  selectedModelId: initialSelectedModelId = DEFAULT_MODEL_ID,
+  onModelChange,
   className,
 }: ChatProps) {
   const [chatId] = useState(() => initialId || generateUUID());
+  const [selectedModelId, setSelectedModelId] = useState(initialSelectedModelId);
   const [input, setInput] = useState('');
   const [title, setTitle] = useState(initialTitle);
   const [selectedModelId, setSelectedModelId] = useState(propSelectedModelId);
@@ -38,9 +39,9 @@ export function Chat({
   const [dataStreamParts, setDataStreamParts] = useState<CustomStreamPart[]>([]);
   const { mutate } = useSWRConfig();
 
-  const handleModelChange = (modelId: string) => {
-    setSelectedModelId(modelId);
-    propOnModelChange?.(modelId);
+  const handleModelChange = (newModelId: string) => {
+    setSelectedModelId(newModelId);
+    onModelChange?.(newModelId);
   };
 
   const transport = useMemo(

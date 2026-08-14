@@ -11,6 +11,19 @@ export class ChatPage {
     return this.page.getByRole('banner');
   }
 
+  getModelSelectorTrigger() {
+    return this.page.getByTestId('model-selector-trigger');
+  }
+
+  getModelOption(modelId: string) {
+    return this.page.getByTestId(`model-option-${modelId}`);
+  }
+
+  async selectModel(modelId: string) {
+    await this.getModelSelectorTrigger().click();
+    await this.getModelOption(modelId).click();
+  }
+
   getChatTitle() {
     return this.page.getByRole('heading', { level: 1 });
   }

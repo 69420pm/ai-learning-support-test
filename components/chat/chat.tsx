@@ -34,6 +34,7 @@ export function Chat({
   const [selectedModelId, setSelectedModelId] = useState(initialSelectedModelId);
   const [input, setInput] = useState('');
   const [title, setTitle] = useState(initialTitle);
+  const [selectedModelId, setSelectedModelId] = useState(propSelectedModelId);
   const [hasNavigated, setHasNavigated] = useState(Boolean(initialId));
   const [dataStreamParts, setDataStreamParts] = useState<CustomStreamPart[]>([]);
   const { mutate } = useSWRConfig();
@@ -49,6 +50,7 @@ export function Chat({
         api: '/api/chat',
         body: {
           id: chatId,
+          model: selectedModelId,
           selectedChatModel: selectedModelId,
         },
       }),

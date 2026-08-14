@@ -15,7 +15,7 @@ This directory contains technical implementation plans for feature development, 
   - **[Plan 004: Auth UI Components & Pages](plans/004-auth-ui-components-pages.md)** — Completed ([PR #49](https://github.com/69420pm/ai-learning-support-test/pull/49))
   - **[Plan 005: Header User Navigation Dropdown & Playwright E2E Auth Test Suite](plans/005-user-nav-e2e-tests.md)** — In Review
 
-- **[Epic: Chat Interface & Extensible AI Message Foundation](epics/chat-interface-foundation.md)**
+- **[Epic 002: Chat Interface & Extensible AI Message Foundation](epics/002-chat-interface-foundation.md)**
   - Status: Completed
   - Provider: Vercel AI SDK v7 (`streamText`), Drizzle ORM, Supabase Auth
   - **[Plan 006: Chat Database Schema & Query Encapsulation](plans/006-chat-database-schema-queries.md)** — Completed ([PR #51](https://github.com/69420pm/ai-learning-support-test/pull/51))
@@ -24,10 +24,10 @@ This directory contains technical implementation plans for feature development, 
   - **[Plan 009: Page Routing, App Proxy Guard & Sidebar Thread History](plans/009-chat-routing-proxy-sidebar.md)** — Completed ([PR #54](https://github.com/69420pm/ai-learning-support-test/pull/54))
 
 - **[Epic 002a: Chat UI Refinements, Interactive Model Selection & Unified Dashboard Routing](epics/002a-chat-ui-refinements-model-selection.md)**
-  - Status: In Progress
+  - Status: Completed
   - Provider: Vercel AI SDK v7, Google Gemini, OpenAI, Supabase Auth
-  - **[Plan 010: Model Selection Component & Provider Configuration](plans/010-model-selection-provider-config.md)** — Ready
-  - **[Plan 011: Chat Header Refactoring & Model Payload Plumbing](plans/011-chat-header-model-plumbing.md)** — Ready
+  - **[Plan 010: Model Selection Component & Provider Configuration](plans/010-model-selection-provider-config.md)** — Completed ([PR #58](https://github.com/69420pm/ai-learning-support-test/pull/58))
+  - **[Plan 011: Chat Header Refactoring & Model Payload Plumbing](plans/011-chat-header-model-plumbing.md)** — Completed ([PR #58](https://github.com/69420pm/ai-learning-support-test/pull/58))
   - **[Plan 012: Top Navigation Alignment & Unified Dashboard](plans/012-header-alignment-unified-dashboard.md)** — Completed ([PR #57](https://github.com/69420pm/ai-learning-support-test/pull/57))
-  - **[Plan 013: Verification & E2E Test Suite Updates](plans/013-e2e-verification-suite.md)** — Ready
+  - **[Plan 013: Verification & E2E Test Suite Updates](plans/013-e2e-verification-suite.md)** — Completed ([PR #58](https://github.com/69420pm/ai-learning-support-test/pull/58))
 

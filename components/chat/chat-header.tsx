@@ -11,7 +11,6 @@ export type ChatHeaderProps = {
   title?: string;
   selectedModelId?: string;
   onModelChange?: (modelId: string) => void;
-  onNewChat?: () => void;
   className?: string;
 };
 

@@ -2,11 +2,12 @@
 name: plan-implementer
 description: >-
   Implement a feature plan end-to-end: read a plan document from specs/plans/,
-  implement the code changes, verify with next-dev-loop and
-  agentic-ui-verification, write tests with test-writer, and open a PR.
-  Trigger this skill when a plan document exists and you need to execute it
-  autonomously. Also trigger when the user says "implement plan", "execute plan",
-  "build plan step", or references a specific plan file.
+  implement the code changes, self-check with lint and typecheck, verify with
+  next-dev-loop, write tests with test-writer, and open a PR. Trigger this
+  skill when a plan document exists and you need to execute it autonomously.
+  Also trigger when the user says "implement plan", "execute plan", "build plan
+  step", "implement step", "work on plan", "execute step", "do plan step",
+  "code the changes", or references a specific plan file or epic step.
 ---
 
 # Plan Implementer
@@ -75,9 +76,33 @@ Activate domain-specific skills as needed during this phase:
 
 ---
 
+## Phase 1.5 — Self-Check (Before Any Subagent)
+
+Before spinning up ANY verification or testing subagent, run these checks yourself and fix any issues inline:
+
+1. **Lint:**
+   ```bash
+   pnpm lint
+   ```
+   Fix all lint errors before proceeding. These are fast, deterministic checks — never delegate them.
+
+2. **Typecheck:**
+   ```bash
+   pnpm typecheck
+   ```
+   Fix all type errors before proceeding. Read the full error output, view the relevant files, and resolve each issue.
+
+> ⚠️ **NEVER invoke the `verifier` subagent for lint, typecheck, or build issues.**
+> The verifier exists for final, independent, objective validation — not for iterative development feedback.
+> Running `pnpm lint` yourself takes 10 seconds. Spawning a verifier subagent to do it wastes minutes and tokens.
+
+Only proceed to Phase 2 when lint and typecheck both pass cleanly.
+
+---
+
 ## Phase 2 — Verify
 
-After implementation is functionally complete, verify it works. This phase has two tracks depending on whether the plan touches UI.
+After implementation is functionally complete and Phase 1.5 passes, verify runtime behavior. This phase has two tracks depending on whether the plan touches UI.
 
 ### Track A: Runtime Verification (all plans)
 
@@ -90,7 +115,9 @@ Activate the `next-dev-loop` skill to verify the running app:
 
 ### Track B: UI Verification (plans with UI changes)
 
-Invoke the `agentic-ui-verification` subagent with:
+> **When invoked by an `epic-orchestrator`:** Skip Track B entirely. The orchestrator handles UI verification at integration checkpoints after multiple plans are combined. Proceed directly to Phase 3.
+
+When running standalone (not orchestrated), invoke the `agentic-ui-verification` subagent with:
 - The exact DoD from the plan document
 - The specific URLs/routes to check
 - The specific interactions to perform (clicks, form fills, navigation)
@@ -152,7 +179,9 @@ This runs lint + typecheck + tests. **All must pass.** Fix any issues before pro
 
 ## Phase 5 — PR Creation
 
-Follow [`rules/git-workflow.md`](file:///workspaces/secure-ai-learning-support/rules/git-workflow.md):
+> **When invoked by an `epic-orchestrator`:** Skip Phase 5 entirely. The orchestrator creates a single PR for the entire epic after all plans are integrated. Just ensure your commits are clean and pushed to your plan branch.
+
+When running standalone, follow [`rules/git-workflow.md`](file:///workspaces/secure-ai-learning-support/rules/git-workflow.md):
 
 1. **Verify clean state:**
    ```bash
@@ -192,8 +221,9 @@ Stop execution and report to the user if any of these occur:
 ```
 [ ] Phase 0: Read plan, rules, ADRs → create branch
 [ ] Phase 1: Implement with incremental commits
-[ ] Phase 2: Verify (next-dev-loop + agentic-ui-verification)
+[ ] Phase 1.5: Self-check — pnpm lint + pnpm typecheck (fix before proceeding)
+[ ] Phase 2: Verify runtime (next-dev-loop; + agentic-ui-verification if standalone)
 [ ] Phase 3: Write tests (test-writer skill)
 [ ] Phase 4: Run pnpm check — all green
-[ ] Phase 5: Push → gh pr create → update plan-index
+[ ] Phase 5: Push → gh pr create → update plan-index (skip if orchestrated)
 ```

@@ -1,0 +1,19 @@
+{
+  "threshold": 0,
+  "reporters": ["console", "json"],
+  "output": ".jscpd",
+  "ignore": [
+    "node_modules/**",
+    ".next/**",
+    "dist/**",
+    ".turbo/**",
+    ".agents/**",
+    "specs/**",
+    "pnpm-lock.yaml",
+    "test-results/**",
+    "tests/**"
+  ],
+  "minLines": 6,
+  "minTokens": 50,
+  "formats": ["typescript", "tsx", "javascript"]
+}

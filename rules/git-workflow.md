@@ -68,7 +68,7 @@ Use this template for all PR descriptions. Omit sections that don't apply (e.g.,
 ```markdown
 ## Summary
 
-<What changed and why. Link the plan if one exists: `Implements plan: specs/plans/<file>.md`>
+<What changed and why. Link the related issue: `Closes #<number>`>
 
 ## Changes
 

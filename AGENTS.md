@@ -10,13 +10,29 @@ The project is structured as a **Single Next.js Application Architecture** (App 
 - **`lib/`**: Core domain logic, database schemas, AI providers, and background queue processors (`lib/db`, `lib/ai`, `lib/learning`, `lib/queue`).
 
 ## Routing
-- Read `rules/single-app-architecture.md` for application architecture, co-location rules, and directory boundaries.
-- Read `rules/tech-stack.md` for package versions and official/local documentation sources.
-- Read `rules/coding-style.md` for code style guidelines.
-- Read `rules/testing.md` for Playwright E2E and Vitest unit testing guidelines.
-- Read `rules/git-workflow.md` for commit and PR workflows.
-- Read `rules/styling.md` for frontend styling guidelines.
-- Read `specs/adr-index.md` for architectural decision records.
+- **Architecture**: Read `rules/architecture.md` when structuring directories, adding routes, or defining layer boundaries (`app/` vs `components/` vs `lib/`).
+- **Domain vocabulary**: Read `CONTEXT.md` when naming domain concepts or resolving terminology.
+- **Architectural decisions**: Read `docs/adr/` when making or checking foundational technology and boundary choices.
+- **Tech stack & docs**: Read `rules/tech-stack.md` when verifying package versions, imports, or official/local doc sources.
+- **Coding standards**: Read `rules/coding-style.md` when writing TypeScript types, thin API route controllers, or domain errors.
+- **UI & styling**: Read `rules/styling.md` when building UI components with Tailwind CSS, CVA, or Radix primitives.
+- **Testing**: Read `rules/testing.md` when writing Vitest unit tests, Playwright POMs, or mocking network boundaries.
+- **Git & PRs**: Read `rules/git-workflow.md` when creating branches, committing changes, or opening PRs.
+- **External repos**: Read `rules/external-repos.md` when referencing sibling codebases (`../chatbot`, `../opencode`).
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues via `gh` CLI (`69420pm/ai-learning-support-test`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical 5-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` at root, `docs/adr/`). See `docs/agents/domain.md`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -8,7 +8,7 @@
     "dist/**",
     ".turbo/**",
     ".agents/**",
-    "specs/**",
+    "docs/**",
     "pnpm-lock.yaml",
     "test-results/**",
     "tests/**"

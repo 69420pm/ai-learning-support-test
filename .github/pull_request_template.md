@@ -21,4 +21,4 @@
 - [ ] `pnpm typecheck` succeeds without TypeScript errors.
 - [ ] Unit tests added/updated and passing (`pnpm test`).
 - [ ] Full validation pipeline passing (`pnpm check`).
-- [ ] Follows single-app architecture boundaries defined in `rules/single-app-architecture.md`.
+- [ ] Follows architecture boundaries defined in `rules/architecture.md`.

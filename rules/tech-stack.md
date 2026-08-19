@@ -38,12 +38,12 @@ This rule is the **single source of truth** for the project's key dependencies a
 
 | Package / System | Version | Documentation Sources |
 |:-----------------|:--------|:----------------------|
-| **Drizzle ORM** (`drizzle-orm`) | `^0.45.2` | **Local**: [`specs/adrs/002-postgresql-pgvector-drizzle.md`](file:///workspaces/secure-ai-learning-support/specs/adrs/002-postgresql-pgvector-drizzle.md), [`lib/db/`](file:///workspaces/secure-ai-learning-support/lib/db/), `node_modules/drizzle-orm/README.md`<br>**Web**: [Drizzle ORM Documentation](https://orm.drizzle.team/docs/overview) |
-| **`drizzle-kit`** | `^0.31.10` | **Local**: [`specs/adrs/002-postgresql-pgvector-drizzle.md`](file:///workspaces/secure-ai-learning-support/specs/adrs/002-postgresql-pgvector-drizzle.md), `node_modules/drizzle-kit/README.md`<br>**Web**: [Drizzle Kit Documentation](https://orm.drizzle.team/docs/kit-overview) |
+| **Drizzle ORM** (`drizzle-orm`) | `^0.45.2` | **Local**: [`docs/adr/0002-postgresql-pgvector-drizzle.md`](file:///workspaces/secure-ai-learning-support/docs/adr/0002-postgresql-pgvector-drizzle.md), [`lib/db/`](file:///workspaces/secure-ai-learning-support/lib/db/), `node_modules/drizzle-orm/README.md`<br>**Web**: [Drizzle ORM Documentation](https://orm.drizzle.team/docs/overview) |
+| **`drizzle-kit`** | `^0.31.10` | **Local**: [`docs/adr/0002-postgresql-pgvector-drizzle.md`](file:///workspaces/secure-ai-learning-support/docs/adr/0002-postgresql-pgvector-drizzle.md), `node_modules/drizzle-kit/README.md`<br>**Web**: [Drizzle Kit Documentation](https://orm.drizzle.team/docs/kit-overview) |
 | **`pg`** | `^8.22.0` | **Local**: `node_modules/pg/README.md`<br>**Web**: [node-postgres Documentation](https://node-postgres.com) |
 | **`postgres`** | `^3.4.9` | **Local**: `node_modules/postgres/README.md`<br>**Web**: [Postgres.js Repository](https://github.com/porsager/postgres) |
-| **PostgreSQL + pgvector** | System | **Local**: [`specs/adrs/002-postgresql-pgvector-drizzle.md`](file:///workspaces/secure-ai-learning-support/specs/adrs/002-postgresql-pgvector-drizzle.md)<br>**Web**: [PostgreSQL Documentation](https://www.postgresql.org/docs/), [pgvector Repository](https://github.com/pgvector/pgvector) |
-| **`pg-boss`** | `^12.27.0` | **Local**: [`specs/adrs/003-postgres-backed-job-queue.md`](file:///workspaces/secure-ai-learning-support/specs/adrs/003-postgres-backed-job-queue.md), [`lib/queue/`](file:///workspaces/secure-ai-learning-support/lib/queue/), `node_modules/pg-boss/README.md`<br>**Web**: [pg-boss Repository](https://github.com/timgit/pg-boss) |
+| **PostgreSQL + pgvector** | System | **Local**: [`docs/adr/0002-postgresql-pgvector-drizzle.md`](file:///workspaces/secure-ai-learning-support/docs/adr/0002-postgresql-pgvector-drizzle.md)<br>**Web**: [PostgreSQL Documentation](https://www.postgresql.org/docs/), [pgvector Repository](https://github.com/pgvector/pgvector) |
+| **`pg-boss`** | `^12.27.0` | **Local**: [`docs/adr/0003-postgres-backed-job-queue.md`](file:///workspaces/secure-ai-learning-support/docs/adr/0003-postgres-backed-job-queue.md), [`lib/queue/`](file:///workspaces/secure-ai-learning-support/lib/queue/), `node_modules/pg-boss/README.md`<br>**Web**: [pg-boss Repository](https://github.com/timgit/pg-boss) |
 
 ## Validation, Testing & Dev Tooling
 
@@ -51,7 +51,7 @@ This rule is the **single source of truth** for the project's key dependencies a
 |:--------|:--------|:----------------------|
 | **Zod** (`zod`) | `^4.4.3` | **Local**: `node_modules/zod/README.md`<br>**Web**: [Zod Documentation](https://zod.dev) |
 | **Biome** (`@biomejs/biome`) | `^2.5.7` | **Local**: `node_modules/@biomejs/biome/README.md`<br>**Web**: [Biome Documentation](https://biomejs.dev) |
-| **Vitest** (`vitest`) | `^4.1.10` | **Local**: [`rules/testing.md`](file:///workspaces/secure-ai-learning-support/rules/testing.md), `test-writer` skill ([`SKILL.md`](file:///workspaces/secure-ai-learning-support/.agents/skills/test-writer/SKILL.md)), `node_modules/vitest/README.md`<br>**Web**: [Vitest Documentation](https://vitest.dev) |
+| **Vitest** (`vitest`) | `^4.1.10` | **Local**: [`rules/testing.md`](file:///workspaces/secure-ai-learning-support/rules/testing.md), `tdd` skill ([`SKILL.md`](file:///workspaces/secure-ai-learning-support/.agents/skills/tdd/SKILL.md)), `node_modules/vitest/README.md`<br>**Web**: [Vitest Documentation](https://vitest.dev) |
 | **`agent-browser`** | `^0.33.2` | **Local**: `next-dev-loop` skill ([`SKILL.md`](file:///workspaces/secure-ai-learning-support/.agents/skills/next-dev-loop/SKILL.md)), `node_modules/agent-browser/README.md`<br>**Web**: [agent-browser Repository](https://github.com/vercel-labs/agent-browser) |
 | **`lefthook`** | `^2.1.10` | **Local**: [`rules/git-workflow.md`](file:///workspaces/secure-ai-learning-support/rules/git-workflow.md), `node_modules/lefthook/README.md`<br>**Web**: [Lefthook Repository](https://github.com/evilmartians/lefthook) |
 | **`tsx`** | `^4.23.11` | **Local**: `node_modules/tsx/README.md`<br>**Web**: [tsx Documentation](https://tsx.is) |
@@ -60,14 +60,16 @@ This rule is the **single source of truth** for the project's key dependencies a
 
 ## Skill Cross-Reference
 
-When planning or implementing features that touch these domains, the responsible agent MUST read the linked skill before writing code:
+When planning or implementing features that touch these domains, read the corresponding skill:
 
 | Domain | Skill to Read |
 |:-------|:-------------|
 | AI features (generateText, streamText, tools, useChat, embeddings) | `ai-sdk` skill |
 | Adding/composing UI components (buttons, cards, dialogs, sidebars) | `shadcn` skill |
 | Verifying runtime behavior after code changes | `next-dev-loop` skill |
-| Writing E2E or unit tests | `test-writer` skill |
-| Designing features / writing epics | `spec-writer` skill |
-| Implementing a plan step | `plan-implementer` skill |
+| Test-driven implementation (red-green-refactor) | `tdd` skill |
+| Synthesizing conversations into specifications | `to-spec` skill |
+| Generating tracer-bullet GitHub issues with blocker links | `to-tickets` skill |
+| Implementing tickets & automated review | `implement` / `code-review` skills |
+| Domain modeling & ubiquitous language | `domain-modeling` skill |
 

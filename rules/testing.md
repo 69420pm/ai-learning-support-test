@@ -8,7 +8,7 @@ This document outlines the testing architecture, Playwright E2E standards, Page 
 
 * **Test Higher-Level Objectives, Not Implementation Code:** Tests must be written against the **Definition of Done (DoD) and user goals** defined in the plan—NEVER against the specific internal implementation functions.
 * **Avoid Testing Bad Code:** If implementation code is flawed or over-engineered, writing tests that strictly mirror that code locks in bad architecture ("testing code that doesn't make sense"). If a test fails because the code misses the high-level objective, fix the code to meet the standard.
-* **Agent Workflow:** Features are implemented, visually verified via `agentic-ui-verification`, and then codified into Playwright E2E / Vitest tests using the `test-writer` skill (`.agents/skills/test-writer/SKILL.md`) before opening a PR.
+* **Test-First & Regression Workflow:** Features and fixes are driven test-first using the `tdd` skill (`.agents/skills/tdd/SKILL.md`), verified via `next-dev-loop` / `agentic-ui-verification`, and validated against the full test suite before opening a PR.
 
 ---
 

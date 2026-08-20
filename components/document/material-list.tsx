@@ -1,40 +1,43 @@
 'use client';
 
-import { AlertCircle, Check, Clock, FileText, Loader2, Upload } from 'lucide-react';
+import {
+  AlertCircle,
+  Check,
+  Clock,
+  ExternalLink,
+  FileCode,
+  FileImage,
+  FileText,
+  Loader2,
+  MoreVertical,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
-import useSWR from 'swr';
+import { DeleteMaterialDialog } from '@/components/document/delete-material-dialog';
+import { MaterialPreviewDialog } from '@/components/document/material-preview-dialog';
+import { MaterialUploadDialog } from '@/components/document/material-upload-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn, fetcher } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { type MaterialItem, type MaterialStatus, useMaterials } from '@/lib/hooks/use-materials';
+import { ACCEPTED_FILE_TYPES_STRING, getFileIconType } from '@/lib/materials/validation';
+import { cn } from '@/lib/utils';
 
-export type MaterialStatus = 'pending' | 'processing' | 'ready' | 'failed';
-
-export type MaterialItem = {
-  id: string;
-  projectId: string;
-  userId: string;
-  title: string;
-  filename: string;
-  fileType: string;
-  fileSize: number;
-  storagePath: string;
-  status: MaterialStatus;
-  errorMessage?: string | null;
-  metadata?: Record<string, unknown>;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-};
+export type { MaterialItem, MaterialStatus } from '@/lib/hooks/use-materials';
 
 export type MaterialListProps = {
   projectId: string;
   className?: string;
 };
 
-type MaterialsResponse = {
-  materials: MaterialItem[];
-};
-
-function getStatusBadge(status: MaterialStatus) {
+function getStatusBadge(status: MaterialStatus, stage?: string) {
   switch (status) {
     case 'ready':
       return (
@@ -55,7 +58,7 @@ function getStatusBadge(status: MaterialStatus) {
           data-testid="material-status-processing"
         >
           <Loader2 className="size-2.5 animate-spin" />
-          <span>Processing</span>
+          <span>{stage ? `${stage}` : 'Processing'}</span>
         </Badge>
       );
     case 'failed':
@@ -85,31 +88,31 @@ function getStatusBadge(status: MaterialStatus) {
 
 export function MaterialList({ projectId, className }: MaterialListProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [previewMaterialId, setPreviewMaterialId] = useState<string | null>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [deleteTargetMaterial, setDeleteTargetMaterial] = useState<MaterialItem | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const materialsKey = projectId ? `/api/projects/${projectId}/materials` : null;
+  const { materials, isLoading, mutate } = useMaterials(projectId);
 
-  const { data, mutate, isLoading } = useSWR<MaterialsResponse>(materialsKey, fetcher, {
-    // Poll while materials are in pending/processing status
-    refreshInterval: (latestData) => {
-      const hasActiveIngestion = latestData?.materials?.some(
-        (m) => m.status === 'pending' || m.status === 'processing',
-      );
-      return hasActiveIngestion ? 2000 : 0;
-    },
-    revalidateOnFocus: true,
-  });
+  const handleInspect = (materialId: string) => {
+    setPreviewMaterialId(materialId);
+    setPreviewDialogOpen(true);
+  };
 
-  const materials = data?.materials || [];
+  const handleDeletePrompt = (material: MaterialItem) => {
+    setDeleteTargetMaterial(material);
+    setDeleteDialogOpen(true);
+  };
 
+  // Direct file input handler (fallback / backward compat)
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsUploading(true);
     setUploadError(null);
-
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
@@ -129,100 +132,185 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
-      setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
 
+  const renderItemIcon = (material: MaterialItem) => {
+    const iconType = getFileIconType(material.fileType, material.filename);
+    switch (iconType) {
+      case 'pdf':
+        return <FileText className="size-3.5 shrink-0 text-red-500" />;
+      case 'image':
+        return <FileImage className="size-3.5 shrink-0 text-blue-500" />;
+      case 'markdown':
+        return <FileCode className="size-3.5 shrink-0 text-emerald-500" />;
+      default:
+        return <FileText className="size-3.5 shrink-0 text-muted-foreground" />;
+    }
+  };
+
   return (
-    <div className={cn('flex flex-col gap-2', className)} data-testid="material-list">
-      {/* Header with Upload Action */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5 font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-          <FileText className="size-3.5" />
-          <span>Materials</span>
-          {materials.length > 0 && (
-            <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] text-foreground">
-              {materials.length}
-            </span>
-          )}
+    <>
+      <div className={cn('flex flex-col gap-2', className)} data-testid="material-list">
+        {/* Header with Upload Action */}
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-1.5 font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+            <FileText className="size-3.5" />
+            <span>Materials</span>
+            {materials.length > 0 && (
+              <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] text-foreground">
+                {materials.length}
+              </span>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_FILE_TYPES_STRING}
+            className="hidden"
+            onChange={handleFileChange}
+            data-testid="material-file-input"
+          />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setUploadDialogOpen(true)}
+            data-testid="upload-material-button"
+          >
+            <Upload className="size-3" />
+            <span>Upload</span>
+          </Button>
         </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".txt,.md,.markdown,text/plain,text/markdown"
-          className="hidden"
-          onChange={handleFileChange}
-          data-testid="material-file-input"
-        />
+        {/* Error Notice */}
+        {uploadError && (
+          <div className="rounded bg-destructive/10 p-1.5 text-[11px] text-destructive">
+            {uploadError}
+          </div>
+        )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-          data-testid="upload-material-button"
-        >
-          {isUploading ? (
-            <Loader2 className="size-3 animate-spin" />
-          ) : (
-            <Upload className="size-3" />
-          )}
-          <span>Upload</span>
-        </Button>
+        {/* Loading Skeleton */}
+        {isLoading && (
+          <div className="space-y-1.5 px-1 py-1">
+            <div className="h-6 animate-pulse rounded bg-muted/40" />
+            <div className="h-6 animate-pulse rounded bg-muted/40 w-3/4" />
+          </div>
+        )}
+
+        {/* Empty List */}
+        {!isLoading && materials.length === 0 && (
+          <button
+            type="button"
+            className="w-full rounded border border-dashed border-border/60 p-2 text-center text-[11px] text-muted-foreground cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => setUploadDialogOpen(true)}
+            data-testid="empty-materials-list"
+          >
+            No materials uploaded yet. Click to add.
+          </button>
+        )}
+
+        {/* Materials List */}
+        {!isLoading && materials.length > 0 && (
+          <div className="flex flex-col gap-1 max-h-52 overflow-y-auto pr-1">
+            {materials.map((material) => (
+              <div
+                key={material.id}
+                className="group flex items-center justify-between gap-1.5 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors"
+                data-testid={`material-item-${material.id}`}
+              >
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 min-w-0 flex-1 text-left cursor-pointer"
+                  onClick={() => handleInspect(material.id)}
+                >
+                  {renderItemIcon(material)}
+                  <span
+                    className="truncate font-medium text-foreground text-[11px]"
+                    title={material.title}
+                  >
+                    {material.title}
+                  </span>
+                </button>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {getStatusBadge(material.status, material.metadata?.progress?.stage)}
+
+                  {/* Actions Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                        aria-label={`Options for ${material.title}`}
+                        data-testid={`material-menu-${material.id}`}
+                      >
+                        <MoreVertical className="size-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36 text-xs">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInspect(material.id);
+                        }}
+                        className="gap-1.5 cursor-pointer text-xs"
+                        data-testid={`inspect-material-option-${material.id}`}
+                      >
+                        <ExternalLink className="size-3.5 text-primary" />
+                        <span>Inspect Chunks</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePrompt(material);
+                        }}
+                        className="gap-1.5 cursor-pointer text-xs text-destructive focus:text-destructive"
+                        data-testid={`delete-material-option-${material.id}`}
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Error Notice */}
-      {uploadError && (
-        <div className="rounded bg-destructive/10 p-1.5 text-[11px] text-destructive">
-          {uploadError}
-        </div>
-      )}
+      {/* Upload Dialog */}
+      <MaterialUploadDialog
+        projectId={projectId}
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onUploadSuccess={() => mutate()}
+      />
 
-      {/* Loading Skeleton */}
-      {isLoading && (
-        <div className="space-y-1.5 px-1 py-1">
-          <div className="h-6 animate-pulse rounded bg-muted/40" />
-          <div className="h-6 animate-pulse rounded bg-muted/40 w-3/4" />
-        </div>
-      )}
+      {/* Ingestion Inspector / Preview Dialog */}
+      <MaterialPreviewDialog
+        projectId={projectId}
+        materialId={previewMaterialId}
+        open={previewDialogOpen}
+        onOpenChange={setPreviewDialogOpen}
+      />
 
-      {/* Materials List */}
-      {!isLoading && materials.length === 0 && (
-        <div
-          className="rounded border border-dashed border-border/60 p-2 text-center text-[11px] text-muted-foreground"
-          data-testid="empty-materials-list"
-        >
-          No materials uploaded yet.
-        </div>
-      )}
-
-      {!isLoading && materials.length > 0 && (
-        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
-          {materials.map((material) => (
-            <div
-              key={material.id}
-              className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors"
-              data-testid={`material-item-${material.id}`}
-            >
-              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                <span
-                  className="truncate font-medium text-foreground text-[11px]"
-                  title={material.title}
-                >
-                  {material.title}
-                </span>
-              </div>
-              <div className="shrink-0">{getStatusBadge(material.status as MaterialStatus)}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      {/* Cascade Deletion Confirmation Dialog */}
+      <DeleteMaterialDialog
+        projectId={projectId}
+        material={deleteTargetMaterial}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onSuccess={() => mutate()}
+      />
+    </>
   );
 }

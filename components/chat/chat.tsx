@@ -9,6 +9,7 @@ import { ChatHeader } from '@/components/chat/chat-header';
 import { ChatInput } from '@/components/chat/chat-input';
 import { ChatMessages } from '@/components/chat/chat-messages';
 import { type CustomStreamPart, DataStreamHandler } from '@/components/chat/data-stream-handler';
+import { MaterialUploadDialog, ViewportDropOverlay } from '@/components/document';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/providers';
 import type { ChatMessage } from '@/lib/types';
 import { cn, generateUUID } from '@/lib/utils';
@@ -100,6 +101,16 @@ export function Chat({
     mutate('/api/projects');
   };
 
+  const [dropFiles, setDropFiles] = useState<File[]>([]);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
+  const handleFilesDropped = (files: File[]) => {
+    if (files.length > 0) {
+      setDropFiles(files);
+      setUploadDialogOpen(true);
+    }
+  };
+
   return (
     <div className={cn('flex h-full w-full flex-col overflow-hidden bg-background', className)}>
       <ChatHeader
@@ -120,6 +131,18 @@ export function Chat({
         isLoading={status === 'streaming' || status === 'submitted'}
       />
       <DataStreamHandler dataStream={dataStreamParts} onChatTitle={handleChatTitle} />
+
+      {projectId && (
+        <>
+          <ViewportDropOverlay onFilesDropped={handleFilesDropped} />
+          <MaterialUploadDialog
+            projectId={projectId}
+            open={uploadDialogOpen}
+            onOpenChange={setUploadDialogOpen}
+            initialFiles={dropFiles}
+          />
+        </>
+      )}
     </div>
   );
 }

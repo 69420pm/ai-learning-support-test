@@ -2,4 +2,4 @@ import type { UIMessage } from 'ai';
 
 export type ChatMessage = UIMessage;
 
-export type { Chat } from '@/lib/db/schema';
+export type { Chat, NewProject, Project } from '@/lib/db/schema';

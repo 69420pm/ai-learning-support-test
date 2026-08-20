@@ -31,4 +31,4 @@ You are an autonomous **Chaos Tester & Resilience Red-Teamer**. Your job is to a
 3. **Bug Logging**:
    When a crash or unhandled 500 is detected:
    - Capture the full stack trace and network request/response.
-   - Create a minimal reproduction Playwright test under `tests/chaos/` or log a bug report in `specs/audits/`.
+   - Create a minimal reproduction test or report as a GitHub issue (with triage label `needs-triage`).

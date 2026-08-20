@@ -1,6 +1,13 @@
 'use client';
 
-import { Menu, PanelLeftClose, PanelLeftOpen, SquarePen } from 'lucide-react';
+import {
+  ChevronLeft,
+  FolderKanban,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  SquarePen,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { SidebarHistory } from '@/components/chat/sidebar-history';
@@ -12,12 +19,16 @@ export type ChatSidebarProps = {
     email?: string;
     fullName?: string;
   };
+  projectId?: string;
+  projectName?: string;
   className?: string;
 };
 
-export function ChatSidebar({ user, className }: ChatSidebarProps) {
+export function ChatSidebar({ user, projectId, projectName, className }: ChatSidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const newChatHref = projectId ? `/projects/${projectId}/chat` : '/';
 
   return (
     <>
@@ -62,42 +73,91 @@ export function ChatSidebar({ user, className }: ChatSidebarProps) {
         )}
         data-testid="chat-sidebar"
       >
-        {/* Sidebar Header */}
-        <div className="flex h-12 items-center justify-between border-b border-border/50 px-3">
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className={cn(
-              'h-8 justify-start gap-2 text-xs font-medium transition-all',
-              isOpen ? 'w-full max-w-[170px]' : 'size-8 justify-center p-0 md:w-8',
-            )}
-            onClick={() => setIsMobileOpen(false)}
-            data-testid="new-chat-button"
-          >
-            <Link href="/chat">
-              <SquarePen className="size-4 shrink-0" />
-              {isOpen && <span className="truncate">New Chat</span>}
-            </Link>
-          </Button>
+        {/* Sidebar Header & Project Back Link */}
+        <div className="flex flex-col border-b border-border/50 p-2 gap-2">
+          {isOpen && (
+            <div className="flex items-center justify-between px-1 pt-1">
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="h-7 -ml-1 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                data-testid="back-to-projects-link"
+              >
+                <Link href="/">
+                  <ChevronLeft className="size-3.5" />
+                  <span>All Projects</span>
+                </Link>
+              </Button>
 
-          {/* Desktop Toggle Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden size-8 shrink-0 md:flex"
-            onClick={() => setIsOpen((prev) => !prev)}
-            aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            data-testid="toggle-sidebar-button"
-          >
-            {isOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-          </Button>
+              {/* Desktop Toggle Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden size-7 shrink-0 md:flex text-muted-foreground hover:text-foreground"
+                onClick={() => setIsOpen((prev) => !prev)}
+                aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                data-testid="toggle-sidebar-button"
+              >
+                {isOpen ? (
+                  <PanelLeftClose className="size-3.5" />
+                ) : (
+                  <PanelLeftOpen className="size-3.5" />
+                )}
+              </Button>
+            </div>
+          )}
+
+          {isOpen && projectName && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold text-foreground truncate">
+              <FolderKanban className="size-3.5 shrink-0 text-primary" />
+              <span className="truncate" title={projectName} data-testid="sidebar-project-name">
+                {projectName}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className={cn(
+                'h-8 justify-start gap-2 text-xs font-medium transition-all',
+                isOpen ? 'w-full' : 'size-8 justify-center p-0 md:w-8',
+              )}
+              onClick={() => setIsMobileOpen(false)}
+              data-testid="new-chat-button"
+            >
+              <Link href={newChatHref}>
+                <SquarePen className="size-4 shrink-0" />
+                {isOpen && <span className="truncate">New Chat</span>}
+              </Link>
+            </Button>
+
+            {!isOpen && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden size-8 shrink-0 md:flex mt-1"
+                onClick={() => setIsOpen((prev) => !prev)}
+                aria-label="Expand sidebar"
+                data-testid="toggle-sidebar-button"
+              >
+                <PanelLeftOpen className="size-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Sidebar History Content */}
         {isOpen && (
           <div className="flex-1 overflow-hidden">
-            <SidebarHistory user={user} onSelectChat={() => setIsMobileOpen(false)} />
+            <SidebarHistory
+              user={user}
+              projectId={projectId}
+              onSelectChat={() => setIsMobileOpen(false)}
+            />
           </div>
         )}
       </aside>

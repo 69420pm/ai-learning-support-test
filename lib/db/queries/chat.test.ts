@@ -35,6 +35,7 @@ describe('Chat DB Queries', () => {
       const mockChat = {
         id: 'chat-uuid-1',
         userId: 'user-uuid-1',
+        projectId: 'project-uuid-1',
         title: 'New Conversation',
         visibility: 'private',
         createdAt: new Date(),
@@ -52,6 +53,7 @@ describe('Chat DB Queries', () => {
       const result = await saveChat({
         id: 'chat-uuid-1',
         userId: 'user-uuid-1',
+        projectId: 'project-uuid-1',
         title: 'New Conversation',
       });
 
@@ -69,6 +71,7 @@ describe('Chat DB Queries', () => {
         saveChat({
           id: 'chat-uuid-1',
           userId: 'user-uuid-1',
+          projectId: 'project-uuid-1',
           title: 'Failed Chat',
         }),
       ).rejects.toThrow(ChatbotError);

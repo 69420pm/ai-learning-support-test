@@ -1,5 +1,6 @@
 import { jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { authUsers } from './profiles';
+import { projects } from './projects';
 
 export const chats = pgTable('chats', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
@@ -8,6 +9,9 @@ export const chats = pgTable('chats', {
   userId: uuid('user_id')
     .notNull()
     .references(() => authUsers.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),

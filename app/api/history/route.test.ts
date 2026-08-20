@@ -49,7 +49,37 @@ describe('History API Handler (/api/history)', () => {
     expect(json.chats).toHaveLength(2);
     expect(mockGetChatsByUserId).toHaveBeenCalledWith({
       userId: testUser.id,
+      projectId: undefined,
       limit: 10,
+      startingAfter: null,
+      endingBefore: null,
+    });
+  });
+
+  it('filters by projectId when query parameter is provided', async () => {
+    const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
+    mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+    const mockChats = [
+      {
+        id: 'chat-1',
+        userId: testUser.id,
+        projectId: 'proj-1',
+        title: 'Chat 1',
+        createdAt: new Date(),
+      },
+    ];
+    mockGetChatsByUserId.mockResolvedValueOnce({ chats: mockChats, hasMore: false });
+
+    const request = new Request('http://localhost:3000/api/history?projectId=proj-1');
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.chats).toHaveLength(1);
+    expect(mockGetChatsByUserId).toHaveBeenCalledWith({
+      userId: testUser.id,
+      projectId: 'proj-1',
+      limit: undefined,
       startingAfter: null,
       endingBefore: null,
     });

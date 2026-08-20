@@ -51,13 +51,20 @@ Next.js API route handlers (`app/api/*`) and Server Actions (`"use server"`) are
 
   ```typescript
   // app/api/chat/route.ts
+  import { createClient } from '@/lib/supabase/server';
+  import { AppError } from '@/lib/errors';
+  import { chatRequestSchema } from '@/lib/ai/schemas';
+  import { processChatMessage } from '@/lib/ai/chat';
+
   export async function POST(request: Request) {
     const json = await request.json();
     const body = chatRequestSchema.parse(json);
-    const session = await auth();
-    if (!session?.user) return new ChatbotError("unauthorized:chat").toResponse();
-    
-    return processChatMessage(body, session.user);
+
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return new AppError("unauthorized:chat").toResponse();
+
+    return processChatMessage(body, user);
   }
   ```
 
@@ -65,16 +72,16 @@ Next.js API route handlers (`app/api/*`) and Server Actions (`"use server"`) are
 
 ## 4. Structured Error Handling
 
-* **Domain Error Class:** Standardize error handling using `ChatbotError` subclassing `Error`. Error utilities should be defined in and imported from `@/lib/errors`. If there are helper functions referenced like `getMessageByErrorCode` and `getStatusCode`, they should also be exported from `@/lib/errors`.
-* **Typed Error Codes:** Formulate error codes as `${ErrorType}:${Surface}` (e.g., `bad_request:api`, `unauthorized:chat`, `not_found:document`).
+* **Domain Error Class:** Standardize error handling using `AppError` (or `ChatbotError`) subclassing `Error`. Error utilities are defined in and imported from `@/lib/errors`.
+* **Typed Error Codes:** Formulate error codes as `${ErrorType}:${Surface}` (e.g., `bad_request:api`, `unauthorized:chat`, `not_found:document`, `bad_request:learning`).
 * **Response Normalization:** Use `error.toResponse()` to return uniform HTTP responses without exposing sensitive internal stack traces to clients.
 
 ```typescript
-export type ErrorType = "bad_request" | "unauthorized" | "forbidden" | "not_found" | "rate_limit";
-export type Surface = "chat" | "auth" | "api" | "database" | "document";
+export type ErrorType = "bad_request" | "unauthorized" | "forbidden" | "not_found" | "rate_limit" | "offline";
+export type Surface = "chat" | "auth" | "api" | "stream" | "database" | "document" | "learning" | "history" | "vote" | "suggestions" | "activate_gateway";
 export type ErrorCode = `${ErrorType}:${Surface}`;
 
-export class ChatbotError extends Error {
+export class AppError extends Error {
   constructor(public code: ErrorCode, cause?: string) {
     super(getMessageByErrorCode(code));
   }
@@ -82,6 +89,7 @@ export class ChatbotError extends Error {
     return Response.json({ code: this.code, message: this.message }, { status: getStatusCode(this.code) });
   }
 }
+export { AppError as ChatbotError };
 ```
 
 ---

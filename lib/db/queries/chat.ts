@@ -6,11 +6,13 @@ import { ChatbotError } from '@/lib/errors';
 export async function saveChat({
   id,
   userId,
+  projectId,
   title,
   visibility = 'private',
 }: {
   id: string;
   userId: string;
+  projectId: string;
   title: string;
   visibility?: 'public' | 'private';
 }): Promise<Chat> {
@@ -20,6 +22,7 @@ export async function saveChat({
       .values({
         id,
         userId,
+        projectId,
         title,
         visibility,
         createdAt: new Date(),
@@ -57,21 +60,29 @@ export async function getChatById({
 
 export async function getChatsByUserId({
   userId,
+  projectId,
   limit,
   startingAfter,
   endingBefore,
 }: {
   userId: string;
+  projectId?: string;
   limit?: number;
   startingAfter?: string | null;
   endingBefore?: string | null;
 }): Promise<{ chats: Chat[]; hasMore?: boolean }> {
   try {
+    const userConditions = [eq(chats.userId, userId)];
+    if (projectId) {
+      userConditions.push(eq(chats.projectId, projectId));
+    }
+    const baseCondition = and(...userConditions);
+
     if (!limit) {
       const userChats = await db
         .select()
         .from(chats)
-        .where(eq(chats.userId, userId))
+        .where(baseCondition)
         .orderBy(desc(chats.createdAt));
       return { chats: userChats, hasMore: false };
     }
@@ -82,9 +93,7 @@ export async function getChatsByUserId({
       db
         .select()
         .from(chats)
-        .where(
-          whereCondition ? and(whereCondition, eq(chats.userId, userId)) : eq(chats.userId, userId),
-        )
+        .where(whereCondition ? and(whereCondition, baseCondition) : baseCondition)
         .orderBy(desc(chats.createdAt))
         .limit(extendedLimit);
 

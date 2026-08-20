@@ -16,6 +16,7 @@ import {
   saveMessages,
   updateChatTitleById,
 } from '@/lib/db/queries/chat';
+import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
 import { createClient } from '@/lib/supabase/server';
 import type { ChatMessage } from '@/lib/types';
@@ -33,12 +34,14 @@ function ensureUUID(id: string): string {
 async function prepareChatState({
   id,
   userId,
+  projectId,
   userMessage,
   provider,
   apiKey,
 }: {
   id: string;
   userId: string;
+  projectId?: string;
   userMessage?: PostRequestBody['message'];
   provider?: ProviderName;
   apiKey?: string;
@@ -53,7 +56,14 @@ async function prepareChatState({
     }
     messagesFromDb = await getMessagesByChatId({ chatId: id });
   } else {
-    await saveChat({ id, title: 'New chat', userId });
+    if (!projectId) {
+      throw new ChatbotError('bad_request:api', 'projectId is required for new chats');
+    }
+    const project = await getProjectById({ id: projectId, userId });
+    if (!project) {
+      throw new ChatbotError('not_found:chat', 'Project not found');
+    }
+    await saveChat({ id, title: 'New chat', userId, projectId });
 
     if (userMessage) {
       titlePromise = generateText({
@@ -102,7 +112,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, messages, model, selectedChatModel, provider, apiKey } = requestBody;
+    const { id, message, messages, model, selectedChatModel, provider, apiKey, projectId } =
+      requestBody;
 
     const supabase = await createClient();
     const {
@@ -120,6 +131,7 @@ export async function POST(request: Request) {
     const { titlePromise, uiMessages } = await prepareChatState({
       id,
       userId: user.id,
+      projectId,
       userMessage,
       provider,
       apiKey,

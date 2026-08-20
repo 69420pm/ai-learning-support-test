@@ -16,7 +16,8 @@ export type Surface =
   | 'vote'
   | 'document'
   | 'suggestions'
-  | 'activate_gateway';
+  | 'activate_gateway'
+  | 'learning';
 
 export type ErrorCode = `${ErrorType}:${Surface}`;
 
@@ -31,6 +32,7 @@ export const visibilityBySurface: Record<Surface, ErrorVisibility> = {
   database: 'log',
   document: 'response',
   history: 'response',
+  learning: 'response',
   stream: 'response',
   suggestions: 'response',
   vote: 'response',
@@ -133,3 +135,5 @@ export class ChatbotError extends Error {
     return Response.json({ cause, code, message }, { status: statusCode });
   }
 }
+
+export { ChatbotError as AppError };

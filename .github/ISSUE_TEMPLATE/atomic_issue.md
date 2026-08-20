@@ -16,7 +16,7 @@ labels: ['enhancement']
 > [!IMPORTANT]
 > This issue must be an atomic unit of work. Do not assume context from other issues unless listed in Prerequisites.
 
-- **Rationale**: [Why this approach was chosen, what alternatives were considered, citing any ADRs from specs/decisions.md if relevant]
+- **Rationale**: [Why this approach was chosen, what alternatives were considered, citing any ADRs from docs/adr/ if relevant]
 - **Files to Modify**:
   - `path/to/file` (lines to check/edit)
 - **Tasks**:

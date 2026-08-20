@@ -8,7 +8,30 @@ This document outlines the testing architecture, Playwright E2E standards, Page 
 
 * **Test Higher-Level Objectives, Not Implementation Code:** Tests must be written against the **Definition of Done (DoD) and user goals** defined in the plan—NEVER against the specific internal implementation functions.
 * **Avoid Testing Bad Code:** If implementation code is flawed or over-engineered, writing tests that strictly mirror that code locks in bad architecture ("testing code that doesn't make sense"). If a test fails because the code misses the high-level objective, fix the code to meet the standard.
-* **Agent Workflow:** Features are implemented, visually verified via `agentic-ui-verification`, and then codified into Playwright E2E / Vitest tests using the `test-writer` skill (`.agents/skills/test-writer/SKILL.md`) before opening a PR.
+* **Test-First & Regression Workflow:** Features and fixes are driven test-first using the `tdd` skill (`.agents/skills/tdd/SKILL.md`), verified via `next-dev-loop` / `agentic-ui-verification`, and validated against the full test suite before opening a PR.
+
+---
+
+## ⚡ Agent Test Execution Protocol (Inner Loop vs. Outer Gate)
+
+To keep context windows lean, feedback loops sub-second, and prevent context bloat:
+
+### 1. Inner Loop (Active Development & TDD Cycles)
+* **Target Single Test File Only:** Run Vitest only against the active file under test:
+  ```bash
+  pnpm vitest run path/to/file.test.ts
+  ```
+* **Fast Typechecking:** Use `pnpm typecheck` to verify TypeScript diagnostics.
+* **Strictly Prohibited in the Inner Loop:**
+  * ❌ Do NOT run `pnpm test` (full Vitest suite) during red-green iteration.
+  * ❌ Do NOT run `pnpm test:e2e` or `playwright test` in the inner loop. E2E tests are slow, spin up Next.js servers and browser instances, and pollute conversation context with massive log output.
+
+### 2. Outer Gate (Ticket / Feature Completion)
+* **Run Full Suite Once:** Execute full checks only once after completing the vertical slices for the ticket:
+  ```bash
+  pnpm check      # Full lint + typecheck + Vitest suite
+  pnpm test:e2e   # Full E2E suite (run only at completion)
+  ```
 
 ---
 
@@ -129,8 +152,9 @@ All pure domain logic in `lib/` is tested with Vitest. Unit tests are co-located
 
 - Unit tests live next to their source: `lib/learning/fsrs.ts` → `lib/learning/fsrs.test.ts`
 - Test files use the `.test.ts` or `.test.tsx` extension.
-- Run all tests: `pnpm test` (executes `vitest run`).
-- Run in watch mode: `pnpm vitest` (for local development).
+- **Run targeted test (Inner Loop):** `pnpm vitest run path/to/file.test.ts`
+- **Run all tests (Outer Gate only):** `pnpm test` (executes `vitest run`).
+- **Run in watch mode:** `pnpm vitest` (for interactive local development).
 
 ### 6.2 Test Structure
 

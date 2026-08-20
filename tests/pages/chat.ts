@@ -87,4 +87,108 @@ export class ChatPage {
     await this.getInput().fill(message);
     await this.getSendButton().click();
   }
+
+  getMaterialList() {
+    return this.page.getByTestId('material-list');
+  }
+
+  getUploadMaterialButton() {
+    return this.page.getByTestId('upload-material-button');
+  }
+
+  getMaterialFileInput() {
+    return this.page.getByTestId('material-file-input');
+  }
+
+  getMaterialItem(materialId: string) {
+    return this.page.getByTestId(`material-item-${materialId}`);
+  }
+
+  getViewportDropOverlay() {
+    return this.page.getByTestId('viewport-drop-overlay');
+  }
+
+  getMaterialUploadDialog() {
+    return this.page.getByTestId('material-upload-dialog');
+  }
+
+  getUploadDropZone() {
+    return this.page.getByTestId('upload-drop-zone');
+  }
+
+  getUploadDialogFileInput() {
+    return this.page.getByTestId('upload-dialog-file-input');
+  }
+
+  getStagedFileItem(index: number) {
+    return this.page.getByTestId(`staged-file-item-${index}`);
+  }
+
+  getStartUploadButton() {
+    return this.page.getByTestId('start-upload-button');
+  }
+
+  getCancelUploadButton() {
+    return this.page.getByTestId('cancel-upload-button');
+  }
+
+  getMaterialPreviewDialog() {
+    return this.page.getByTestId('material-preview-dialog');
+  }
+
+  getTabExtractedContent() {
+    return this.page.getByTestId('tab-extracted-content');
+  }
+
+  getTabIndexedChunks() {
+    return this.page.getByTestId('tab-indexed-chunks');
+  }
+
+  getExtractedContentView() {
+    return this.page.getByTestId('extracted-content-view');
+  }
+
+  getIndexedChunksList() {
+    return this.page.getByTestId('indexed-chunks-list');
+  }
+
+  getChunkCard(index: number) {
+    return this.page.getByTestId(`chunk-card-${index}`);
+  }
+
+  getDeleteMaterialDialog() {
+    return this.page.getByTestId('delete-material-dialog');
+  }
+
+  getConfirmDeleteMaterialButton() {
+    return this.page.getByTestId('confirm-delete-material-button');
+  }
+
+  getCancelDeleteMaterialButton() {
+    return this.page.getByTestId('cancel-delete-material-button');
+  }
+
+  async inspectMaterial(materialId: string) {
+    const item = this.getMaterialItem(materialId);
+    if (await item.isVisible()) {
+      await item.hover();
+    }
+    const menuBtn = this.page.getByTestId(`material-menu-${materialId}`);
+    await menuBtn.click({ force: true });
+    const inspectOption = this.page.getByTestId(`inspect-material-option-${materialId}`);
+    await inspectOption.click();
+  }
+
+  async deleteMaterial(materialId: string) {
+    const item = this.getMaterialItem(materialId);
+    if (await item.isVisible()) {
+      await item.hover();
+    }
+    const menuBtn = this.page.getByTestId(`material-menu-${materialId}`);
+    await menuBtn.click({ force: true });
+    const deleteOption = this.page.getByTestId(`delete-material-option-${materialId}`);
+    await deleteOption.click();
+    const confirmBtn = this.getConfirmDeleteMaterialButton();
+    await confirmBtn.click();
+  }
 }

@@ -12,7 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { DEFAULT_MODEL_ID, type ModelOption, SUPPORTED_MODELS } from '@/lib/ai/providers';
+import {
+  DEFAULT_MODEL_ID,
+  type ModelOption,
+  type ProviderName,
+  SUPPORTED_MODELS,
+} from '@/lib/ai/providers';
 import { cn } from '@/lib/utils';
 
 export type ModelSelectorProps = {
@@ -21,12 +26,14 @@ export type ModelSelectorProps = {
   className?: string;
 };
 
-function getProviderIcon(provider: 'google' | 'openai') {
+function getProviderIcon(provider: ProviderName) {
   switch (provider) {
     case 'google':
       return <Sparkles className="size-3.5 text-amber-500 dark:text-amber-400" />;
     case 'openai':
       return <Cpu className="size-3.5 text-emerald-500 dark:text-emerald-400" />;
+    case 'ollama':
+      return <Bot className="size-3.5 text-blue-500 dark:text-blue-400" />;
     default:
       return <Bot className="size-3.5 text-primary" />;
   }

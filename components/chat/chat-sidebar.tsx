@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { SidebarHistory } from '@/components/chat/sidebar-history';
+import { MaterialList } from '@/components/document';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -150,14 +151,21 @@ export function ChatSidebar({ user, projectId, projectName, className }: ChatSid
           </div>
         </div>
 
-        {/* Sidebar History Content */}
+        {/* Sidebar Materials & History Content */}
         {isOpen && (
-          <div className="flex-1 overflow-hidden">
-            <SidebarHistory
-              user={user}
-              projectId={projectId}
-              onSelectChat={() => setIsMobileOpen(false)}
-            />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {projectId && (
+              <div className="border-b border-border/50 p-2">
+                <MaterialList projectId={projectId} />
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto">
+              <SidebarHistory
+                user={user}
+                projectId={projectId}
+                onSelectChat={() => setIsMobileOpen(false)}
+              />
+            </div>
           </div>
         )}
       </aside>

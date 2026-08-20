@@ -3,11 +3,13 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   generateText,
+  isStepCount,
   streamText,
   toUIMessageStream,
 } from 'ai';
 import { systemPrompt, titlePrompt } from '@/lib/ai/prompts';
 import { getLanguageModel, getTitleModel, type ProviderName } from '@/lib/ai/providers';
+import { createTools } from '@/lib/ai/tools';
 import {
   deleteChatById,
   getChatById,
@@ -97,7 +99,11 @@ async function prepareChatState({
     ? [...convertToUIMessages(messagesFromDb), userMessage as ChatMessage]
     : convertToUIMessages(messagesFromDb);
 
-  return { titlePromise, uiMessages };
+  return {
+    titlePromise,
+    uiMessages,
+    resolvedProjectId: chat?.projectId ?? projectId,
+  };
 }
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
@@ -128,7 +134,7 @@ export async function POST(request: Request) {
     const userMessage =
       message ?? (messages && messages.length > 0 ? messages[messages.length - 1] : undefined);
 
-    const { titlePromise, uiMessages } = await prepareChatState({
+    const { titlePromise, uiMessages, resolvedProjectId } = await prepareChatState({
       id,
       userId: user.id,
       projectId,
@@ -142,11 +148,19 @@ export async function POST(request: Request) {
     const stream = createUIMessageStream({
       execute: async ({ writer: dataStream }) => {
         const languageModel = getLanguageModel({ provider, modelId, apiKey });
+        const tools = createTools({
+          userId: user.id,
+          projectId: resolvedProjectId,
+          dataStream,
+          modelId,
+        });
 
         const result = streamText({
           model: languageModel,
           instructions: systemPrompt,
           messages: modelMessages,
+          tools,
+          stopWhen: isStepCount(5),
         });
 
         dataStream.merge(

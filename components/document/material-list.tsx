@@ -5,8 +5,25 @@ import { type ChangeEvent, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { Material, MaterialStatus } from '@/lib/db/schema';
 import { cn, fetcher } from '@/lib/utils';
+
+export type MaterialStatus = 'pending' | 'processing' | 'ready' | 'failed';
+
+export type MaterialItem = {
+  id: string;
+  projectId: string;
+  userId: string;
+  title: string;
+  filename: string;
+  fileType: string;
+  fileSize: number;
+  storagePath: string;
+  status: MaterialStatus;
+  errorMessage?: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+};
 
 export type MaterialListProps = {
   projectId: string;
@@ -14,7 +31,7 @@ export type MaterialListProps = {
 };
 
 type MaterialsResponse = {
-  materials: Material[];
+  materials: MaterialItem[];
 };
 
 function getStatusBadge(status: MaterialStatus) {

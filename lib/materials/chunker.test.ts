@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { chunkMarkdown, estimateTokenCount } from './chunker';
+import {
+  chunkMarkdown,
+  chunkMultimodalPages,
+  chunkPageMarkdown,
+  estimateTokenCount,
+} from './chunker';
 
 describe('Markdown Chunker', () => {
   it('estimates token counts accurately', () => {
@@ -74,5 +79,76 @@ And some following explanation.`;
     expect(chunks).toHaveLength(1);
     expect(chunks[0].content).toContain('```python');
     expect(chunks[0].content).toContain('def fibonacci(n):');
+  });
+
+  describe('Page-Attributed Multimodal Chunking', () => {
+    it('attributes exact page numbers and heading hierarchy to chunks', () => {
+      const page1 = `# Slide 1: System Overview
+This is the architecture diagram slide.
+
+\`\`\`mermaid
+flowchart TD
+  A[Client] --> B[API Server]
+\`\`\``;
+
+      const page2 = `# Slide 2: Data Pipeline
+Here are the data transformation steps:
+1. Ingest
+2. Chunk
+3. Embed`;
+
+      const pages = [
+        { pageNumber: 1, markdown: page1 },
+        { pageNumber: 2, markdown: page2 },
+      ];
+
+      const chunks = chunkMultimodalPages(pages);
+      expect(chunks).toHaveLength(2);
+
+      expect(chunks[0].chunkIndex).toBe(0);
+      expect(chunks[0].metadata.pageNumber).toBe(1);
+      expect(chunks[0].metadata.heading).toBe('Slide 1: System Overview');
+      expect(chunks[0].content).toContain('```mermaid');
+
+      expect(chunks[1].chunkIndex).toBe(1);
+      expect(chunks[1].metadata.pageNumber).toBe(2);
+      expect(chunks[1].metadata.heading).toBe('Slide 2: Data Pipeline');
+    });
+
+    it('handles multiple chunks per page when page content exceeds maxTokens', () => {
+      const longPage = `# Deep Dive Chapter
+${'Detailed explanation of mathematical foundations. '.repeat(60)}`;
+
+      const pages = [{ pageNumber: 3, markdown: longPage }];
+      const chunks = chunkMultimodalPages(pages, { maxTokens: 150 });
+
+      expect(chunks.length).toBeGreaterThan(1);
+      for (const chunk of chunks) {
+        expect(chunk.metadata.pageNumber).toBe(3);
+        expect(chunk.metadata.heading).toBe('Deep Dive Chapter');
+      }
+      expect(chunks[0].chunkIndex).toBe(0);
+      expect(chunks[1].chunkIndex).toBe(1);
+    });
+
+    it('handles empty or whitespace-only pages gracefully', () => {
+      const pages = [
+        { pageNumber: 1, markdown: '   ' },
+        { pageNumber: 2, markdown: '# Valid Page\nReal content here.' },
+      ];
+
+      const chunks = chunkMultimodalPages(pages);
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0].metadata.pageNumber).toBe(2);
+      expect(chunks[0].chunkIndex).toBe(0);
+    });
+
+    it('chunks a single page using chunkPageMarkdown', () => {
+      const markdown = '# Dedicated Page\nContent for page 5';
+      const chunks = chunkPageMarkdown(markdown, 5);
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0].metadata.pageNumber).toBe(5);
+      expect(chunks[0].metadata.heading).toBe('Dedicated Page');
+    });
   });
 });

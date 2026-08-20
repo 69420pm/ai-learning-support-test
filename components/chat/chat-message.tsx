@@ -6,6 +6,10 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { codeToHtml } from 'shiki';
+import {
+  type MaterialSearchResult,
+  MaterialSearchWidget,
+} from '@/components/chat/material-search-widget';
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { cn, getTextFromMessage } from '@/lib/utils';
 
@@ -117,9 +121,95 @@ const markdownComponents: Components = {
   },
 };
 
+type ToolInvocationInfo = {
+  id: string;
+  query: string;
+  status: 'searching' | 'completed' | 'error';
+  results?: MaterialSearchResult[];
+  error?: string;
+};
+
+function parseSearchStateAndResults(p: Record<string, unknown>, out?: Record<string, unknown>) {
+  if (p.state === 'input-streaming' || p.state === 'input-available') {
+    return { status: 'searching' as const, results: undefined, error: undefined };
+  }
+  if (p.state === 'output-error') {
+    return {
+      status: 'error' as const,
+      results: undefined,
+      error: typeof p.errorText === 'string' ? p.errorText : 'Search error',
+    };
+  }
+  if (p.state === 'output-available') {
+    const results = Array.isArray(out?.results) ? (out.results as MaterialSearchResult[]) : [];
+    const error = typeof out?.error === 'string' ? out.error : undefined;
+    return {
+      status: error ? ('error' as const) : ('completed' as const),
+      results,
+      error,
+    };
+  }
+  return { status: 'completed' as const, results: undefined, error: undefined };
+}
+
+function parseDirectToolPart(p: Record<string, unknown>, index: number): ToolInvocationInfo | null {
+  const isStaticTool = p.type === 'tool-searchProjectMaterials';
+  const isDynamicTool = p.type === 'dynamic-tool' && p.toolName === 'searchProjectMaterials';
+  if (!isStaticTool && !isDynamicTool) return null;
+
+  const inputObj = p.input as Record<string, unknown> | undefined;
+  const query = typeof inputObj?.query === 'string' ? inputObj.query : '';
+  const out = p.output as Record<string, unknown> | undefined;
+  const stateInfo = parseSearchStateAndResults(p, out);
+  return {
+    id: (p.toolCallId as string) || `search-${index}`,
+    query,
+    ...stateInfo,
+  };
+}
+
+function parseLegacyToolInvocationPart(
+  p: Record<string, unknown>,
+  index: number,
+): ToolInvocationInfo | null {
+  if (p.type !== 'tool-invocation' || typeof p.toolInvocation !== 'object' || !p.toolInvocation) {
+    return null;
+  }
+  const inv = p.toolInvocation as Record<string, unknown>;
+  if (inv.toolName !== 'searchProjectMaterials') return null;
+
+  const args = inv.args as Record<string, unknown> | undefined;
+  const query = typeof args?.query === 'string' ? args.query : '';
+  const res = inv.result as Record<string, unknown> | undefined;
+  const isResult = inv.state === 'result';
+  const results = Array.isArray(res?.results) ? (res.results as MaterialSearchResult[]) : [];
+  const error = typeof res?.error === 'string' ? res.error : undefined;
+  return {
+    id: (inv.toolCallId as string) || `search-${index}`,
+    query,
+    status: isResult ? (error ? 'error' : 'completed') : 'searching',
+    results: isResult ? results : undefined,
+    error: isResult ? error : undefined,
+  };
+}
+
+function parsePart(part: unknown, index: number): ToolInvocationInfo | null {
+  if (!part || typeof part !== 'object') return null;
+  const p = part as Record<string, unknown>;
+  return parseDirectToolPart(p, index) ?? parseLegacyToolInvocationPart(p, index);
+}
+
+function extractMaterialSearches(parts?: ChatMessageType['parts']): ToolInvocationInfo[] {
+  if (!Array.isArray(parts)) return [];
+  return parts
+    .map((part, index) => parsePart(part, index))
+    .filter((s): s is ToolInvocationInfo => s !== null);
+}
+
 export function ChatMessage({ message, isLoading = false, className }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const textContent = getTextFromMessage(message);
+  const searches = isUser ? [] : extractMaterialSearches(message.parts);
 
   return (
     <div
@@ -154,17 +244,29 @@ export function ChatMessage({ message, isLoading = false, className }: ChatMessa
               : 'bg-card border border-border/60 text-card-foreground rounded-tl-xs',
           )}
         >
+          {searches.map((search) => (
+            <MaterialSearchWidget
+              key={search.id}
+              query={search.query}
+              status={search.status}
+              results={search.results}
+              error={search.error}
+            />
+          ))}
+
           {isUser ? (
             <p className="whitespace-pre-wrap break-words">{textContent}</p>
           ) : (
-            <div className="prose dark:prose-invert max-w-none text-sm break-words [&>p]:leading-relaxed [&>p]:mb-3 [&>p:last-child]:mb-0">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {textContent}
-              </ReactMarkdown>
-            </div>
+            textContent && (
+              <div className="prose dark:prose-invert max-w-none text-sm break-words [&>p]:leading-relaxed [&>p]:mb-3 [&>p:last-child]:mb-0">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {textContent}
+                </ReactMarkdown>
+              </div>
+            )
           )}
 
-          {isLoading && !textContent && (
+          {isLoading && !textContent && searches.length === 0 && (
             <div className="flex items-center gap-1.5 py-1 text-muted-foreground">
               <span className="size-2 animate-bounce rounded-full bg-primary/60 [animation-delay:-0.3s]" />
               <span className="size-2 animate-bounce rounded-full bg-primary/60 [animation-delay:-0.15s]" />

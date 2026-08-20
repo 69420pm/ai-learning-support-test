@@ -11,17 +11,44 @@ const ALLOWED_MIME_TYPES = new Set([
   'text/plain',
   'text/markdown',
   'text/x-markdown',
+  'application/pdf',
+  'application/x-pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'image/bmp',
+  'image/tiff',
+  'image/avif',
   'application/octet-stream',
 ]);
 
-const ALLOWED_EXTENSIONS = new Set(['.txt', '.md', '.markdown']);
+const ALLOWED_EXTENSIONS = new Set([
+  '.txt',
+  '.md',
+  '.markdown',
+  '.pdf',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+  '.bmp',
+  '.tiff',
+  '.tif',
+  '.avif',
+]);
 
-function isValidTextFile(file: File): boolean {
-  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-  if (ALLOWED_EXTENSIONS.has(extension)) {
+function isValidMaterialFile(file: File): boolean {
+  const lastDot = file.name.lastIndexOf('.');
+  const extension = lastDot >= 0 ? file.name.slice(lastDot).toLowerCase() : '';
+  if (extension && ALLOWED_EXTENSIONS.has(extension)) {
     return true;
   }
-  return ALLOWED_MIME_TYPES.has(file.type);
+  if (file.type && ALLOWED_MIME_TYPES.has(file.type)) {
+    return true;
+  }
+  return Boolean(file.type?.startsWith('image/'));
 }
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
@@ -77,16 +104,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return new ChatbotError('bad_request:api', 'A valid file is required').toResponse();
     }
 
-    if (!isValidTextFile(file)) {
+    if (!isValidMaterialFile(file)) {
       return new ChatbotError(
         'bad_request:api',
-        'Only text (.txt) and Markdown (.md) materials are currently supported',
+        'Only documents (.pdf, .md, .txt) and images (.png, .jpg, .webp, etc.) are supported',
       ).toResponse();
     }
 
-    // 10MB max file size
-    if (file.size > 10 * 1024 * 1024) {
-      return new ChatbotError('bad_request:api', 'File size exceeds 10MB limit').toResponse();
+    // 25MB max file size
+    if (file.size > 25 * 1024 * 1024) {
+      return new ChatbotError('bad_request:api', 'File size exceeds 25MB limit').toResponse();
     }
 
     const titleParam = formData.get('title');

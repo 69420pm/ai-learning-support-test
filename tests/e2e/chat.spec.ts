@@ -196,5 +196,70 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
 
       await expect(modelTrigger).toHaveText(/Gemini 3\.5 Flash-Lite/);
     });
+
+    test('renders sidebar material list and allows material uploading with status badges', async ({
+      page,
+    }) => {
+      const seededMaterials = [
+        {
+          id: 'mat-ready-1',
+          projectId: mockProjectId,
+          userId: mockUserId,
+          title: 'Calculus Notes',
+          filename: 'calculus.md',
+          fileType: 'text/markdown',
+          status: 'ready',
+          createdAt: new Date().toISOString(),
+        },
+      ];
+
+      await page.route(`**/api/projects/${mockProjectId}/materials*`, async (route) => {
+        if (route.request().method() === 'POST') {
+          const newMaterial = {
+            id: 'mat-pending-2',
+            projectId: mockProjectId,
+            userId: mockUserId,
+            title: 'Linear Algebra',
+            filename: 'linear_algebra.md',
+            fileType: 'text/markdown',
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          };
+          seededMaterials.unshift(newMaterial);
+          await route.fulfill({
+            status: 201,
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ material: newMaterial }),
+          });
+          return;
+        }
+
+        await route.fulfill({
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ materials: seededMaterials }),
+        });
+      });
+
+      const chatPage = new ChatPage(page);
+      await chatPage.goto(mockProjectId);
+
+      // 1. Verify materials header and seeded material item
+      await expect(chatPage.getMaterialList()).toBeVisible();
+      await expect(page.getByText('Calculus Notes')).toBeVisible();
+      await expect(page.getByTestId('material-status-ready')).toBeVisible();
+
+      // 2. Upload a new material via file input
+      const fileInput = chatPage.getMaterialFileInput();
+      await fileInput.setInputFiles({
+        name: 'linear_algebra.md',
+        mimeType: 'text/markdown',
+        buffer: Buffer.from('# Linear Algebra\nVector spaces and matrices.'),
+      });
+
+      // 3. Verify newly uploaded material is displayed with pending status
+      await expect(page.getByText('Linear Algebra')).toBeVisible({ timeout: 5000 });
+      await expect(page.getByTestId('material-status-pending')).toBeVisible();
+    });
   });
 });

@@ -87,4 +87,20 @@ export class ChatPage {
     await this.getInput().fill(message);
     await this.getSendButton().click();
   }
+
+  getMaterialList() {
+    return this.page.getByTestId('material-list');
+  }
+
+  getUploadMaterialButton() {
+    return this.page.getByTestId('upload-material-button');
+  }
+
+  getMaterialFileInput() {
+    return this.page.getByTestId('material-file-input');
+  }
+
+  getMaterialItem(materialId: string) {
+    return this.page.getByTestId(`material-item-${materialId}`);
+  }
 }

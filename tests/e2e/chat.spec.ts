@@ -2,6 +2,12 @@ import { expect, test } from '@playwright/test';
 import { ChatPage } from '../pages/chat';
 
 test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () => {
+  test('redirects unauthenticated user accessing /projects/p1/chat to /login', async ({ page }) => {
+    await page.context().clearCookies();
+    await page.goto('/projects/p1/chat');
+    await expect(page).toHaveURL(/\/login\?redirectTo=(\/|%2F)projects(\/|%2F)p1(\/|%2F)chat/);
+  });
+
   test('redirects unauthenticated user accessing /chat to /login', async ({ page }) => {
     await page.context().clearCookies();
     await page.goto('/chat');
@@ -10,6 +16,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
 
   test.describe('Authenticated Chat Operations', () => {
     const mockUserId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const mockProjectId = '11111111-1111-4111-a111-111111111111';
 
     test.beforeEach(async ({ page }) => {
       await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -17,6 +24,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
         {
           name: 'sb-mock-auth',
           value: JSON.stringify({
+            id: mockUserId,
             email: 'test@example.com',
             // biome-ignore lint/style/useNamingConvention: Supabase metadata key
             user_metadata: { full_name: 'Test User' },
@@ -57,8 +65,8 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       });
 
       const chatPage = new ChatPage(page);
-      await chatPage.goto();
-      await expect(page).toHaveURL(/\/chat/);
+      await chatPage.goto(mockProjectId);
+      await expect(page).toHaveURL(new RegExp(`/projects/${mockProjectId}/chat`));
 
       await expect(chatPage.getChatTitle()).toHaveText('New Chat');
       await expect(page.getByText('Gemini 3.7 Flash')).toBeVisible();
@@ -79,7 +87,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       const seededChatId = '11111111-1111-4111-a111-111111111111';
       let historyDeleted = false;
 
-      await page.route('**/api/history', async (route) => {
+      await page.route('**/api/history*', async (route) => {
         await route.fulfill({
           status: 200,
           headers: { 'content-type': 'application/json' },
@@ -90,6 +98,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
                   {
                     id: seededChatId,
                     userId: mockUserId,
+                    projectId: mockProjectId,
                     title: 'First Chat Thread',
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
@@ -140,13 +149,16 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       });
 
       const chatPage = new ChatPage(page);
-      await chatPage.goto();
+      await chatPage.goto(mockProjectId);
 
-      // 1. Send prompt on /chat
+      // 1. Send prompt on project chat
       await chatPage.sendUserMessage('Hello, introduce yourself');
 
-      // 2. Assert URL changes to /chat/[uuid]
-      await expect(page).toHaveURL(/\/chat\/[0-9a-f-]{36}/i, { timeout: 10000 });
+      // 2. Assert URL changes to /projects/[projectId]/chat/[uuid]
+      await expect(page).toHaveURL(
+        new RegExp(`/projects/${mockProjectId}/chat/[0-9a-f-]{36}`, 'i'),
+        { timeout: 10000 },
+      );
 
       // 3. Assert assistant response streams and finishes
       await expect(page.getByText('Hello! I am your AI learning assistant.')).toBeVisible();
@@ -154,13 +166,13 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       // 4. Assert sidebar history shows seeded item
       await expect(page.getByText('First Chat Thread')).toBeVisible();
 
-      // 5. Click New Chat
+      // 5. Click New Chat in sidebar
       await chatPage.getNewChatButton().first().click();
-      await expect(page).toHaveURL(/\/chat$/);
+      await expect(page).toHaveURL(new RegExp(`/projects/${mockProjectId}/chat$`));
 
       // 6. Click First Chat Thread in sidebar to switch back
       await page.getByText('First Chat Thread').click();
-      await expect(page).toHaveURL(new RegExp(`/chat/${seededChatId}`));
+      await expect(page).toHaveURL(new RegExp(`/projects/${mockProjectId}/chat/${seededChatId}`));
 
       // 7. Delete thread from sidebar
       await chatPage.deleteChat(seededChatId);
@@ -169,8 +181,8 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
 
     test('allows user to switch AI model using model selector dropdown', async ({ page }) => {
       const chatPage = new ChatPage(page);
-      await chatPage.goto();
-      await expect(page).toHaveURL(/\/chat/);
+      await chatPage.goto(mockProjectId);
+      await expect(page).toHaveURL(new RegExp(`/projects/${mockProjectId}/chat`));
 
       const modelTrigger = page.getByTestId('model-selector-trigger');
       await expect(modelTrigger).toBeVisible();

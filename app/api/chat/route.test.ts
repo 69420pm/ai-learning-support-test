@@ -17,6 +17,11 @@ const mockSaveMessages = vi.fn();
 const mockGetMessagesByChatId = vi.fn();
 const mockUpdateChatTitleById = vi.fn();
 const mockDeleteChatById = vi.fn();
+const mockGetProjectById = vi.fn();
+
+vi.mock('@/lib/db/queries/project', () => ({
+  getProjectById: (...args: unknown[]) => mockGetProjectById(...args),
+}));
 
 vi.mock('@/lib/db/queries/chat', () => ({
   saveChat: (...args: unknown[]) => mockSaveChat(...args),
@@ -102,11 +107,18 @@ describe('Chat API Handler (/api/chat)', () => {
 
     it('creates chat and streams response when authenticated', async () => {
       const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
+      const projectId = '770e8400-e29b-41d4-a716-446655440000';
       mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
       mockGetChatById.mockResolvedValueOnce(null); // Chat does not exist yet
+      mockGetProjectById.mockResolvedValueOnce({
+        id: projectId,
+        userId: testUser.id,
+        name: 'Math',
+      });
       mockSaveChat.mockResolvedValueOnce({
         id: '550e8400-e29b-41d4-a716-446655440000',
         userId: testUser.id,
+        projectId,
         title: 'New chat',
       });
 
@@ -115,6 +127,7 @@ describe('Chat API Handler (/api/chat)', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: '550e8400-e29b-41d4-a716-446655440000',
+          projectId,
           message: {
             id: '11111111-2222-4444-8888-999999999999',
             role: 'user',
@@ -142,6 +155,7 @@ describe('Chat API Handler (/api/chat)', () => {
         id: '550e8400-e29b-41d4-a716-446655440000',
         title: 'New chat',
         userId: testUser.id,
+        projectId,
       });
 
       expect(mockSaveMessages).toHaveBeenCalledWith({
@@ -153,6 +167,26 @@ describe('Chat API Handler (/api/chat)', () => {
           }),
         ]),
       });
+    });
+
+    it('returns 400 if projectId is missing for a new chat', async () => {
+      const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
+      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockGetChatById.mockResolvedValueOnce(null);
+
+      const request = new Request('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          message: { id: 'msg-1', role: 'user', parts: [{ type: 'text', text: 'Hi' }] },
+        }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.code).toBe('bad_request:api');
     });
 
     it('returns 403 Forbidden if user tries to post to another user chat', async () => {

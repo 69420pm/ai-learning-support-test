@@ -2,12 +2,15 @@ import { expect, test } from '@playwright/test';
 import { ChatPage } from '../pages/chat';
 
 test.describe('Chat Model Selection & Header E2E', () => {
+  const mockProjectId = '11111111-1111-4111-a111-111111111111';
+
   test.beforeEach(async ({ page }) => {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.context().addCookies([
       {
         name: 'sb-mock-auth',
         value: JSON.stringify({
+          id: 'test-user-id',
           email: 'test@example.com',
           // biome-ignore lint/style/useNamingConvention: Supabase metadata key
           user_metadata: { full_name: 'Test User' },
@@ -58,7 +61,7 @@ test.describe('Chat Model Selection & Header E2E', () => {
     });
 
     const chatPage = new ChatPage(page);
-    await chatPage.goto();
+    await chatPage.goto(mockProjectId);
 
     // 1. Verify ChatHeader renders active model trigger badge (default Gemini 3.7 Flash)
     const modelTrigger = chatPage.getModelSelectorTrigger();
@@ -97,7 +100,7 @@ test.describe('Chat Model Selection & Header E2E', () => {
     const sidebarNewChat = chatPage.getNewChatButton().first();
     await expect(sidebarNewChat).toBeVisible();
     await sidebarNewChat.click();
-    await expect(page).toHaveURL(/\/chat$/);
+    await expect(page).toHaveURL(new RegExp(`/projects/${mockProjectId}/chat$`));
     await expect(chatPage.getChatTitle()).toHaveText('New Chat');
   });
 });

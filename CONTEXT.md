@@ -42,6 +42,10 @@ _Avoid_: Tutoring, scaffolding, coaching
 
 ### System & Sessions
 
+**Project**:
+A top-level organizational boundary (e.g. subject, course, or topic) that groups study sessions, materials, and learning interactions for a learner.
+_Avoid_: Workspace, folder, subject, category, course
+
 **Study Session**:
 A focused learning interaction bounded by a specific material, topic, or pedagogical exercise (chat, flashcards, Feynman audit).
 _Avoid_: Chat session, lesson, class

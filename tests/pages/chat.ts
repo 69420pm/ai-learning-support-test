@@ -3,8 +3,20 @@ import type { Page } from '@playwright/test';
 export class ChatPage {
   constructor(public page: Page) {}
 
-  async goto() {
-    await this.page.goto('/chat');
+  async goto(projectId?: string) {
+    if (projectId) {
+      await this.page.goto(`/projects/${projectId}/chat`);
+    } else {
+      await this.page.goto('/chat');
+    }
+  }
+
+  getBackToProjectsLink() {
+    return this.page.getByTestId('back-to-projects-link');
+  }
+
+  getSidebarProjectName() {
+    return this.page.getByTestId('sidebar-project-name');
   }
 
   getChatHeader() {

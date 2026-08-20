@@ -17,6 +17,7 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('projectId') || searchParams.get('project_id') || undefined;
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
     const startingAfter = searchParams.get('starting_after');
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
 
     const history = await getChatsByUserId({
       userId: user.id,
+      projectId,
       limit,
       startingAfter,
       endingBefore,

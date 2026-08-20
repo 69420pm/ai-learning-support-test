@@ -15,6 +15,7 @@ import { cn, generateUUID } from '@/lib/utils';
 
 export type ChatProps = {
   id?: string;
+  projectId?: string;
   initialMessages?: ChatMessage[];
   initialTitle?: string;
   selectedModelId?: string;
@@ -24,6 +25,7 @@ export type ChatProps = {
 
 export function Chat({
   id: initialId,
+  projectId,
   initialMessages = [],
   initialTitle = 'New Chat',
   selectedModelId: initialSelectedModelId = DEFAULT_MODEL_ID,
@@ -49,11 +51,12 @@ export function Chat({
         api: '/api/chat',
         body: {
           id: chatId,
+          projectId,
           model: selectedModelId,
           selectedChatModel: selectedModelId,
         },
       }),
-    [chatId, selectedModelId],
+    [chatId, selectedModelId, projectId],
   );
 
   const { messages, sendMessage, stop, status } = useChat({
@@ -74,7 +77,8 @@ export function Chat({
     if (!initialId && !hasNavigated) {
       setHasNavigated(true);
       if (typeof window !== 'undefined') {
-        window.history.replaceState({}, '', `/chat/${chatId}`);
+        const targetUrl = projectId ? `/projects/${projectId}/chat/${chatId}` : `/chat/${chatId}`;
+        window.history.replaceState({}, '', targetUrl);
       }
     }
 
@@ -89,7 +93,11 @@ export function Chat({
 
   const handleChatTitle = (newTitle: string) => {
     setTitle(newTitle);
+    if (projectId) {
+      mutate(`/api/history?projectId=${projectId}`);
+    }
     mutate('/api/history');
+    mutate('/api/projects');
   };
 
   return (

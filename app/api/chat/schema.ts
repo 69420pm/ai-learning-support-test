@@ -22,6 +22,7 @@ export const postRequestBodySchema = z.object({
   selectedChatModel: z.string().optional(),
   provider: z.enum(['google', 'openai', 'openrouter']).optional(),
   apiKey: z.string().optional(),
+  projectId: z.string().uuid().optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

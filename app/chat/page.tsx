@@ -1,9 +1,5 @@
-import { Chat } from '@/components/chat/chat';
+import { redirect } from 'next/navigation';
 
 export default function ChatPage() {
-  return (
-    <main className="flex h-full w-full flex-col overflow-hidden">
-      <Chat />
-    </main>
-  );
+  redirect('/');
 }

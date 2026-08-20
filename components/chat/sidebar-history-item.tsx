@@ -41,7 +41,7 @@ const PureSidebarHistoryItem = ({
       )}
     >
       <Link
-        href={`/chat/${chat.id}`}
+        href={chat.projectId ? `/projects/${chat.projectId}/chat/${chat.id}` : `/chat/${chat.id}`}
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden py-1 pr-2"
         data-testid={`chat-history-item-${chat.id}`}

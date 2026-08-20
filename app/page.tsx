@@ -1,182 +1,27 @@
-import {
-  ArrowRight,
-  BookOpen,
-  Brain,
-  CheckCircle2,
-  Clock,
-  Layers,
-  MessageSquare,
-  Sparkles,
-  Zap,
-} from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Clock, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { ProjectsGrid } from '@/components/projects/projects-grid';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getCurrentUser } from '@/lib/auth/session';
+import { getProjectsWithChatCount } from '@/lib/db/queries/project';
 
 export default async function Home() {
   const authenticatedUser = await getCurrentUser();
 
   if (authenticatedUser) {
     const displayName = authenticatedUser.fullName || authenticatedUser.email;
+    let initialProjects: Awaited<ReturnType<typeof getProjectsWithChatCount>> = [];
+    if (authenticatedUser.id) {
+      try {
+        initialProjects = await getProjectsWithChatCount({ userId: authenticatedUser.id });
+      } catch {
+        // Fallback to empty array if query fails
+      }
+    }
 
-    return (
-      <div className="w-full min-h-[calc(100vh-3.5rem)] bg-background p-4 sm:p-6 lg:p-8">
-        <div className="mx-auto max-w-7xl flex flex-col gap-6">
-          {/* Welcome & Main CTA Banner */}
-          <Card className="border-border shadow-xs bg-linear-to-r from-background via-muted/30 to-background">
-            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="gap-1.5 px-2.5 py-0.5 text-xs font-medium">
-                    <Sparkles className="size-3.5 text-primary" />
-                    Active Learning Platform
-                  </Badge>
-                </div>
-                <CardTitle
-                  className="font-bold text-2xl sm:text-3xl tracking-tight"
-                  data-testid="dashboard-heading"
-                >
-                  Dashboard
-                </CardTitle>
-                <CardDescription className="text-base" data-testid="dashboard-welcome">
-                  Welcome back, <span className="font-semibold text-foreground">{displayName}</span>
-                  ! Ready to continue your learning session?
-                </CardDescription>
-              </div>
-              <Button asChild size="lg" className="gap-2 shrink-0 font-medium shadow-xs">
-                <Link href="/chat">
-                  <MessageSquare className="size-4" />
-                  <span>Go to AI Chat</span>
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </CardHeader>
-          </Card>
-
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-border shadow-xs">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="font-medium text-sm">Learning Materials</CardTitle>
-                <BookOpen className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-2xl">0</div>
-                <p className="text-muted-foreground text-xs">PDFs & Documents ingested</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-xs">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="font-medium text-sm">Spaced Repetition</CardTitle>
-                <Clock className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-2xl">0</div>
-                <p className="text-muted-foreground text-xs">Flashcards due for review</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-xs">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="font-medium text-sm">Knowledge Graph</CardTitle>
-                <Brain className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-2xl">0</div>
-                <p className="text-muted-foreground text-xs">Concepts structured via GraphRAG</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-xs">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="font-medium text-sm">Feynman Audits</CardTitle>
-                <CheckCircle2 className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-2xl">0</div>
-                <p className="text-muted-foreground text-xs">Explanations evaluated</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Activity & Quick Actions Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 border-border shadow-xs">
-              <CardHeader>
-                <CardTitle className="font-semibold text-lg flex items-center gap-2">
-                  <Zap className="size-5 text-primary" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Jump right into learning support modules grounded in your uploaded materials.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-lg border border-border bg-card p-4 flex flex-col justify-between gap-3 transition-colors hover:bg-muted/50">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 font-semibold text-sm">
-                      <MessageSquare className="size-4 text-primary" />
-                      AI Learning Assistant
-                    </div>
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                      Ask questions, query concept graphs, and get grounded explanations.
-                    </p>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
-                    <Link href="/chat">
-                      <span>Open Chat</span>
-                      <ArrowRight className="size-3.5" />
-                    </Link>
-                  </Button>
-                </div>
-
-                <div className="rounded-lg border border-border bg-card p-4 flex flex-col justify-between gap-3 transition-colors hover:bg-muted/50 opacity-80">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 font-semibold text-sm">
-                      <Layers className="size-4 text-primary" />
-                      Material Knowledge Graph
-                    </div>
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                      Upload PDFs and inspect concept relationships & vector chunks.
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" disabled className="w-full gap-1.5">
-                    <span>Coming Soon</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-xs flex flex-col justify-between">
-              <CardHeader>
-                <CardTitle className="font-semibold text-lg flex items-center gap-2">
-                  <Sparkles className="size-5 text-primary" />
-                  Pedagogical Engines
-                </CardTitle>
-                <CardDescription>Core learning science powering your progress.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 text-xs text-muted-foreground">
-                <div className="rounded-md bg-muted/40 p-3 border border-border/50">
-                  <div className="font-medium text-foreground text-xs mb-1">
-                    FSRS Spaced Repetition
-                  </div>
-                  Optimizes review intervals dynamically based on memory decay algorithms.
-                </div>
-                <div className="rounded-md bg-muted/40 p-3 border border-border/50">
-                  <div className="font-medium text-foreground text-xs mb-1">
-                    Feynman Explanation Audits
-                  </div>
-                  Evaluates your understanding by checking for gaps in self-explanations.
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
+    return <ProjectsGrid initialProjects={initialProjects} userName={displayName} />;
   }
 
   // Unauthenticated Visitor View (Public Landing)

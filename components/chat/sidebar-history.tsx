@@ -22,6 +22,7 @@ export type SidebarHistoryProps = {
     email?: string;
     fullName?: string;
   };
+  projectId?: string;
   onSelectChat?: () => void;
 };
 
@@ -84,17 +85,19 @@ function groupChats(chats: Chat[]) {
   return groups;
 }
 
-export function SidebarHistory({ user, onSelectChat }: SidebarHistoryProps) {
+export function SidebarHistory({ user, projectId, onSelectChat }: SidebarHistoryProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const { data, mutate, isLoading } = useSWR<HistoryResponse>(
-    user ? '/api/history' : null,
-    fetcher,
-    {
-      revalidateOnFocus: true,
-    },
-  );
+  const historyKey = user
+    ? projectId
+      ? `/api/history?projectId=${projectId}`
+      : '/api/history'
+    : null;
+
+  const { data, mutate, isLoading } = useSWR<HistoryResponse>(historyKey, fetcher, {
+    revalidateOnFocus: true,
+  });
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -108,7 +111,7 @@ export function SidebarHistory({ user, onSelectChat }: SidebarHistoryProps) {
     if (!deleteId) return;
 
     const chatToDelete = deleteId;
-    const isCurrentChat = pathname === `/chat/${chatToDelete}`;
+    const isCurrentChat = pathname.endsWith(`/chat/${chatToDelete}`);
     setShowDeleteDialog(false);
     setDeleteId(null);
 
@@ -125,7 +128,7 @@ export function SidebarHistory({ user, onSelectChat }: SidebarHistoryProps) {
     );
 
     if (isCurrentChat) {
-      router.replace('/chat');
+      router.replace(projectId ? `/projects/${projectId}/chat` : '/');
     }
 
     try {
@@ -135,7 +138,7 @@ export function SidebarHistory({ user, onSelectChat }: SidebarHistoryProps) {
     } finally {
       mutate();
     }
-  }, [deleteId, mutate, pathname, router]);
+  }, [deleteId, mutate, pathname, router, projectId]);
 
   if (!user) {
     return (

@@ -9,9 +9,11 @@ export type MaterialChunkResult = {
   tokenCount: number;
   chunkIndex: number;
   metadata: {
+    pageNumber?: number;
     heading?: string;
     sectionIndex?: number;
     charCount: number;
+    [key: string]: unknown;
   };
 };
 
@@ -117,8 +119,31 @@ function extractHeading(content: string): string | undefined {
   return match ? match[1].trim() : undefined;
 }
 
-export function chunkMarkdown(markdown: string, options: ChunkOptions = {}): MaterialChunkResult[] {
-  const { minTokens = 300, maxTokens = 800 } = options;
+function createChunk(
+  blocks: string[],
+  chunkIndex: number,
+  heading?: string,
+  pageNumber?: number,
+): MaterialChunkResult {
+  const content = blocks.join('\n\n').trim();
+  return {
+    content,
+    tokenCount: estimateTokenCount(content),
+    chunkIndex,
+    metadata: {
+      pageNumber,
+      heading,
+      sectionIndex: chunkIndex,
+      charCount: content.length,
+    },
+  };
+}
+
+export function chunkMarkdown(
+  markdown: string,
+  options: ChunkOptions & { pageNumber?: number; startIndex?: number } = {},
+): MaterialChunkResult[] {
+  const { minTokens = 300, maxTokens = 800, pageNumber, startIndex = 0 } = options;
 
   const rawBlocks = splitIntoSemanticBlocks(markdown);
   if (rawBlocks.length === 0) {
@@ -133,7 +158,8 @@ export function chunkMarkdown(markdown: string, options: ChunkOptions = {}): Mat
   const chunks: MaterialChunkResult[] = [];
   let currentChunkBlocks: string[] = [];
   let currentTokens = 0;
-  let currentHeading: string | undefined;
+  let activeHeading: string | undefined;
+  let chunkHeading: string | undefined;
 
   for (const block of atomicBlocks) {
     const blockTokens = estimateTokenCount(block);
@@ -143,25 +169,20 @@ export function chunkMarkdown(markdown: string, options: ChunkOptions = {}): Mat
     const isNewSectionBreak = Boolean(blockHeading) && currentTokens >= minTokens;
 
     if (currentChunkBlocks.length > 0 && (wouldExceedMax || isNewSectionBreak)) {
-      const content = currentChunkBlocks.join('\n\n').trim();
-      chunks.push({
-        content,
-        tokenCount: estimateTokenCount(content),
-        chunkIndex: chunks.length,
-        metadata: {
-          heading: currentHeading,
-          sectionIndex: chunks.length,
-          charCount: content.length,
-        },
-      });
+      chunks.push(
+        createChunk(currentChunkBlocks, startIndex + chunks.length, chunkHeading, pageNumber),
+      );
 
       currentChunkBlocks = [];
       currentTokens = 0;
-      currentHeading = undefined;
+      chunkHeading = isNewSectionBreak ? blockHeading : activeHeading;
     }
 
-    if (!currentHeading && blockHeading) {
-      currentHeading = blockHeading;
+    if (blockHeading) {
+      activeHeading = blockHeading;
+      chunkHeading ??= blockHeading;
+    } else {
+      chunkHeading ??= activeHeading;
     }
 
     currentChunkBlocks.push(block);
@@ -169,18 +190,40 @@ export function chunkMarkdown(markdown: string, options: ChunkOptions = {}): Mat
   }
 
   if (currentChunkBlocks.length > 0) {
-    const content = currentChunkBlocks.join('\n\n').trim();
-    chunks.push({
-      content,
-      tokenCount: estimateTokenCount(content),
-      chunkIndex: chunks.length,
-      metadata: {
-        heading: currentHeading,
-        sectionIndex: chunks.length,
-        charCount: content.length,
-      },
-    });
+    chunks.push(
+      createChunk(currentChunkBlocks, startIndex + chunks.length, chunkHeading, pageNumber),
+    );
   }
 
   return chunks;
+}
+
+export function chunkPageMarkdown(
+  markdown: string,
+  pageNumber: number,
+  options: ChunkOptions & { startIndex?: number } = {},
+): MaterialChunkResult[] {
+  return chunkMarkdown(markdown, { ...options, pageNumber });
+}
+
+export function chunkMultimodalPages(
+  pages: Array<{ pageNumber: number; markdown: string }>,
+  options: ChunkOptions = {},
+): MaterialChunkResult[] {
+  const allChunks: MaterialChunkResult[] = [];
+
+  for (const page of pages) {
+    if (!page.markdown || page.markdown.trim().length === 0) {
+      continue;
+    }
+
+    const pageChunks = chunkPageMarkdown(page.markdown, page.pageNumber, {
+      ...options,
+      startIndex: allChunks.length,
+    });
+
+    allChunks.push(...pageChunks);
+  }
+
+  return allChunks;
 }

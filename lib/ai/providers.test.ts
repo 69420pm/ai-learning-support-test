@@ -13,14 +13,16 @@ describe('AI Providers Registry', () => {
     expect(DEFAULT_PROVIDER).toBe('google');
   });
 
-  it('exports SUPPORTED_MODELS list with Google Gemini models', () => {
+  it('exports SUPPORTED_MODELS list with Google Gemini and Ollama models', () => {
     expect(SUPPORTED_MODELS).toBeDefined();
     expect(Array.isArray(SUPPORTED_MODELS)).toBe(true);
-    expect(SUPPORTED_MODELS.length).toBe(2);
+    expect(SUPPORTED_MODELS.length).toBeGreaterThanOrEqual(2);
 
     const modelIds = SUPPORTED_MODELS.map((m) => m.id);
     expect(modelIds).toContain('gemini-3.7-flash');
     expect(modelIds).toContain('gemini-3.5-flash-lite');
+    expect(modelIds).toContain('qwen2.5-vl');
+    expect(modelIds).toContain('llama3.2-vision');
   });
 
   it('resolves Google model gemini-3.7-flash without throwing', () => {

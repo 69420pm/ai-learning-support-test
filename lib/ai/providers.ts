@@ -3,12 +3,12 @@ import { createOpenAI, openai } from '@ai-sdk/openai';
 import type { LanguageModel } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 
-export type ProviderName = 'google' | 'openai' | 'openrouter';
+export type ProviderName = 'google' | 'openai' | 'openrouter' | 'ollama';
 
 export type ModelOption = {
   id: string;
   name: string;
-  provider: 'google' | 'openai';
+  provider: ProviderName;
   description: string;
   badge?: string;
 };
@@ -35,6 +35,18 @@ export const SUPPORTED_MODELS: ModelOption[] = [
     name: 'Gemini 3.5 Flash-Lite',
     provider: 'google',
     description: 'Ultra-fast, lightweight model for high-throughput tasks',
+  },
+  {
+    id: 'qwen2.5-vl',
+    name: 'Qwen 2.5 VL (Local)',
+    provider: 'ollama',
+    description: 'High-accuracy local vision language model via Ollama',
+  },
+  {
+    id: 'llama3.2-vision',
+    name: 'Llama 3.2 Vision (Local)',
+    provider: 'ollama',
+    description: 'Multimodal vision model running locally via Ollama',
   },
 ];
 
@@ -126,6 +138,15 @@ export function getLanguageModel({
       return createOpenAI({
         baseURL: 'https://openrouter.ai/api/v1',
         apiKey: key,
+      })(resolvedModelId);
+    }
+    case 'ollama': {
+      const baseURL = process.env.OLLAMA_BASE_URL
+        ? `${process.env.OLLAMA_BASE_URL.replace(/\/$/, '')}/v1`
+        : 'http://localhost:11434/v1';
+      return createOpenAI({
+        baseURL,
+        apiKey: apiKey || 'ollama',
       })(resolvedModelId);
     }
     default: {

@@ -1,4 +1,5 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, sql } from 'drizzle-orm';
+import { generateEmbeddings } from '@/lib/ai/embedding';
 import { db } from '@/lib/db';
 import {
   type Material,
@@ -204,6 +205,78 @@ export async function deleteMaterialChunksByMaterialId({
   try {
     await db.delete(materialChunks).where(eq(materialChunks.materialId, materialId));
   } catch (error) {
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export type SearchMaterialChunksParams = {
+  projectId: string;
+  query?: string;
+  embedding?: number[];
+  limit?: number;
+  threshold?: number;
+};
+
+export type MaterialChunkSearchResult = {
+  id: string;
+  materialId: string;
+  projectId: string;
+  materialTitle: string;
+  filename: string;
+  fileType: string;
+  chunkIndex: number;
+  content: string;
+  similarity: number;
+  metadata: Record<string, unknown>;
+};
+
+export async function searchMaterialChunks({
+  projectId,
+  query,
+  embedding,
+  limit = 5,
+  threshold = 0.4,
+}: SearchMaterialChunksParams): Promise<MaterialChunkSearchResult[]> {
+  try {
+    let targetVector = embedding;
+    if (!targetVector && query && query.trim().length > 0) {
+      const embeddings = await generateEmbeddings([query.trim()]);
+      targetVector = embeddings[0];
+    }
+
+    if (!targetVector || targetVector.length === 0) {
+      return [];
+    }
+
+    const vectorStr = `[${targetVector.join(',')}]`;
+    const similaritySql = sql<number>`1 - (${materialChunks.embedding} <=> ${vectorStr}::vector)`;
+
+    const rows = await db
+      .select({
+        id: materialChunks.id,
+        materialId: materialChunks.materialId,
+        projectId: materialChunks.projectId,
+        materialTitle: materials.title,
+        filename: materials.filename,
+        fileType: materials.fileType,
+        chunkIndex: materialChunks.chunkIndex,
+        content: materialChunks.content,
+        metadata: materialChunks.metadata,
+        similarity: similaritySql,
+      })
+      .from(materialChunks)
+      .innerJoin(materials, eq(materialChunks.materialId, materials.id))
+      .where(and(eq(materialChunks.projectId, projectId), gte(similaritySql, threshold)))
+      .orderBy(desc(similaritySql))
+      .limit(Math.max(1, limit));
+
+    return rows.map((row) => ({
+      ...row,
+      similarity: typeof row.similarity === 'number' ? row.similarity : Number(row.similarity),
+      metadata: (row.metadata as Record<string, unknown>) ?? {},
+    }));
+  } catch (error) {
+    if (error instanceof ChatbotError) throw error;
     throw new ChatbotError('bad_request:database', { cause: error });
   }
 }

@@ -23,6 +23,17 @@ vi.mock('@/lib/db/queries/project', () => ({
   getProjectById: (...args: unknown[]) => mockGetProjectById(...args),
 }));
 
+const mockCreateTools = vi.fn().mockImplementation((_opts) => ({
+  searchProjectMaterials: {
+    description: 'search materials',
+    execute: vi.fn().mockResolvedValue({ results: [] }),
+  },
+}));
+
+vi.mock('@/lib/ai/tools', () => ({
+  createTools: (...args: unknown[]) => mockCreateTools(...args),
+}));
+
 vi.mock('@/lib/db/queries/chat', () => ({
   saveChat: (...args: unknown[]) => mockSaveChat(...args),
   getChatById: (...args: unknown[]) => mockGetChatById(...args),
@@ -211,6 +222,60 @@ describe('Chat API Handler (/api/chat)', () => {
       expect(response.status).toBe(403);
       const json = await response.json();
       expect(json.code).toBe('forbidden:chat');
+    });
+
+    it('injects tools with strict projectId and user context during chat stream', async () => {
+      const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
+      const projectId = '770e8400-e29b-41d4-a716-446655440000';
+      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockGetChatById.mockResolvedValueOnce(null);
+      mockGetProjectById.mockResolvedValueOnce({
+        id: projectId,
+        userId: testUser.id,
+        name: 'Math',
+      });
+      mockSaveChat.mockResolvedValueOnce({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        userId: testUser.id,
+        projectId,
+        title: 'New chat',
+      });
+
+      const request = new Request('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          projectId,
+          message: {
+            id: '11111111-2222-4444-8888-999999999999',
+            role: 'user',
+            parts: [{ type: 'text', text: 'Search materials for gradient descent' }],
+          },
+          provider: 'google',
+        }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(200);
+
+      // Consume stream to trigger execute callback
+      const reader = response.body?.getReader();
+      if (reader) {
+        let done = false;
+        while (!done) {
+          const res = await reader.read();
+          done = res.done;
+        }
+      }
+
+      expect(mockCreateTools).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: testUser.id,
+          projectId,
+          dataStream: expect.anything(),
+        }),
+      );
     });
   });
 

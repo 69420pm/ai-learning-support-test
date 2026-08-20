@@ -1,14 +1,16 @@
 # Git Workflow
 
-- **Branch Naming**: 
-  - For epics: `epic-<slug>`
-  - For features / plans: `plan-<description>-<slug>`
-  - For standalone fixes: `fix-issue-<issue_number or description>`
-- **Commits**: Follow Conventional Commits format (e.g., `feat(ui): ...`, `fix(db): ...`).
+- **Branch Naming Taxonomy**: 
+  - **Epics / Multi-Plan Work**: `epic-<slug>` (managed in `.worktrees/epic-<slug>`)
+  - **Feature Plans & Tickets**: `plan-<description>-<slug>` (from `/to-tickets` and `/implement`)
+  - **Standalone Fixes**: `fix-issue-<issue_number or description>` (from `/diagnosing-bugs` and `/triage`)
+  - **Throwaway Prototypes**: `prototype/<name>` (from `/prototype` skill, branched out of `main`)
+  - **Throwaway Research**: `research/<name>` (from `/wayfinder` research tickets & `/research` skill)
+- **Commits**: Follow Conventional Commits format (e.g., `feat(ui): ...`, `fix(db): ...`, `refactor(lib): ...`).
 - **Parallel Work & Epic Execution**: Use `git worktree` (under `.worktrees/`) for epic orchestration and multi-agent runs so the root workspace remains clean on `main`.
-- **PR Process**: Create PRs via `gh pr create`. Review via `gh pr review`.
+- **PR Process**: Create PRs via `gh pr create` with Conventional Commits titles (`<type>(scope): description`). Review via `gh pr review`.
 - **Merge Strategy**: Squash and Merge for PRs to keep the main history clean.
-- **Pre-Commit / Pre-Push Checks**: Lefthook automatically validates branch health, linting, tests, and typechecking. Run `pnpm check` for full validation.
+- **Pre-Commit / Pre-Push Checks (Lefthook)**: Lefthook automatically handles pre-commit validation (`branch-health`, `biome check --write` on staged files, and `vitest related {staged_files}`) and pre-push validation (`typecheck`). Do NOT run redundant chained test commands repeatedly; running `pnpm check` once before PR creation is sufficient.
 - **Sync & Cleanup**: Use `pnpm git:sync` to return to `main`, pull remote changes, prune deleted remote branches, and remove stale merged local branches.
 
 ---
@@ -44,20 +46,38 @@ When an epic is being executed across multiple plans:
 
 ---
 
+## Issue Tracker & Skill Integration
+
+All issue management runs through GitHub Issues via the `gh` CLI as documented in [`docs/agents/issue-tracker.md`](file:///workspaces/secure-ai-learning-support/docs/agents/issue-tracker.md) and [`docs/agents/triage-labels.md`](file:///workspaces/secure-ai-learning-support/docs/agents/triage-labels.md):
+
+* **Wayfinding (`/wayfinder`)**:
+  - Map issue created with `--label wayfinder:map`.
+  - Child tickets created with `--label wayfinder:<research|prototype|grilling|task>`.
+  - Dependency blocking uses GitHub's native issue dependencies (`gh api ... /dependencies/blocked_by`).
+  - Unblocked frontier queries filter for `issue_dependencies_summary.blocked_by == 0` and unassigned tickets.
+* **Vertical Slices (`/to-tickets` & `/implement`)**:
+  - Publishes tracer-bullet issues with `ready-for-agent` label.
+  - Links blocking edges blockers-first.
+* **Triage (`/triage`)**:
+  - Evaluates incoming raw requests and assigns canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
+* **PR Linkage**:
+  - Always link the corresponding issue in the PR summary using `Closes #<number>` or `Part of #<number>`.
+
+---
+
 ## Agent Pre-Commit & PR Checklist
 
 Before creating a commit or PR, agents MUST follow this checklist:
 
-1. **Verify clean state:** Run `git status` to confirm all intended changes are staged.
-2. **Run validation gate:** Execute `pnpm check` (lint + typecheck + test). All must pass.
-3. **Review diff:** Run `git diff --staged` to verify only intended changes are included.
-4. **Write commit message:** Follow Conventional Commits format (see above).
-5. **Push and create PR:**
+1. **Review changes:** Run `git status` and `git diff` to confirm only intended files are modified.
+2. **Run validation gate (once):** Execute `pnpm check` once before committing (or rely on Lefthook hooks on commit). Avoid chaining repeated manual format/lint/test commands.
+3. **Stage & Commit:** Stage intended files (`git add <files>`) and commit with Conventional Commits format (`git commit -m "..."`). Lefthook automatically formats staged files and tests related files.
+4. **Push and create PR:**
    ```bash
    git push origin <branch-name>
    gh pr create --title "<type>(scope): description" --body "<use PR template below>"
    ```
-6. **Ensure Root is on Main:** If not in a worktree, switch back to `main` (`git checkout main`) after PR creation and notify the user.
+5. **Ensure Root is on Main:** If not in a worktree, switch back to `main` (`git checkout main`) after PR creation and notify the user.
 
 ---
 

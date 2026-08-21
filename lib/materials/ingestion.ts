@@ -3,7 +3,7 @@ import { generateEmbeddings } from '@/lib/ai/embedding';
 import { insertMaterialChunks, updateMaterialStatus } from '@/lib/db/queries/material';
 import type { NewMaterialChunk } from '@/lib/db/schema';
 import { getStorageDriver, type StorageDriver } from '@/lib/storage';
-import { chunkMarkdown, chunkMultimodalPages } from './chunker';
+import { chunkMultimodalPages } from './chunker';
 import { isMultimodal, rasterizeDocument } from './rasterizer';
 import { extractMarkdownFromPages } from './vision';
 
@@ -43,6 +43,11 @@ export type IngestMaterialResult = {
   chunkCount: number;
   tokenCount: number;
   pageCount: number;
+};
+
+export type PageMarkdownDescriptor = {
+  pageNumber: number;
+  markdown: string;
 };
 
 type ProgressReporter = (
@@ -88,213 +93,86 @@ async function markCompleted(
   return result;
 }
 
-async function processMultimodalMaterial(
+async function extractDocumentPages(
   input: IngestMaterialInput,
   buffer: Buffer,
   options: IngestMaterialOptions | undefined,
   reportProgress: ProgressReporter,
-): Promise<IngestMaterialResult> {
-  const { materialId, projectId, userId, storagePath, fileType } = input;
+): Promise<{ pages: PageMarkdownDescriptor[]; pageCount: number }> {
+  const { storagePath, fileType } = input;
 
-  await reportProgress('rasterizing', 15, {
-    totalPages: 0,
-    currentPage: 0,
-    completedPages: 0,
-  });
-
-  const pages = await rasterizeDocument(buffer, fileType, storagePath, {
-    onProgress: async (completed, total, currentPageNumber) => {
-      const stagePercent = 15 + Math.floor((completed / Math.max(1, total)) * 10);
-      await reportProgress(
-        'rasterizing',
-        stagePercent,
-        {
-          totalPages: total,
-          currentPage: currentPageNumber,
-          completedPages: completed,
-        },
-        { pageCount: total },
-      );
-    },
-  });
-
-  if (pages.length === 0) {
-    return await markCompleted(
-      materialId,
-      { chunkCount: 0, tokenCount: 0, pageCount: 0 },
-      options?.onProgress,
-    );
-  }
-
-  await reportProgress(
-    'extracting_vision',
-    25,
-    {
-      totalPages: pages.length,
+  if (isMultimodal(fileType, storagePath)) {
+    await reportProgress('rasterizing', 15, {
+      totalPages: 0,
       currentPage: 0,
       completedPages: 0,
-    },
-    { pageCount: pages.length },
-  );
+    });
 
-  const visionResults = await extractMarkdownFromPages(pages, {
-    model: options?.model,
-    concurrency: options?.concurrency,
-    pageDelayMs: options?.pageDelayMs,
-    onProgress: async (completed, total, currentPageNumber) => {
-      const stagePercent = 25 + Math.floor((completed / Math.max(1, total)) * 45);
-      await reportProgress(
-        'extracting_vision',
-        stagePercent,
-        {
-          totalPages: total,
-          currentPage: currentPageNumber,
-          completedPages: completed,
-        },
-        { pageCount: total },
-      );
-    },
-  });
+    const rasterizedPages = await rasterizeDocument(buffer, fileType, storagePath, {
+      onProgress: async (completed, total, currentPageNumber) => {
+        const stagePercent = 15 + Math.floor((completed / Math.max(1, total)) * 10);
+        await reportProgress(
+          'rasterizing',
+          stagePercent,
+          {
+            totalPages: total,
+            currentPage: currentPageNumber,
+            completedPages: completed,
+          },
+          { pageCount: total },
+        );
+      },
+    });
 
-  await reportProgress(
-    'chunking',
-    75,
-    {
-      totalPages: pages.length,
-      currentPage: pages.length,
-      completedPages: pages.length,
-    },
-    { pageCount: pages.length },
-  );
+    if (rasterizedPages.length === 0) {
+      return { pages: [], pageCount: 0 };
+    }
 
-  const chunks = chunkMultimodalPages(visionResults);
-  if (chunks.length === 0) {
-    return await markCompleted(
-      materialId,
-      { chunkCount: 0, tokenCount: 0, pageCount: pages.length },
-      options?.onProgress,
+    await reportProgress(
+      'extracting_vision',
+      25,
+      {
+        totalPages: rasterizedPages.length,
+        currentPage: 0,
+        completedPages: 0,
+      },
+      { pageCount: rasterizedPages.length },
     );
+
+    const visionResults = await extractMarkdownFromPages(rasterizedPages, {
+      model: options?.model,
+      concurrency: options?.concurrency,
+      pageDelayMs: options?.pageDelayMs,
+      onProgress: async (completed, total, currentPageNumber) => {
+        const stagePercent = 25 + Math.floor((completed / Math.max(1, total)) * 45);
+        await reportProgress(
+          'extracting_vision',
+          stagePercent,
+          {
+            totalPages: total,
+            currentPage: currentPageNumber,
+            completedPages: completed,
+          },
+          { pageCount: total },
+        );
+      },
+    });
+
+    return {
+      pages: visionResults.map((r) => ({
+        pageNumber: r.pageNumber,
+        markdown: r.markdown,
+      })),
+      pageCount: rasterizedPages.length,
+    };
   }
 
-  await reportProgress(
-    'embedding',
-    85,
-    {
-      totalPages: pages.length,
-      currentPage: pages.length,
-      completedPages: pages.length,
-    },
-    { pageCount: pages.length, chunkCount: chunks.length },
-  );
-
-  const contents = chunks.map((c) => c.content);
-  const embeddings = await generateEmbeddings(contents);
-
-  await reportProgress(
-    'persisting',
-    95,
-    {
-      totalPages: pages.length,
-      currentPage: pages.length,
-      completedPages: pages.length,
-    },
-    { pageCount: pages.length, chunkCount: chunks.length },
-  );
-
-  const totalTokens = chunks.reduce((sum, c) => sum + c.tokenCount, 0);
-  const dbChunks: NewMaterialChunk[] = chunks.map((c, i) => ({
-    materialId,
-    projectId,
-    userId,
-    chunkIndex: c.chunkIndex,
-    content: c.content,
-    tokenCount: c.tokenCount,
-    embedding: embeddings[i] || null,
-    metadata: c.metadata,
-  }));
-
-  await insertMaterialChunks(dbChunks);
-
-  return await markCompleted(
-    materialId,
-    {
-      chunkCount: chunks.length,
-      tokenCount: totalTokens,
-      pageCount: pages.length,
-    },
-    options?.onProgress,
-  );
-}
-
-async function processTextMaterial(
-  input: IngestMaterialInput,
-  buffer: Buffer,
-  options: IngestMaterialOptions | undefined,
-  reportProgress: ProgressReporter,
-): Promise<IngestMaterialResult> {
-  const { materialId, projectId, userId } = input;
-
-  await reportProgress(
-    'chunking',
-    30,
-    { totalPages: 1, currentPage: 1, completedPages: 0 },
-    { pageCount: 1 },
-  );
-
+  // Plain text / Markdown document normalized to a single page descriptor
   const text = buffer.toString('utf-8');
-  const chunks = chunkMarkdown(text, { pageNumber: 1 });
-
-  if (chunks.length === 0) {
-    return await markCompleted(
-      materialId,
-      { chunkCount: 0, tokenCount: 0, pageCount: 1 },
-      options?.onProgress,
-    );
-  }
-
-  await reportProgress(
-    'embedding',
-    60,
-    { totalPages: 1, currentPage: 1, completedPages: 1 },
-    { pageCount: 1, chunkCount: chunks.length },
-  );
-
-  const contents = chunks.map((c) => c.content);
-  const embeddings = await generateEmbeddings(contents);
-
-  await reportProgress(
-    'persisting',
-    85,
-    { totalPages: 1, currentPage: 1, completedPages: 1 },
-    { pageCount: 1, chunkCount: chunks.length },
-  );
-
-  const totalTokens = chunks.reduce((sum, c) => sum + c.tokenCount, 0);
-  const dbChunks: NewMaterialChunk[] = chunks.map((c, i) => ({
-    materialId,
-    projectId,
-    userId,
-    chunkIndex: c.chunkIndex,
-    content: c.content,
-    tokenCount: c.tokenCount,
-    embedding: embeddings[i] || null,
-    metadata: {
-      ...c.metadata,
-      pageNumber: c.metadata.pageNumber ?? 1,
-    },
-  }));
-
-  await insertMaterialChunks(dbChunks);
-
-  return await markCompleted(
-    materialId,
-    {
-      chunkCount: chunks.length,
-      tokenCount: totalTokens,
-      pageCount: 1,
-    },
-    options?.onProgress,
-  );
+  return {
+    pages: [{ pageNumber: 1, markdown: text }],
+    pageCount: 1,
+  };
 }
 
 async function handleFailure(
@@ -344,7 +222,7 @@ export async function ingestMaterial(
   input: IngestMaterialInput,
   options?: IngestMaterialOptions,
 ): Promise<IngestMaterialResult> {
-  const { materialId, storagePath, fileType } = input;
+  const { materialId, projectId, userId, storagePath, fileType } = input;
   let currentStage: MaterialProgress['stage'] = 'downloading';
 
   const reportProgress: ProgressReporter = async (
@@ -375,15 +253,101 @@ export async function ingestMaterial(
   };
 
   try {
+    // 1. Download document from storage driver
     await reportProgress('downloading', 10, { totalPages: 0, currentPage: 0 });
     const storageDriver = options?.storageDriver ?? getStorageDriver();
     const buffer = await storageDriver.download(storagePath);
 
-    if (isMultimodal(fileType, storagePath)) {
-      return await processMultimodalMaterial(input, buffer, options, reportProgress);
+    // 2. Extract & normalize document pages into PageMarkdownDescriptor array
+    const isMulti = isMultimodal(fileType, storagePath);
+    const { pages, pageCount } = await extractDocumentPages(input, buffer, options, reportProgress);
+
+    if (pageCount === 0) {
+      return await markCompleted(
+        materialId,
+        { chunkCount: 0, tokenCount: 0, pageCount: 0 },
+        options?.onProgress,
+      );
     }
 
-    return await processTextMaterial(input, buffer, options, reportProgress);
+    // 3. Semantic Chunking (preserving page attribution)
+    const chunkingPercent = isMulti ? 75 : 30;
+    await reportProgress(
+      'chunking',
+      chunkingPercent,
+      {
+        totalPages: pageCount,
+        currentPage: pageCount,
+        completedPages: isMulti ? pageCount : 0,
+      },
+      { pageCount },
+    );
+
+    const chunks = chunkMultimodalPages(pages);
+    if (chunks.length === 0) {
+      return await markCompleted(
+        materialId,
+        { chunkCount: 0, tokenCount: 0, pageCount },
+        options?.onProgress,
+      );
+    }
+
+    // 4. Dense 768-dimensional Vector Embeddings
+    const embeddingPercent = isMulti ? 85 : 60;
+    await reportProgress(
+      'embedding',
+      embeddingPercent,
+      {
+        totalPages: pageCount,
+        currentPage: pageCount,
+        completedPages: isMulti ? pageCount : 1,
+      },
+      { pageCount, chunkCount: chunks.length },
+    );
+
+    const contents = chunks.map((c) => c.content);
+    const embeddings = await generateEmbeddings(contents);
+
+    // 5. Database Persistence
+    const persistingPercent = isMulti ? 95 : 85;
+    await reportProgress(
+      'persisting',
+      persistingPercent,
+      {
+        totalPages: pageCount,
+        currentPage: pageCount,
+        completedPages: isMulti ? pageCount : 1,
+      },
+      { pageCount, chunkCount: chunks.length },
+    );
+
+    const totalTokens = chunks.reduce((sum, c) => sum + c.tokenCount, 0);
+    const dbChunks: NewMaterialChunk[] = chunks.map((c, i) => ({
+      materialId,
+      projectId,
+      userId,
+      chunkIndex: c.chunkIndex,
+      content: c.content,
+      tokenCount: c.tokenCount,
+      embedding: embeddings[i] || null,
+      metadata: {
+        ...c.metadata,
+        pageNumber: c.metadata.pageNumber ?? 1,
+      },
+    }));
+
+    await insertMaterialChunks(dbChunks);
+
+    // 6. Complete Ingestion & Record Summary Metadata
+    return await markCompleted(
+      materialId,
+      {
+        chunkCount: chunks.length,
+        tokenCount: totalTokens,
+        pageCount,
+      },
+      options?.onProgress,
+    );
   } catch (error: unknown) {
     return await handleFailure(materialId, currentStage, error, options?.onProgress);
   }

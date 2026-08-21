@@ -842,6 +842,16 @@ Vector addition follows the parallelogram law.`;
 });
 
 describe('Multimodal Ingestion Pipeline Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateMaterialStatus.mockReset();
+    mockInsertMaterialChunks.mockReset();
+    mockDownload.mockReset();
+    mockGenerateEmbeddings.mockReset();
+    mockRasterizeDocument.mockReset();
+    mockExtractMarkdownFromPages.mockReset();
+  });
+
   it('executes full rasterization -> vision extraction -> page-attributed chunking -> embedding pipeline for multi-page PDF', async () => {
     // 1. PDF Buffer
     const pdfBuffer = createMinimalPdfBuffer(2);
@@ -971,5 +981,307 @@ describe('Multimodal Ingestion Pipeline Integration', () => {
     await expect(
       rasterizeDocument(corruptedBuffer, 'application/pdf', 'corrupted.pdf'),
     ).rejects.toThrow();
+  });
+
+  describe('End-to-End ingestMaterial Integration', () => {
+    it('executes full ingestMaterial end-to-end for multi-page PDF with exact page attribution and 768d embeddings', async () => {
+      const pdfBuffer = createMinimalPdfBuffer(3);
+      mockDownload.mockResolvedValueOnce(pdfBuffer);
+      mockInsertMaterialChunks.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-pdf-e2e', status: 'ready' });
+
+      let pageCallCount = 0;
+      const mockModel = {
+        specificationVersion: 'v2' as const,
+        provider: 'mock',
+        modelId: 'mock-vision-e2e',
+        doGenerate: vi.fn().mockImplementation(() => {
+          pageCallCount++;
+          const titles = ['Intro to Graphs', 'Graph Algorithms', 'Performance Evaluation'];
+          const currentTitle = titles[pageCallCount - 1] || `Section ${pageCallCount}`;
+          return Promise.resolve({
+            content: [
+              {
+                type: 'text',
+                text: `# ${currentTitle}\n\nContent for page ${pageCallCount} with details and formulas.\n\n\`\`\`mermaid\ngraph LR\n  A --> B\n\`\`\``,
+              },
+            ],
+            finishReason: { unified: 'stop', raw: 'stop' },
+            usage: { inputTokens: { total: 80 }, outputTokens: { total: 40 } },
+            warnings: [],
+          });
+        }),
+        doStream: vi.fn(),
+      };
+
+      const progressEvents: MaterialProgress[] = [];
+      const onProgress = (p: MaterialProgress) => {
+        progressEvents.push({ ...p });
+      };
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-pdf-e2e',
+          projectId: 'proj-e2e',
+          userId: 'user-e2e',
+          storagePath: 'curriculum/lecture-notes.pdf',
+          fileType: 'application/pdf',
+        },
+        {
+          model: mockModel as never,
+          concurrency: 3,
+          onProgress,
+        },
+      );
+
+      // Verify result summary
+      expect(result.pageCount).toBe(3);
+      expect(result.chunkCount).toBe(3);
+      expect(result.tokenCount).toBeGreaterThan(0);
+
+      // Verify DB chunk insertions with exact page attributions
+      expect(mockInsertMaterialChunks).toHaveBeenCalledTimes(1);
+      const insertedChunks = mockInsertMaterialChunks.mock.calls[0][0];
+      expect(insertedChunks).toHaveLength(3);
+
+      expect(insertedChunks[0]).toMatchObject({
+        materialId: 'mat-pdf-e2e',
+        projectId: 'proj-e2e',
+        userId: 'user-e2e',
+        chunkIndex: 0,
+        metadata: expect.objectContaining({
+          pageNumber: 1,
+          heading: 'Intro to Graphs',
+        }),
+      });
+      expect(insertedChunks[0].embedding).toHaveLength(768);
+
+      expect(insertedChunks[1]).toMatchObject({
+        materialId: 'mat-pdf-e2e',
+        projectId: 'proj-e2e',
+        userId: 'user-e2e',
+        chunkIndex: 1,
+        metadata: expect.objectContaining({
+          pageNumber: 2,
+          heading: 'Graph Algorithms',
+        }),
+      });
+      expect(insertedChunks[1].embedding).toHaveLength(768);
+
+      expect(insertedChunks[2]).toMatchObject({
+        materialId: 'mat-pdf-e2e',
+        projectId: 'proj-e2e',
+        userId: 'user-e2e',
+        chunkIndex: 2,
+        metadata: expect.objectContaining({
+          pageNumber: 3,
+          heading: 'Performance Evaluation',
+        }),
+      });
+      expect(insertedChunks[2].embedding).toHaveLength(768);
+
+      // Verify final DB status and metadata
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-pdf-e2e',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            pageCount: 3,
+            chunkCount: 3,
+            tokenCount: result.tokenCount,
+            processedAt: expect.any(String),
+            progress: expect.objectContaining({
+              stage: 'completed',
+              stagePercent: 100,
+              totalPages: 3,
+              currentPage: 3,
+              completedPages: 3,
+            }),
+          }),
+        }),
+      );
+
+      // Verify progress stages traversed
+      const stages = progressEvents.map((e) => e.stage);
+      expect(stages).toEqual(
+        expect.arrayContaining([
+          'downloading',
+          'rasterizing',
+          'extracting_vision',
+          'chunking',
+          'embedding',
+          'persisting',
+          'completed',
+        ]),
+      );
+    });
+
+    it('executes full ingestMaterial end-to-end for standalone image document', async () => {
+      const imageBuffer = await createTestImageBuffer(320, 240);
+      mockDownload.mockResolvedValueOnce(imageBuffer);
+      mockInsertMaterialChunks.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-img-e2e', status: 'ready' });
+
+      const mockModel = {
+        specificationVersion: 'v2' as const,
+        provider: 'mock',
+        modelId: 'mock-vision-img',
+        doGenerate: vi.fn().mockResolvedValue({
+          content: [
+            {
+              type: 'text',
+              text: '# Neural Network Architecture\n\n```mermaid\ngraph LR\n  Input --> Hidden --> Output\n```\nFeedforward network representation.',
+            },
+          ],
+          finishReason: { unified: 'stop', raw: 'stop' },
+          usage: { inputTokens: { total: 45 }, outputTokens: { total: 30 } },
+          warnings: [],
+        }),
+        doStream: vi.fn(),
+      };
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-img-e2e',
+          projectId: 'proj-e2e',
+          userId: 'user-e2e',
+          storagePath: 'diagrams/nn.png',
+          fileType: 'image/png',
+        },
+        { model: mockModel as never },
+      );
+
+      expect(result.pageCount).toBe(1);
+      expect(result.chunkCount).toBe(1);
+      expect(mockInsertMaterialChunks).toHaveBeenCalledWith([
+        expect.objectContaining({
+          materialId: 'mat-img-e2e',
+          chunkIndex: 0,
+          metadata: expect.objectContaining({
+            pageNumber: 1,
+            heading: 'Neural Network Architecture',
+          }),
+        }),
+      ]);
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-img-e2e',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            pageCount: 1,
+            chunkCount: 1,
+          }),
+        }),
+      );
+    });
+
+    it('preserves accurate page attribution when some PDF pages contain no text / whitespace', async () => {
+      const pdfBuffer = createMinimalPdfBuffer(3);
+      mockDownload.mockResolvedValueOnce(pdfBuffer);
+      mockInsertMaterialChunks.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-sparse-pdf', status: 'ready' });
+
+      let pageIndex = 0;
+      const mockModel = {
+        specificationVersion: 'v2' as const,
+        provider: 'mock',
+        modelId: 'mock-vision-sparse',
+        doGenerate: vi.fn().mockImplementation(() => {
+          pageIndex++;
+          if (pageIndex === 2) {
+            // Page 2 is blank / whitespace
+            return Promise.resolve({
+              content: [{ type: 'text', text: '   \n  ' }],
+              finishReason: { unified: 'stop', raw: 'stop' },
+              usage: { inputTokens: { total: 10 }, outputTokens: { total: 2 } },
+              warnings: [],
+            });
+          }
+          return Promise.resolve({
+            content: [
+              {
+                type: 'text',
+                text: `# Page ${pageIndex} Title\nMeaningful study material on page ${pageIndex}.`,
+              },
+            ],
+            finishReason: { unified: 'stop', raw: 'stop' },
+            usage: { inputTokens: { total: 50 }, outputTokens: { total: 20 } },
+            warnings: [],
+          });
+        }),
+        doStream: vi.fn(),
+      };
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-sparse-pdf',
+          projectId: 'proj-e2e',
+          userId: 'user-e2e',
+          storagePath: 'docs/sparse.pdf',
+          fileType: 'application/pdf',
+        },
+        { model: mockModel as never },
+      );
+
+      expect(result.pageCount).toBe(3);
+      expect(result.chunkCount).toBe(2);
+
+      const insertedChunks = mockInsertMaterialChunks.mock.calls[0][0];
+      expect(insertedChunks).toHaveLength(2);
+      expect(insertedChunks[0].metadata.pageNumber).toBe(1);
+      expect(insertedChunks[0].metadata.heading).toBe('Page 1 Title');
+      expect(insertedChunks[1].metadata.pageNumber).toBe(3);
+      expect(insertedChunks[1].metadata.heading).toBe('Page 3 Title');
+    });
+
+    it('completes cleanly in ready status when all pages of a multi-page PDF produce zero chunks', async () => {
+      const pdfBuffer = createMinimalPdfBuffer(2);
+      mockDownload.mockResolvedValueOnce(pdfBuffer);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-all-blank-pdf', status: 'ready' });
+
+      const mockModel = {
+        specificationVersion: 'v2' as const,
+        provider: 'mock',
+        modelId: 'mock-vision-all-blank',
+        doGenerate: vi.fn().mockResolvedValue({
+          content: [{ type: 'text', text: '   \n\n   ' }],
+          finishReason: { unified: 'stop', raw: 'stop' },
+          usage: { inputTokens: { total: 15 }, outputTokens: { total: 2 } },
+          warnings: [],
+        }),
+        doStream: vi.fn(),
+      };
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-all-blank-pdf',
+          projectId: 'proj-e2e',
+          userId: 'user-e2e',
+          storagePath: 'docs/all-blank.pdf',
+          fileType: 'application/pdf',
+        },
+        { model: mockModel as never },
+      );
+
+      expect(result).toEqual({ chunkCount: 0, tokenCount: 0, pageCount: 2 });
+      expect(mockInsertMaterialChunks).not.toHaveBeenCalled();
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-all-blank-pdf',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            pageCount: 2,
+            chunkCount: 0,
+            tokenCount: 0,
+            progress: expect.objectContaining({
+              stage: 'completed',
+              stagePercent: 100,
+              totalPages: 2,
+              completedPages: 2,
+            }),
+          }),
+        }),
+      );
+    });
   });
 });

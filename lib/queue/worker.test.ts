@@ -1,453 +1,239 @@
+import type { PgBoss } from 'pg-boss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ingestMaterial } from '@/lib/materials';
+import { MATERIAL_INGEST_QUEUE, type MaterialIngestJobData } from './boss';
 import { processMaterialIngest, registerMaterialIngestWorker } from './worker';
 
-const mockUpdateMaterialStatus = vi.fn();
-const mockInsertMaterialChunks = vi.fn();
-const mockDownload = vi.fn();
-const mockGenerateEmbeddings = vi.fn();
-const mockRasterizeDocument = vi.fn();
-const mockExtractMarkdownFromPages = vi.fn();
-
-vi.mock('@/lib/db/queries/material', () => ({
-  updateMaterialStatus: (...args: unknown[]) => mockUpdateMaterialStatus(...args),
-  insertMaterialChunks: (...args: unknown[]) => mockInsertMaterialChunks(...args),
+vi.mock('@/lib/materials', () => ({
+  ingestMaterial: vi.fn(),
 }));
 
-vi.mock('@/lib/storage', () => ({
-  getStorageDriver: () => ({
-    download: (...args: unknown[]) => mockDownload(...args),
-  }),
-}));
+type JobItem = { id: string; data: MaterialIngestJobData };
+type WorkHandler = (jobs: JobItem[]) => Promise<void>;
 
-vi.mock('@/lib/ai/embedding', () => ({
-  generateEmbeddings: (...args: unknown[]) => mockGenerateEmbeddings(...args),
-}));
-
-vi.mock('@/lib/materials/rasterizer', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/materials/rasterizer')>();
-  return {
-    ...actual,
-    rasterizeDocument: (...args: unknown[]) => mockRasterizeDocument(...args),
+function createMockBoss() {
+  let capturedHandler: WorkHandler | null = null;
+  const mockBoss = {
+    work: vi.fn().mockImplementation((_queue: string, handler: WorkHandler) => {
+      capturedHandler = handler;
+      return Promise.resolve();
+    }),
+    getHandler: (): WorkHandler => {
+      if (!capturedHandler) {
+        throw new Error('Worker handler was not registered');
+      }
+      return capturedHandler;
+    },
   };
-});
+  return mockBoss;
+}
 
-vi.mock('@/lib/materials/vision', () => ({
-  extractMarkdownFromPages: (...args: unknown[]) => mockExtractMarkdownFromPages(...args),
-}));
+describe('Material Ingestion Queue Worker Adapter', () => {
+  const mockIngestMaterial = vi.mocked(ingestMaterial);
 
-describe('Material Ingestion Worker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('Plain Text Ingestion', () => {
-    it('processes text material, generates embeddings and persists chunks', async () => {
-      const markdownContent = `# Chapter 1
-This is the first paragraph with some details about vectors.
-
-# Chapter 2
-This is the second chapter discussing linear transformations.`;
-
-      mockDownload.mockResolvedValueOnce(Buffer.from(markdownContent, 'utf-8'));
-      mockGenerateEmbeddings.mockResolvedValueOnce([
-        new Array(768).fill(0.01),
-        new Array(768).fill(0.02),
-      ]);
-      mockInsertMaterialChunks.mockResolvedValueOnce([]);
-      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-1', status: 'ready' });
-
-      const result = await processMaterialIngest({
-        materialId: 'mat-1',
-        projectId: 'proj-1',
-        userId: 'user-1',
-        storagePath: 'proj-1/notes.md',
-        fileType: 'text/markdown',
-      });
-
-      // Verify status updated to processing first
-      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'mat-1',
-          status: 'processing',
-        }),
-      );
-
-      // Verify downloaded from storage
-      expect(mockDownload).toHaveBeenCalledWith('proj-1/notes.md');
-
-      // Verify embeddings generated
-      expect(mockGenerateEmbeddings).toHaveBeenCalled();
-
-      // Verify chunks inserted into DB with pageNumber
-      expect(mockInsertMaterialChunks).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            materialId: 'mat-1',
-            projectId: 'proj-1',
-            userId: 'user-1',
-            chunkIndex: 0,
-            metadata: expect.objectContaining({
-              pageNumber: 1,
-            }),
-          }),
-        ]),
-      );
-
-      // Verify status updated to ready with metadata
-      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          id: 'mat-1',
-          status: 'ready',
-          metadata: expect.objectContaining({
-            pageCount: 1,
-            chunkCount: expect.any(Number),
-            progress: expect.objectContaining({
-              stage: 'completed',
-              stagePercent: 100,
-            }),
-          }),
-        }),
-      );
-
-      expect(result.chunkCount).toBeGreaterThanOrEqual(1);
-      expect(result.tokenCount).toBeGreaterThan(0);
-    });
-
-    it('handles empty text material gracefully and updates status to ready', async () => {
-      mockDownload.mockResolvedValueOnce(Buffer.from('', 'utf-8'));
-      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-2', status: 'ready' });
-
-      const result = await processMaterialIngest({
-        materialId: 'mat-2',
-        projectId: 'proj-1',
-        userId: 'user-1',
-        storagePath: 'proj-1/empty.txt',
-        fileType: 'text/plain',
-      });
-
-      expect(result).toEqual({ chunkCount: 0, tokenCount: 0, pageCount: 1 });
-      expect(mockInsertMaterialChunks).not.toHaveBeenCalled();
-      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          id: 'mat-2',
-          status: 'ready',
-          metadata: expect.objectContaining({
-            chunkCount: 0,
-            tokenCount: 0,
-            pageCount: 1,
-          }),
-        }),
-      );
-    });
-  });
-
-  describe('Multimodal PDF Ingestion', () => {
-    it('rasterizes PDF, runs vision extraction, creates page-attributed chunks, and tracks progress', async () => {
-      const fakePdfBuffer = Buffer.from('%PDF-fake-content');
-      mockDownload.mockResolvedValueOnce(fakePdfBuffer);
-
-      mockRasterizeDocument.mockResolvedValueOnce([
-        {
-          pageNumber: 1,
-          imageBuffer: Buffer.from('png-page-1'),
-          width: 1024,
-          height: 768,
-          mimeType: 'image/png',
-        },
-        {
-          pageNumber: 2,
-          imageBuffer: Buffer.from('png-page-2'),
-          width: 1024,
-          height: 768,
-          mimeType: 'image/png',
-        },
-      ]);
-
-      mockExtractMarkdownFromPages.mockImplementationOnce(async (_pages, { onProgress }) => {
-        if (onProgress) {
-          await onProgress(1, 2, 1);
-          await onProgress(2, 2, 2);
-        }
-        return [
-          {
-            pageNumber: 1,
-            markdown: '# Slide 1: Introduction\n\n- Overview of the system',
-          },
-          {
-            pageNumber: 2,
-            markdown: '# Slide 2: Architecture\n\n```mermaid\nflowchart TD\n  A --> B\n```',
-          },
-        ];
-      });
-
-      mockGenerateEmbeddings.mockResolvedValueOnce([
-        new Array(768).fill(0.05),
-        new Array(768).fill(0.08),
-      ]);
-      mockInsertMaterialChunks.mockResolvedValueOnce([]);
-      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-pdf', status: 'ready' });
-
-      const result = await processMaterialIngest({
-        materialId: 'mat-pdf',
-        projectId: 'proj-1',
-        userId: 'user-1',
-        storagePath: 'proj-1/lecture.pdf',
+  describe('processMaterialIngest', () => {
+    it('unwraps job data and delegates directly to ingestMaterial', async () => {
+      const jobData: MaterialIngestJobData = {
+        materialId: 'mat-123',
+        projectId: 'proj-456',
+        userId: 'user-789',
+        storagePath: 'proj-456/notes.pdf',
         fileType: 'application/pdf',
-      });
-
-      // Verify rasterization was invoked
-      expect(mockRasterizeDocument).toHaveBeenCalledWith(
-        fakePdfBuffer,
-        'application/pdf',
-        'proj-1/lecture.pdf',
-        expect.objectContaining({
-          onProgress: expect.any(Function),
-        }),
-      );
-
-      // Verify vision extraction was called with progress callback
-      expect(mockExtractMarkdownFromPages).toHaveBeenCalledWith(
-        expect.any(Array),
-        expect.objectContaining({
-          onProgress: expect.any(Function),
-        }),
-      );
-
-      // Verify chunks were inserted with exact pageNumber attributes
-      expect(mockInsertMaterialChunks).toHaveBeenCalledWith([
-        expect.objectContaining({
-          materialId: 'mat-pdf',
-          chunkIndex: 0,
-          content: expect.stringContaining('Slide 1: Introduction'),
-          metadata: expect.objectContaining({
-            pageNumber: 1,
-            heading: 'Slide 1: Introduction',
-          }),
-        }),
-        expect.objectContaining({
-          materialId: 'mat-pdf',
-          chunkIndex: 1,
-          content: expect.stringContaining('Slide 2: Architecture'),
-          metadata: expect.objectContaining({
-            pageNumber: 2,
-            heading: 'Slide 2: Architecture',
-          }),
-        }),
-      ]);
-
-      // Verify final status is ready with pageCount 2 and chunkCount 2
-      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          id: 'mat-pdf',
-          status: 'ready',
-          metadata: expect.objectContaining({
-            pageCount: 2,
-            chunkCount: 2,
-            progress: expect.objectContaining({
-              stage: 'completed',
-              stagePercent: 100,
-              totalPages: 2,
-              currentPage: 2,
-            }),
-          }),
-        }),
-      );
-
-      expect(result.pageCount).toBe(2);
-      expect(result.chunkCount).toBe(2);
-    });
-
-    it('handles image ingestion (PNG / JPG) with single page attribution', async () => {
-      const fakeImgBuffer = Buffer.from('fake-image-bytes');
-      mockDownload.mockResolvedValueOnce(fakeImgBuffer);
-
-      mockRasterizeDocument.mockResolvedValueOnce([
-        {
-          pageNumber: 1,
-          imageBuffer: Buffer.from('normalized-png'),
-          width: 800,
-          height: 600,
-          mimeType: 'image/png',
-        },
-      ]);
-
-      mockExtractMarkdownFromPages.mockResolvedValueOnce([
-        {
-          pageNumber: 1,
-          markdown: '# Mindmap\n\n> **Handwritten Note:** Key exam topic',
-        },
-      ]);
-
-      mockGenerateEmbeddings.mockResolvedValueOnce([new Array(768).fill(0.01)]);
-      mockInsertMaterialChunks.mockResolvedValueOnce([]);
-      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-img', status: 'ready' });
-
-      const result = await processMaterialIngest({
-        materialId: 'mat-img',
-        projectId: 'proj-1',
-        userId: 'user-1',
-        storagePath: 'proj-1/mindmap.png',
-        fileType: 'image/png',
-      });
-
-      expect(result.pageCount).toBe(1);
-      expect(result.chunkCount).toBe(1);
-      expect(mockInsertMaterialChunks).toHaveBeenCalledWith([
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            pageNumber: 1,
-            heading: 'Mindmap',
-          }),
-        }),
-      ]);
-    });
-  });
-
-  describe('Error Handling and Recovery', () => {
-    it('captures download failure and records error metadata with failed stage', async () => {
-      mockDownload.mockRejectedValueOnce(new Error('Storage download corrupted'));
-      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-1', status: 'failed' });
-
-      await expect(
-        processMaterialIngest({
-          materialId: 'mat-err-1',
-          projectId: 'proj-1',
-          userId: 'user-1',
-          storagePath: 'proj-1/bad.md',
-          fileType: 'text/markdown',
-        }),
-      ).rejects.toThrow('Storage download corrupted');
-
-      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'mat-err-1',
-          status: 'failed',
-          errorMessage: 'Storage download corrupted',
-          metadata: expect.objectContaining({
-            error: expect.objectContaining({
-              message: 'Storage download corrupted',
-              stage: 'downloading',
-              failedAt: expect.any(String),
-            }),
-            progress: {
-              stage: 'failed',
-              stagePercent: 0,
-            },
-          }),
-        }),
-      );
-    });
-
-    it('captures rasterization failure and records error in metadata', async () => {
-      mockDownload.mockResolvedValueOnce(Buffer.from('corrupted-pdf'));
-      mockRasterizeDocument.mockRejectedValueOnce(new Error('Invalid PDF header structure'));
-      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-2', status: 'failed' });
-
-      await expect(
-        processMaterialIngest({
-          materialId: 'mat-err-2',
-          projectId: 'proj-1',
-          userId: 'user-1',
-          storagePath: 'proj-1/bad.pdf',
-          fileType: 'application/pdf',
-        }),
-      ).rejects.toThrow('Invalid PDF header structure');
-
-      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'mat-err-2',
-          status: 'failed',
-          errorMessage: 'Invalid PDF header structure',
-          metadata: expect.objectContaining({
-            error: expect.objectContaining({
-              message: 'Invalid PDF header structure',
-              stage: 'rasterizing',
-            }),
-          }),
-        }),
-      );
-    });
-
-    it('captures vision extraction LLM failure and records error in metadata', async () => {
-      mockDownload.mockResolvedValueOnce(Buffer.from('valid-pdf'));
-      mockRasterizeDocument.mockResolvedValueOnce([
-        {
-          pageNumber: 1,
-          imageBuffer: Buffer.from('img'),
-          width: 800,
-          height: 600,
-          mimeType: 'image/png',
-        },
-      ]);
-      mockExtractMarkdownFromPages.mockRejectedValueOnce(
-        new Error('Gemini Flash API quota exceeded'),
-      );
-      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-3', status: 'failed' });
-
-      await expect(
-        processMaterialIngest({
-          materialId: 'mat-err-3',
-          projectId: 'proj-1',
-          userId: 'user-1',
-          storagePath: 'proj-1/quota.pdf',
-          fileType: 'application/pdf',
-        }),
-      ).rejects.toThrow('Gemini Flash API quota exceeded');
-
-      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'mat-err-3',
-          status: 'failed',
-          errorMessage: 'Gemini Flash API quota exceeded',
-          metadata: expect.objectContaining({
-            error: expect.objectContaining({
-              message: 'Gemini Flash API quota exceeded',
-              stage: 'extracting_vision',
-            }),
-          }),
-        }),
-      );
-    });
-
-    it('registerMaterialIngestWorker catches job errors without re-throwing to pg-boss', async () => {
-      let workHandler:
-        | ((
-            jobs: Array<{ id: string; data: import('./boss').MaterialIngestJobData }>,
-          ) => Promise<void>)
-        | null = null;
-      const mockBoss = {
-        work: vi.fn().mockImplementation((_queue, handler) => {
-          workHandler = handler;
-          return Promise.resolve();
-        }),
       };
 
-      await registerMaterialIngestWorker(mockBoss as unknown as import('pg-boss').PgBoss);
-      expect(mockBoss.work).toHaveBeenCalled();
-      expect(workHandler).not.toBeNull();
+      const expectedResult = {
+        chunkCount: 5,
+        tokenCount: 1200,
+        pageCount: 3,
+      };
 
-      mockDownload.mockRejectedValueOnce(new Error('Download failed'));
-      mockUpdateMaterialStatus.mockResolvedValueOnce({ id: 'mat-retry-test', status: 'failed' });
+      mockIngestMaterial.mockResolvedValueOnce(expectedResult);
 
-      // Executing work handler must not throw, preventing pg-boss retry loop
-      const handler = workHandler as unknown as (
-        jobs: Array<{ id: string; data: import('./boss').MaterialIngestJobData }>,
-      ) => Promise<void>;
+      const result = await processMaterialIngest(jobData);
 
+      expect(mockIngestMaterial).toHaveBeenCalledTimes(1);
+      expect(mockIngestMaterial).toHaveBeenCalledWith(jobData);
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('propagates error when ingestMaterial throws', async () => {
+      const jobData: MaterialIngestJobData = {
+        materialId: 'mat-err',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/err.md',
+        fileType: 'text/markdown',
+      };
+
+      mockIngestMaterial.mockRejectedValueOnce(new Error('Ingestion processing failed'));
+
+      await expect(processMaterialIngest(jobData)).rejects.toThrow('Ingestion processing failed');
+      expect(mockIngestMaterial).toHaveBeenCalledWith(jobData);
+    });
+  });
+
+  describe('registerMaterialIngestWorker', () => {
+    it('registers worker on MATERIAL_INGEST_QUEUE with pg-boss', async () => {
+      const mockBoss = createMockBoss();
+
+      await registerMaterialIngestWorker(mockBoss as unknown as PgBoss);
+
+      expect(mockBoss.work).toHaveBeenCalledTimes(1);
+      expect(mockBoss.work).toHaveBeenCalledWith(MATERIAL_INGEST_QUEUE, expect.any(Function));
+    });
+
+    it('unwraps job payload and delegates execution to ingestMaterial', async () => {
+      const mockBoss = createMockBoss();
+      await registerMaterialIngestWorker(mockBoss as unknown as PgBoss);
+
+      const jobData: MaterialIngestJobData = {
+        materialId: 'mat-job-1',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/slides.pdf',
+        fileType: 'application/pdf',
+      };
+
+      mockIngestMaterial.mockResolvedValueOnce({
+        chunkCount: 2,
+        tokenCount: 450,
+        pageCount: 2,
+      });
+
+      const handler = mockBoss.getHandler();
+      await handler([
+        {
+          id: 'boss-job-1',
+          data: jobData,
+        },
+      ]);
+
+      expect(mockIngestMaterial).toHaveBeenCalledTimes(1);
+      expect(mockIngestMaterial).toHaveBeenCalledWith(jobData);
+    });
+
+    it('processes multiple jobs in batch sequentially', async () => {
+      const mockBoss = createMockBoss();
+      await registerMaterialIngestWorker(mockBoss as unknown as PgBoss);
+
+      const job1Data: MaterialIngestJobData = {
+        materialId: 'mat-batch-1',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/doc1.txt',
+        fileType: 'text/plain',
+      };
+
+      const job2Data: MaterialIngestJobData = {
+        materialId: 'mat-batch-2',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/doc2.pdf',
+        fileType: 'application/pdf',
+      };
+
+      mockIngestMaterial.mockResolvedValue({
+        chunkCount: 1,
+        tokenCount: 100,
+        pageCount: 1,
+      });
+
+      const handler = mockBoss.getHandler();
+      await handler([
+        { id: 'job-1', data: job1Data },
+        { id: 'job-2', data: job2Data },
+      ]);
+
+      expect(mockIngestMaterial).toHaveBeenCalledTimes(2);
+      expect(mockIngestMaterial).toHaveBeenNthCalledWith(1, job1Data);
+      expect(mockIngestMaterial).toHaveBeenNthCalledWith(2, job2Data);
+    });
+
+    it('suppresses execution errors to prevent pg-boss retry cascades and logs failure', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+        // Intentionally suppress console error in test output
+      });
+
+      const mockBoss = createMockBoss();
+      await registerMaterialIngestWorker(mockBoss as unknown as PgBoss);
+
+      const jobData: MaterialIngestJobData = {
+        materialId: 'mat-failing',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/bad.pdf',
+        fileType: 'application/pdf',
+      };
+
+      const failureError = new Error('AI Provider rate limit exceeded');
+      mockIngestMaterial.mockRejectedValueOnce(failureError);
+
+      const handler = mockBoss.getHandler();
+
+      // Must resolve without throwing to prevent pg-boss retrying
       await expect(
         handler([
           {
-            id: 'job-1',
-            data: {
-              materialId: 'mat-retry-test',
-              projectId: 'p1',
-              userId: 'u1',
-              storagePath: 'bad.pdf',
-              fileType: 'application/pdf',
-            },
+            id: 'job-fail-123',
+            data: jobData,
           },
         ]),
-      ).resolves.not.toThrow();
+      ).resolves.toBeUndefined();
+
+      expect(mockIngestMaterial).toHaveBeenCalledTimes(1);
+      expect(mockIngestMaterial).toHaveBeenCalledWith(jobData);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Job job-fail-123 failed:', failureError);
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('continues processing subsequent jobs in batch when one job fails, without throwing', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+        // Intentionally suppress console error in test output
+      });
+
+      const mockBoss = createMockBoss();
+      await registerMaterialIngestWorker(mockBoss as unknown as PgBoss);
+
+      const failingJobData: MaterialIngestJobData = {
+        materialId: 'mat-fail-batch',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/bad.pdf',
+        fileType: 'application/pdf',
+      };
+
+      const succeedingJobData: MaterialIngestJobData = {
+        materialId: 'mat-success-batch',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/good.txt',
+        fileType: 'text/plain',
+      };
+
+      const failureError = new Error('Corrupted PDF header');
+      mockIngestMaterial
+        .mockRejectedValueOnce(failureError)
+        .mockResolvedValueOnce({ chunkCount: 1, tokenCount: 50, pageCount: 1 });
+
+      const handler = mockBoss.getHandler();
+      await expect(
+        handler([
+          { id: 'job-err', data: failingJobData },
+          { id: 'job-ok', data: succeedingJobData },
+        ]),
+      ).resolves.toBeUndefined();
+
+      expect(mockIngestMaterial).toHaveBeenCalledTimes(2);
+      expect(mockIngestMaterial).toHaveBeenNthCalledWith(1, failingJobData);
+      expect(mockIngestMaterial).toHaveBeenNthCalledWith(2, succeedingJobData);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Job job-err failed:', failureError);
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });

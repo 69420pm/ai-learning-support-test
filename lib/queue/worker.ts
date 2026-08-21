@@ -10,7 +10,8 @@ export async function processMaterialIngest(data: MaterialIngestJobData): Promis
 
 export async function registerMaterialIngestWorker(boss: PgBoss): Promise<void> {
   await boss.work<MaterialIngestJobData>(MATERIAL_INGEST_QUEUE, async (jobs) => {
-    for (const job of jobs) {
+    const jobList = Array.isArray(jobs) ? jobs : [jobs];
+    for (const job of jobList) {
       try {
         await processMaterialIngest(job.data);
       } catch (err) {

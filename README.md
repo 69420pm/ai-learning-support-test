@@ -144,7 +144,7 @@ LOCAL_DEV_AUTH=true
 # ==============================================================================
 # AI Provider API Keys (Multi-LLM & BYOK Strategy)
 # ==============================================================================
-# Google Gemini (Default provider: gemini-3.6-flash, gemini-3.5-pro, etc.)
+# Google Gemini (Default provider: gemini-3.5-flash-lite, gemini-3.7-flash, etc.)
 GOOGLE_GENERATIVE_AI_API_KEY=your_google_gemini_api_key_here
 
 # OpenAI (Optional)
@@ -320,9 +320,9 @@ The system uses **Vercel AI SDK** (`ai`) with a flexible multi-provider architec
 
 | Provider | Model Identifier | Purpose / Characteristics |
 | :--- | :--- | :--- |
-| **Google Gemini** *(Default)* | `gemini-3.6-flash` | Flagship default model optimized for multi-step reasoning, speed, and agentic workflows |
+| **Google Gemini** *(Default)* | `gemini-3.5-flash-lite` | Ultra-fast, lightweight model optimized for high throughput, reduced throttling, and rapid responses |
+| **Google Gemini** | `gemini-3.7-flash` | Flagship versatile model for multimodal tasks and agentic workflows |
 | **Google Gemini** | `gemini-3.5-pro` | Advanced high-depth reasoning for complex Feynman explanation audits and GraphRAG synthesis |
-| **Google Gemini** | `gemini-3.5-flash-lite` | Ultra-fast, low-latency model for rapid micro-quizzes and flashcards |
 | **Google Gemini** | `gemini-3.5-flash` | Multimodal model for slide diagram interpretation |
 | **OpenAI** | `gpt-4o`, `gpt-4o-mini` | Supported via `OPENAI_API_KEY` or user BYOK |
 | **OpenRouter** | Custom models | Supported via `OPENROUTER_API_KEY` |

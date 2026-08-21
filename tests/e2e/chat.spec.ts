@@ -69,7 +69,7 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
       await expect(page).toHaveURL(new RegExp(`/projects/${mockProjectId}/chat`));
 
       await expect(chatPage.getChatTitle()).toHaveText('New Chat');
-      await expect(page.getByText('Gemini 3.7 Flash')).toBeVisible();
+      await expect(page.getByText('Gemini 3.5 Flash-Lite')).toBeVisible();
 
       await chatPage.sendUserMessage('Write a Python quicksort function');
       await expect(page.getByText(/Here is a Python quicksort/i)).toBeVisible({ timeout: 10000 });
@@ -186,15 +186,15 @@ test.describe('Chat Routing, App Proxy Guard & Sidebar Thread History E2E', () =
 
       const modelTrigger = page.getByTestId('model-selector-trigger');
       await expect(modelTrigger).toBeVisible();
-      await expect(modelTrigger).toHaveText(/Gemini 3\.7 Flash/);
+      await expect(modelTrigger).toHaveText(/Gemini 3\.5 Flash-Lite/);
 
       await modelTrigger.click();
 
-      const flashLiteOption = page.getByTestId('model-selector-item-gemini-3.5-flash-lite');
-      await expect(flashLiteOption).toBeVisible();
-      await flashLiteOption.click();
+      const flashOption = page.getByTestId('model-selector-item-gemini-3.7-flash');
+      await expect(flashOption).toBeVisible();
+      await flashOption.click();
 
-      await expect(modelTrigger).toHaveText(/Gemini 3\.5 Flash-Lite/);
+      await expect(modelTrigger).toHaveText(/Gemini 3\.7 Flash/);
     });
 
     test('renders sidebar material list and allows material uploading with status badges', async ({

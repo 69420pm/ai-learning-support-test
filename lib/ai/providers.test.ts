@@ -8,8 +8,8 @@ import {
 } from './providers';
 
 describe('AI Providers Registry', () => {
-  it('exports DEFAULT_MODEL_ID as gemini-3.7-flash', () => {
-    expect(DEFAULT_MODEL_ID).toBe('gemini-3.7-flash');
+  it('exports DEFAULT_MODEL_ID as gemini-3.5-flash-lite', () => {
+    expect(DEFAULT_MODEL_ID).toBe('gemini-3.5-flash-lite');
     expect(DEFAULT_PROVIDER).toBe('google');
   });
 

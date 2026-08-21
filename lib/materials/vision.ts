@@ -38,6 +38,7 @@ export async function extractMarkdownFromPage(
   try {
     const result = await generateText({
       model,
+      maxRetries: 1,
       messages: [
         {
           role: 'user',
@@ -73,22 +74,26 @@ export async function extractMarkdownFromPage(
   }
 }
 
+export type ExtractMarkdownFromPagesOptions = VisionExtractionOptions & {
+  concurrency?: number;
+  pageDelayMs?: number;
+  onProgress?: (
+    completedPages: number,
+    totalPages: number,
+    currentPageNumber: number,
+  ) => Promise<void> | void;
+};
+
 export async function extractMarkdownFromPages(
   pages: RasterizedPage[],
-  options: VisionExtractionOptions & {
-    concurrency?: number;
-    onProgress?: (
-      completedPages: number,
-      totalPages: number,
-      currentPageNumber: number,
-    ) => Promise<void> | void;
-  } = {},
+  options: ExtractMarkdownFromPagesOptions = {},
 ): Promise<VisionExtractionResult[]> {
   if (pages.length === 0) {
     return [];
   }
 
-  const { concurrency = 3, onProgress, ...extractionOptions } = options;
+  const defaultDelay = process.env.NODE_ENV === 'test' ? 0 : 1000;
+  const { concurrency = 1, pageDelayMs = defaultDelay, onProgress, ...extractionOptions } = options;
   const results: VisionExtractionResult[] = new Array(pages.length);
   let completedCount = 0;
 
@@ -106,6 +111,10 @@ export async function extractMarkdownFromPages(
 
       if (onProgress) {
         await onProgress(completedCount, pages.length, page.pageNumber);
+      }
+
+      if (pageDelayMs > 0 && queue.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, pageDelayMs));
       }
     }
   }

@@ -17,25 +17,10 @@ vi.mock('@/lib/db/queries/project', () => ({
 }));
 
 const mockInspectMaterialContent = vi.fn();
+const mockDeleteMaterial = vi.fn();
 vi.mock('@/lib/materials', () => ({
   inspectMaterialContent: (...args: unknown[]) => mockInspectMaterialContent(...args),
-}));
-
-const mockGetMaterialById = vi.fn();
-const mockDeleteMaterialById = vi.fn();
-const mockDeleteMaterialChunksByMaterialId = vi.fn();
-vi.mock('@/lib/db/queries/material', () => ({
-  getMaterialById: (...args: unknown[]) => mockGetMaterialById(...args),
-  deleteMaterialById: (...args: unknown[]) => mockDeleteMaterialById(...args),
-  deleteMaterialChunksByMaterialId: (...args: unknown[]) =>
-    mockDeleteMaterialChunksByMaterialId(...args),
-}));
-
-const mockDeleteStorage = vi.fn();
-vi.mock('@/lib/storage', () => ({
-  getStorageDriver: () => ({
-    delete: (...args: unknown[]) => mockDeleteStorage(...args),
-  }),
+  deleteMaterial: (...args: unknown[]) => mockDeleteMaterial(...args),
 }));
 
 describe('Project Single Material API Route (/api/projects/[id]/materials/[materialId])', () => {
@@ -218,9 +203,11 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
       });
 
       expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.code).toBe('unauthorized:chat');
     });
 
-    it('returns 404 when project does not exist', async () => {
+    it('returns 404 when project does not exist for user', async () => {
       mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
       mockGetProjectById.mockResolvedValueOnce(null);
 
@@ -232,38 +219,26 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
       });
 
       expect(response.status).toBe(404);
+      const json = await response.json();
+      expect(json.code).toBe('not_found:chat');
+      expect(mockGetProjectById).toHaveBeenCalledWith({ id: 'proj-1', userId: 'user-1' });
     });
 
-    it('returns 404 when material does not exist', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
-      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
-      mockGetMaterialById.mockResolvedValueOnce(null);
-
-      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
-        method: 'DELETE',
-      });
-      const response = await DELETE(request, {
-        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
-      });
-
-      expect(response.status).toBe(404);
-    });
-
-    it('atomically cascades deletion across chunks, db record, and physical storage blob', async () => {
+    it('delegates to deleteMaterial domain function and returns 200 with success and materialId', async () => {
       mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
 
-      const mockMaterial = {
-        id: 'mat-1',
-        projectId: 'proj-1',
-        userId: 'user-1',
-        title: 'Notes',
-        storagePath: 'proj-1/uuid-notes.pdf',
-      };
-      mockGetMaterialById.mockResolvedValueOnce(mockMaterial);
-      mockDeleteMaterialChunksByMaterialId.mockResolvedValueOnce(undefined);
-      mockDeleteMaterialById.mockResolvedValueOnce(mockMaterial);
-      mockDeleteStorage.mockResolvedValueOnce(undefined);
+      mockDeleteMaterial.mockResolvedValueOnce({
+        success: true,
+        materialId: 'mat-1',
+        material: {
+          id: 'mat-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          title: 'Notes',
+          storagePath: 'proj-1/uuid-notes.pdf',
+        },
+      });
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
         method: 'DELETE',
@@ -276,13 +251,88 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
       const json = await response.json();
       expect(json).toEqual({ success: true, materialId: 'mat-1' });
 
-      expect(mockDeleteMaterialChunksByMaterialId).toHaveBeenCalledWith({ materialId: 'mat-1' });
-      expect(mockDeleteMaterialById).toHaveBeenCalledWith({
-        id: 'mat-1',
+      expect(mockDeleteMaterial).toHaveBeenCalledWith({
+        materialId: 'mat-1',
         projectId: 'proj-1',
         userId: 'user-1',
       });
-      expect(mockDeleteStorage).toHaveBeenCalledWith('proj-1/uuid-notes.pdf');
+    });
+
+    it('maps not_found domain ChatbotError from deleteMaterial to 404 response', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockDeleteMaterial.mockRejectedValueOnce(
+        new ChatbotError('not_found:document', 'Material not found.'),
+      );
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
+        method: 'DELETE',
+      });
+      const response = await DELETE(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(404);
+      const json = await response.json();
+      expect(json.code).toBe('not_found:document');
+      expect(json.cause).toBe('Material not found.');
+    });
+
+    it('maps forbidden domain ChatbotError from deleteMaterial to 403 response', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockDeleteMaterial.mockRejectedValueOnce(
+        new ChatbotError('forbidden:document', 'This document belongs to another user.'),
+      );
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
+        method: 'DELETE',
+      });
+      const response = await DELETE(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(403);
+      const json = await response.json();
+      expect(json.code).toBe('forbidden:document');
+      expect(json.cause).toBe('This document belongs to another user.');
+    });
+
+    it('maps bad_request domain ChatbotError from deleteMaterial to 400 response', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockDeleteMaterial.mockRejectedValueOnce(
+        new ChatbotError('bad_request:document', 'A valid material ID is required.'),
+      );
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
+        method: 'DELETE',
+      });
+      const response = await DELETE(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.code).toBe('bad_request:document');
+      expect(json.cause).toBe('A valid material ID is required.');
+    });
+
+    it('returns 400 bad_request:api when an unexpected error occurs during deletion', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockDeleteMaterial.mockRejectedValueOnce(new Error('Unexpected database failure'));
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
+        method: 'DELETE',
+      });
+      const response = await DELETE(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.code).toBe('bad_request:api');
     });
   });
 });

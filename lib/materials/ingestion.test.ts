@@ -1,12 +1,83 @@
 import sharp from 'sharp';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateEmbeddings } from '@/lib/ai/embedding';
+import type { StorageDriver } from '@/lib/storage';
 import {
   chunkMultimodalPages,
   extractMarkdownFromPages,
+  type IngestMaterialInput,
+  type IngestMaterialResult,
+  ingestMaterial,
   isMultimodal,
+  type MaterialProgress,
   rasterizeDocument,
 } from './index';
+
+// Mocks for DB and default storage
+const mockUpdateMaterialStatus = vi.fn();
+const mockInsertMaterialChunks = vi.fn();
+const mockDownload = vi.fn();
+const mockGenerateEmbeddings = vi.fn();
+const mockRasterizeDocument = vi.fn();
+const mockExtractMarkdownFromPages = vi.fn();
+
+vi.mock('@/lib/db/queries/material', () => ({
+  updateMaterialStatus: (...args: unknown[]) => mockUpdateMaterialStatus(...args),
+  insertMaterialChunks: (...args: unknown[]) => mockInsertMaterialChunks(...args),
+}));
+
+vi.mock('@/lib/storage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/storage')>();
+  return {
+    ...actual,
+    getStorageDriver: () => ({
+      download: (...args: unknown[]) => mockDownload(...args),
+      upload: vi.fn(),
+      delete: vi.fn(),
+    }),
+  };
+});
+
+vi.mock('@/lib/ai/embedding', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/ai/embedding')>();
+  return {
+    ...actual,
+    generateEmbeddings: (...args: unknown[]) => {
+      if (mockGenerateEmbeddings.getMockImplementation()) {
+        return mockGenerateEmbeddings(...args);
+      }
+      return actual.generateEmbeddings(...(args as [string[]]));
+    },
+  };
+});
+
+vi.mock('@/lib/materials/rasterizer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/materials/rasterizer')>();
+  return {
+    ...actual,
+    rasterizeDocument: (...args: unknown[]) => {
+      if (mockRasterizeDocument.getMockImplementation()) {
+        return mockRasterizeDocument(...args);
+      }
+      return actual.rasterizeDocument(...(args as [Buffer, string, string?]));
+    },
+  };
+});
+
+vi.mock('@/lib/materials/vision', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/materials/vision')>();
+  return {
+    ...actual,
+    extractMarkdownFromPages: (...args: unknown[]) => {
+      if (mockExtractMarkdownFromPages.getMockImplementation()) {
+        return mockExtractMarkdownFromPages(...args);
+      }
+      return actual.extractMarkdownFromPages(
+        ...(args as Parameters<typeof actual.extractMarkdownFromPages>),
+      );
+    },
+  };
+});
 
 function createMinimalPdfBuffer(pageCount = 2): Buffer {
   let pdf =
@@ -44,6 +115,464 @@ async function createTestImageBuffer(width = 300, height = 200): Promise<Buffer>
     .png()
     .toBuffer();
 }
+
+describe('ingestMaterial Core Domain Function', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateMaterialStatus.mockReset();
+    mockInsertMaterialChunks.mockReset();
+    mockDownload.mockReset();
+    mockGenerateEmbeddings.mockReset();
+    mockRasterizeDocument.mockReset();
+    mockExtractMarkdownFromPages.mockReset();
+  });
+
+  describe('Plain Text and Markdown Ingestion Lifecycle', () => {
+    it('processes Markdown material, transitions through intermediate stages, generates embeddings, and persists chunks', async () => {
+      const markdownContent = `# Chapter 1: Introduction to Vectors
+Vectors are geometric objects with magnitude and direction.
+
+# Chapter 2: Vector Operations
+Vector addition follows the parallelogram law.`;
+
+      mockDownload.mockResolvedValueOnce(Buffer.from(markdownContent, 'utf-8'));
+      mockGenerateEmbeddings.mockResolvedValueOnce([
+        new Array(768).fill(0.01),
+        new Array(768).fill(0.02),
+      ]);
+      mockInsertMaterialChunks.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-md-1', status: 'ready' });
+
+      const progressEvents: MaterialProgress[] = [];
+      const onProgress = vi.fn((prog: MaterialProgress) => {
+        progressEvents.push(prog);
+      });
+
+      const input: IngestMaterialInput = {
+        materialId: 'mat-md-1',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/notes.md',
+        fileType: 'text/markdown',
+      };
+
+      const result: IngestMaterialResult = await ingestMaterial(input, { onProgress });
+
+      // Verify download called with storage path
+      expect(mockDownload).toHaveBeenCalledWith('proj-1/notes.md');
+
+      // Verify embedding generation called
+      expect(mockGenerateEmbeddings).toHaveBeenCalledWith(expect.any(Array));
+
+      // Verify chunks persisted to DB with default pageNumber: 1
+      expect(mockInsertMaterialChunks).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            materialId: 'mat-md-1',
+            projectId: 'proj-1',
+            userId: 'user-1',
+            chunkIndex: 0,
+            tokenCount: expect.any(Number),
+            embedding: expect.any(Array),
+            metadata: expect.objectContaining({
+              pageNumber: 1,
+            }),
+          }),
+        ]),
+      );
+
+      // Verify progress callback sequence
+      expect(onProgress).toHaveBeenCalled();
+      const stages = progressEvents.map((e) => e.stage);
+      expect(stages).toContain('downloading');
+      expect(stages).toContain('chunking');
+      expect(stages).toContain('embedding');
+      expect(stages).toContain('persisting');
+      expect(stages).toContain('completed');
+
+      // Verify status transitions in DB
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-md-1',
+          status: 'processing',
+          metadata: expect.objectContaining({
+            progress: expect.objectContaining({
+              stage: 'downloading',
+            }),
+          }),
+        }),
+      );
+
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-md-1',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            pageCount: 1,
+            chunkCount: expect.any(Number),
+            tokenCount: expect.any(Number),
+            progress: expect.objectContaining({
+              stage: 'completed',
+              stagePercent: 100,
+            }),
+          }),
+        }),
+      );
+
+      // Verify result shape
+      expect(result.chunkCount).toBeGreaterThanOrEqual(1);
+      expect(result.tokenCount).toBeGreaterThan(0);
+      expect(result.pageCount).toBe(1);
+    });
+
+    it('handles empty text material gracefully without chunking or embedding', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('   \n\n  ', 'utf-8'));
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-empty', status: 'ready' });
+
+      const progressEvents: MaterialProgress[] = [];
+      const onProgress = (p: MaterialProgress) => {
+        progressEvents.push(p);
+      };
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-empty',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/empty.txt',
+          fileType: 'text/plain',
+        },
+        { onProgress },
+      );
+
+      expect(result).toEqual({ chunkCount: 0, tokenCount: 0, pageCount: 1 });
+      expect(mockGenerateEmbeddings).not.toHaveBeenCalled();
+      expect(mockInsertMaterialChunks).not.toHaveBeenCalled();
+
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-empty',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            chunkCount: 0,
+            tokenCount: 0,
+            pageCount: 1,
+            progress: expect.objectContaining({
+              stage: 'completed',
+              stagePercent: 100,
+            }),
+          }),
+        }),
+      );
+
+      expect(progressEvents[progressEvents.length - 1].stage).toBe('completed');
+    });
+
+    it('uses injected custom storageDriver when provided in options', async () => {
+      const customStorageDriver: StorageDriver = {
+        download: vi.fn().mockResolvedValue(Buffer.from('Custom driver content', 'utf-8')),
+        upload: vi.fn(),
+        delete: vi.fn(),
+      };
+
+      mockGenerateEmbeddings.mockResolvedValueOnce([new Array(768).fill(0.03)]);
+      mockInsertMaterialChunks.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-custom-storage', status: 'ready' });
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-custom-storage',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'custom/path.txt',
+          fileType: 'text/plain',
+        },
+        { storageDriver: customStorageDriver },
+      );
+
+      expect(customStorageDriver.download).toHaveBeenCalledWith('custom/path.txt');
+      expect(mockDownload).not.toHaveBeenCalled();
+      expect(result.chunkCount).toBe(1);
+    });
+  });
+
+  describe('Failure Modes and Error Recovery', () => {
+    it('records error with stage "downloading" when storage download fails, then re-throws', async () => {
+      mockDownload.mockRejectedValueOnce(new Error('Network timeout fetching object'));
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-dl', status: 'failed' });
+
+      const onProgress = vi.fn();
+
+      await expect(
+        ingestMaterial(
+          {
+            materialId: 'mat-err-dl',
+            projectId: 'proj-1',
+            userId: 'user-1',
+            storagePath: 'proj-1/missing.txt',
+            fileType: 'text/plain',
+          },
+          { onProgress },
+        ),
+      ).rejects.toThrow('Network timeout fetching object');
+
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-err-dl',
+          status: 'failed',
+          errorMessage: 'Network timeout fetching object',
+          metadata: expect.objectContaining({
+            error: expect.objectContaining({
+              message: 'Network timeout fetching object',
+              stage: 'downloading',
+              failedAt: expect.any(String),
+            }),
+            progress: {
+              stage: 'failed',
+              stagePercent: 0,
+            },
+          }),
+        }),
+      );
+
+      expect(onProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: 'failed',
+          stagePercent: 0,
+        }),
+      );
+    });
+
+    it('records error with stage "embedding" when embedding generation fails, then re-throws', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('Some study content to embed', 'utf-8'));
+      mockGenerateEmbeddings.mockRejectedValueOnce(new Error('Embedding API rate limit reached'));
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-emb', status: 'failed' });
+
+      await expect(
+        ingestMaterial({
+          materialId: 'mat-err-emb',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/notes.md',
+          fileType: 'text/markdown',
+        }),
+      ).rejects.toThrow('Embedding API rate limit reached');
+
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-err-emb',
+          status: 'failed',
+          errorMessage: 'Embedding API rate limit reached',
+          metadata: expect.objectContaining({
+            error: expect.objectContaining({
+              message: 'Embedding API rate limit reached',
+              stage: 'embedding',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('records error with stage "persisting" when database chunk insertion fails, then re-throws', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('Some study content to persist', 'utf-8'));
+      mockGenerateEmbeddings.mockResolvedValueOnce([new Array(768).fill(0.01)]);
+      mockInsertMaterialChunks.mockRejectedValueOnce(new Error('Database connection reset'));
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-db', status: 'failed' });
+
+      await expect(
+        ingestMaterial({
+          materialId: 'mat-err-db',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/notes.md',
+          fileType: 'text/markdown',
+        }),
+      ).rejects.toThrow('Database connection reset');
+
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-err-db',
+          status: 'failed',
+          errorMessage: 'Database connection reset',
+          metadata: expect.objectContaining({
+            error: expect.objectContaining({
+              message: 'Database connection reset',
+              stage: 'persisting',
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('Multimodal PDF and Image Handling', () => {
+    it('rasterizes PDF, runs vision extraction, generates embeddings, and persists page-attributed chunks', async () => {
+      const fakePdfBuffer = Buffer.from('%PDF-1.4-sample');
+      mockDownload.mockResolvedValueOnce(fakePdfBuffer);
+
+      mockRasterizeDocument.mockResolvedValueOnce([
+        {
+          pageNumber: 1,
+          imageBuffer: Buffer.from('page-1-bytes'),
+          width: 1024,
+          height: 768,
+          mimeType: 'image/png',
+        },
+        {
+          pageNumber: 2,
+          imageBuffer: Buffer.from('page-2-bytes'),
+          width: 1024,
+          height: 768,
+          mimeType: 'image/png',
+        },
+      ]);
+
+      mockExtractMarkdownFromPages.mockImplementationOnce(async (_pages, { onProgress }) => {
+        if (onProgress) {
+          await onProgress(1, 2, 1);
+          await onProgress(2, 2, 2);
+        }
+        return [
+          { pageNumber: 1, markdown: '# Page 1: Key Terms' },
+          { pageNumber: 2, markdown: '# Page 2: Summary Diagram' },
+        ];
+      });
+
+      mockGenerateEmbeddings.mockResolvedValueOnce([
+        new Array(768).fill(0.01),
+        new Array(768).fill(0.02),
+      ]);
+      mockInsertMaterialChunks.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-pdf-1', status: 'ready' });
+
+      const progressEvents: MaterialProgress[] = [];
+      const onProgress = (p: MaterialProgress) => {
+        progressEvents.push(p);
+      };
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-pdf-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/slides.pdf',
+          fileType: 'application/pdf',
+        },
+        { onProgress, concurrency: 2 },
+      );
+
+      expect(mockRasterizeDocument).toHaveBeenCalledWith(
+        fakePdfBuffer,
+        'application/pdf',
+        'proj-1/slides.pdf',
+      );
+
+      expect(mockExtractMarkdownFromPages).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          concurrency: 2,
+          onProgress: expect.any(Function),
+        }),
+      );
+
+      expect(mockInsertMaterialChunks).toHaveBeenCalledWith([
+        expect.objectContaining({
+          materialId: 'mat-pdf-1',
+          chunkIndex: 0,
+          metadata: expect.objectContaining({
+            pageNumber: 1,
+            heading: 'Page 1: Key Terms',
+          }),
+        }),
+        expect.objectContaining({
+          materialId: 'mat-pdf-1',
+          chunkIndex: 1,
+          metadata: expect.objectContaining({
+            pageNumber: 2,
+            heading: 'Page 2: Summary Diagram',
+          }),
+        }),
+      ]);
+
+      expect(result.pageCount).toBe(2);
+      expect(result.chunkCount).toBe(2);
+      expect(progressEvents.some((e) => e.stage === 'rasterizing')).toBe(true);
+      expect(progressEvents.some((e) => e.stage === 'extracting_vision')).toBe(true);
+      expect(progressEvents[progressEvents.length - 1].stage).toBe('completed');
+    });
+
+    it('records error with stage "rasterizing" when PDF rasterization fails', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('corrupted-pdf-stream'));
+      mockRasterizeDocument.mockRejectedValueOnce(new Error('Invalid PDF format'));
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-rast', status: 'failed' });
+
+      await expect(
+        ingestMaterial({
+          materialId: 'mat-err-rast',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/corrupt.pdf',
+          fileType: 'application/pdf',
+        }),
+      ).rejects.toThrow('Invalid PDF format');
+
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-err-rast',
+          status: 'failed',
+          errorMessage: 'Invalid PDF format',
+          metadata: expect.objectContaining({
+            error: expect.objectContaining({
+              message: 'Invalid PDF format',
+              stage: 'rasterizing',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('records error with stage "extracting_vision" when vision model fails', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('valid-pdf-stream'));
+      mockRasterizeDocument.mockResolvedValueOnce([
+        {
+          pageNumber: 1,
+          imageBuffer: Buffer.from('img-bytes'),
+          width: 800,
+          height: 600,
+          mimeType: 'image/png',
+        },
+      ]);
+      mockExtractMarkdownFromPages.mockRejectedValueOnce(
+        new Error('Vision extraction model error'),
+      );
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-vis', status: 'failed' });
+
+      await expect(
+        ingestMaterial({
+          materialId: 'mat-err-vis',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/vis.pdf',
+          fileType: 'application/pdf',
+        }),
+      ).rejects.toThrow('Vision extraction model error');
+
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-err-vis',
+          status: 'failed',
+          errorMessage: 'Vision extraction model error',
+          metadata: expect.objectContaining({
+            error: expect.objectContaining({
+              message: 'Vision extraction model error',
+              stage: 'extracting_vision',
+            }),
+          }),
+        }),
+      );
+    });
+  });
+});
 
 describe('Multimodal Ingestion Pipeline Integration', () => {
   it('executes full rasterization -> vision extraction -> page-attributed chunking -> embedding pipeline for multi-page PDF', async () => {

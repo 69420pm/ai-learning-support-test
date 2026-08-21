@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   isImage,
   isMultimodal,
@@ -105,6 +105,24 @@ describe('Material Rasterization Pipeline', () => {
       }
     });
 
+    it('rasterizes multi-page PDFs and reports progress via onProgress callback', async () => {
+      const pdfBuffer = createMinimalPdfBuffer(3);
+      const progressCalls: Array<{ completed: number; total: number; page: number }> = [];
+      const onProgress = vi.fn((completed, total, page) => {
+        progressCalls.push({ completed, total, page });
+      });
+
+      const pages = await rasterizePdf(pdfBuffer, { onProgress });
+
+      expect(pages).toHaveLength(3);
+      expect(onProgress).toHaveBeenCalledTimes(3);
+      expect(progressCalls).toEqual([
+        { completed: 1, total: 3, page: 1 },
+        { completed: 2, total: 3, page: 2 },
+        { completed: 3, total: 3, page: 3 },
+      ]);
+    });
+
     it('resizes oversized PDF pages according to maxDimension option', async () => {
       const pdfBuffer = createMinimalPdfBuffer(1);
       const pages = await rasterizePdf(pdfBuffer, { maxDimension: 100, scale: 2.0 });
@@ -121,15 +139,17 @@ describe('Material Rasterization Pipeline', () => {
   });
 
   describe('Image rasterization', () => {
-    it('rasterizes and normalizes standard PNG images', async () => {
+    it('rasterizes and normalizes standard PNG images and invokes onProgress', async () => {
       const imgBuffer = await createTestImageBuffer(300, 200, 'png');
-      const pages = await rasterizeImage(imgBuffer);
+      const onProgress = vi.fn();
+      const pages = await rasterizeImage(imgBuffer, { onProgress });
 
       expect(pages).toHaveLength(1);
       expect(pages[0].pageNumber).toBe(1);
       expect(pages[0].mimeType).toBe('image/png');
       expect(pages[0].width).toBe(300);
       expect(pages[0].height).toBe(200);
+      expect(onProgress).toHaveBeenCalledWith(1, 1, 1);
     });
 
     it('rasterizes JPEG images to normalized PNG image buffers', async () => {

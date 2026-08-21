@@ -62,13 +62,18 @@ export async function getMaterialsByProjectId({
   userId,
 }: {
   projectId: string;
-  userId: string;
+  userId?: string;
 }): Promise<Material[]> {
   try {
+    const conditions = [eq(materials.projectId, projectId)];
+    if (userId) {
+      conditions.push(eq(materials.userId, userId));
+    }
+
     return await db
       .select()
       .from(materials)
-      .where(and(eq(materials.projectId, projectId), eq(materials.userId, userId)))
+      .where(and(...conditions))
       .orderBy(desc(materials.createdAt));
   } catch (error) {
     throw new ChatbotError('bad_request:database', { cause: error });

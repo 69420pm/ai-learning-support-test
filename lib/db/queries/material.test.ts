@@ -113,6 +113,31 @@ describe('Material DB Queries', () => {
       });
       expect(result).toEqual(mockMaterials);
     });
+
+    it('returns materials when userId is omitted', async () => {
+      const mockMaterials = [
+        {
+          id: 'mat-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          title: 'Notes',
+          createdAt: new Date(),
+        },
+      ];
+
+      mockSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            orderBy: vi.fn().mockResolvedValueOnce(mockMaterials),
+          }),
+        }),
+      });
+
+      const result = await getMaterialsByProjectId({
+        projectId: 'proj-1',
+      });
+      expect(result).toEqual(mockMaterials);
+    });
   });
 
   describe('getMaterialById', () => {

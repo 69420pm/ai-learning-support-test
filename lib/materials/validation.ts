@@ -18,31 +18,94 @@ export const ACCEPTED_FILE_EXTENSIONS = [
 
 export const ACCEPTED_FILE_TYPES_STRING = ACCEPTED_FILE_EXTENSIONS.join(',');
 
+export const EXTENSION_MIME_MAP: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.md': 'text/markdown',
+  '.markdown': 'text/markdown',
+  '.txt': 'text/plain',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.bmp': 'image/bmp',
+  '.tiff': 'image/tiff',
+  '.tif': 'image/tiff',
+  '.avif': 'image/avif',
+};
+
 export type FileValidationResult = { valid: true; error?: never } | { valid: false; error: string };
 
-export function validateMaterialFile(file: File): FileValidationResult {
-  const lastDot = file.name.lastIndexOf('.');
-  const extension = lastDot >= 0 ? file.name.slice(lastDot).toLowerCase() : '';
+export type MaterialFileValidationTarget = {
+  name: string;
+  size: number;
+  type?: string;
+};
 
-  const isAcceptedExtension = ACCEPTED_FILE_EXTENSIONS.includes(extension);
-  const isAcceptedMime =
-    file.type === 'application/pdf' ||
-    file.type === 'text/markdown' ||
-    file.type === 'text/plain' ||
-    file.type === 'text/x-markdown' ||
-    file.type.startsWith('image/');
+export function getFileExtension(filename: string): string {
+  if (!filename || typeof filename !== 'string') {
+    return '';
+  }
+  const lastDot = filename.lastIndexOf('.');
+  return lastDot >= 0 ? filename.slice(lastDot).toLowerCase() : '';
+}
 
-  if (!isAcceptedExtension && !isAcceptedMime) {
+export function inferMaterialFileType(filename: string, providedType?: string): string {
+  const normProvided = providedType?.trim();
+  if (normProvided && normProvided !== 'application/octet-stream') {
+    return normProvided;
+  }
+
+  const extension = getFileExtension(filename);
+  return EXTENSION_MIME_MAP[extension] ?? normProvided ?? 'application/octet-stream';
+}
+
+function isAcceptedMimeType(fileType: string): boolean {
+  const normType = fileType.toLowerCase();
+  return (
+    normType === 'application/pdf' ||
+    normType === 'application/x-pdf' ||
+    normType === 'text/markdown' ||
+    normType === 'text/plain' ||
+    normType === 'text/x-markdown' ||
+    normType.startsWith('image/')
+  );
+}
+
+export function validateMaterialFile(
+  file: MaterialFileValidationTarget | File,
+): FileValidationResult {
+  if (!file || typeof file !== 'object' || typeof file.name !== 'string') {
     return {
       valid: false,
-      error: `Unsupported file format (${extension || file.type || 'unknown'}). Supported: PDF, Markdown, Text, Images.`,
+      error: 'A valid file payload is required.',
     };
   }
 
-  if (file.size > MAX_MATERIAL_FILE_SIZE) {
+  const extension = getFileExtension(file.name);
+  const fileType = file.type || '';
+
+  // If an extension exists, it must strictly be in the allowed extensions list
+  if (extension && !ACCEPTED_FILE_EXTENSIONS.includes(extension)) {
     return {
       valid: false,
-      error: `File size (${formatFileSize(file.size)}) exceeds the 25MB limit.`,
+      error: `Unsupported file format (${extension}). Supported: PDF, Markdown, Text, Images.`,
+    };
+  }
+
+  // If no extension is present, validate against accepted MIME types
+  if (!extension && !isAcceptedMimeType(fileType)) {
+    return {
+      valid: false,
+      error: `Unsupported file format (${fileType || 'unknown'}). Supported: PDF, Markdown, Text, Images.`,
+    };
+  }
+
+  const size = typeof file.size === 'number' ? file.size : 0;
+  if (size > MAX_MATERIAL_FILE_SIZE) {
+    return {
+      valid: false,
+      error: `File size (${formatFileSize(size)}) exceeds the 25MB limit.`,
     };
   }
 

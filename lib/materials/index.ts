@@ -1,4 +1,5 @@
 export * from './chunker';
+export * from './deletion';
 export * from './ingestion';
 export * from './inspection';
 export * from './intake';

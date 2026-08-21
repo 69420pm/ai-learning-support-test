@@ -13,6 +13,11 @@ export type RasterizeOptions = {
   maxDimension?: number;
   scale?: number;
   quality?: number;
+  onProgress?: (
+    completedPages: number,
+    totalPages: number,
+    currentPageNumber: number,
+  ) => Promise<void> | void;
 };
 
 const DEFAULT_MAX_DIMENSION = 1536;
@@ -64,7 +69,7 @@ export async function rasterizePdf(
   pdfBuffer: Buffer,
   options: RasterizeOptions = {},
 ): Promise<RasterizedPage[]> {
-  const { maxDimension = DEFAULT_MAX_DIMENSION, scale = DEFAULT_SCALE } = options;
+  const { maxDimension = DEFAULT_MAX_DIMENSION, scale = DEFAULT_SCALE, onProgress } = options;
 
   try {
     const [{ createCanvas }, pdfjs] = await Promise.all([
@@ -124,6 +129,10 @@ export async function rasterizePdf(
         height: meta.height || height,
         mimeType: 'image/png',
       });
+
+      if (onProgress) {
+        await onProgress(pageNum, numPages, pageNum);
+      }
     }
 
     return pages;
@@ -140,7 +149,7 @@ export async function rasterizeImage(
   imageBuffer: Buffer,
   options: RasterizeOptions = {},
 ): Promise<RasterizedPage[]> {
-  const { maxDimension = DEFAULT_MAX_DIMENSION } = options;
+  const { maxDimension = DEFAULT_MAX_DIMENSION, onProgress } = options;
 
   try {
     let sharpInstance = sharp(imageBuffer);
@@ -162,7 +171,7 @@ export async function rasterizeImage(
     const normalizedBuffer = await sharpInstance.png().toBuffer();
     const finalMeta = await sharp(normalizedBuffer).metadata();
 
-    return [
+    const pages = [
       {
         pageNumber: 1,
         imageBuffer: normalizedBuffer,
@@ -171,6 +180,12 @@ export async function rasterizeImage(
         mimeType: 'image/png',
       },
     ];
+
+    if (onProgress) {
+      await onProgress(1, 1, 1);
+    }
+
+    return pages;
   } catch (error) {
     if (error instanceof ChatbotError) {
       throw error;

@@ -406,26 +406,32 @@ Vector addition follows the parallelogram law.`;
   });
 
   describe('Multimodal PDF and Image Handling', () => {
-    it('rasterizes PDF, runs vision extraction, generates embeddings, and persists page-attributed chunks', async () => {
+    it('rasterizes PDF, runs vision extraction, generates embeddings, and persists page-attributed chunks with granular progress tracking', async () => {
       const fakePdfBuffer = Buffer.from('%PDF-1.4-sample');
       mockDownload.mockResolvedValueOnce(fakePdfBuffer);
 
-      mockRasterizeDocument.mockResolvedValueOnce([
-        {
-          pageNumber: 1,
-          imageBuffer: Buffer.from('page-1-bytes'),
-          width: 1024,
-          height: 768,
-          mimeType: 'image/png',
-        },
-        {
-          pageNumber: 2,
-          imageBuffer: Buffer.from('page-2-bytes'),
-          width: 1024,
-          height: 768,
-          mimeType: 'image/png',
-        },
-      ]);
+      mockRasterizeDocument.mockImplementationOnce(async (_buf, _type, _path, options) => {
+        if (options?.onProgress) {
+          await options.onProgress(1, 2, 1);
+          await options.onProgress(2, 2, 2);
+        }
+        return [
+          {
+            pageNumber: 1,
+            imageBuffer: Buffer.from('page-1-bytes'),
+            width: 1024,
+            height: 768,
+            mimeType: 'image/png',
+          },
+          {
+            pageNumber: 2,
+            imageBuffer: Buffer.from('page-2-bytes'),
+            width: 1024,
+            height: 768,
+            mimeType: 'image/png',
+          },
+        ];
+      });
 
       mockExtractMarkdownFromPages.mockImplementationOnce(async (_pages, { onProgress }) => {
         if (onProgress) {
@@ -446,9 +452,9 @@ Vector addition follows the parallelogram law.`;
       mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-pdf-1', status: 'ready' });
 
       const progressEvents: MaterialProgress[] = [];
-      const onProgress = (p: MaterialProgress) => {
-        progressEvents.push(p);
-      };
+      const onProgress = vi.fn((p: MaterialProgress) => {
+        progressEvents.push({ ...p });
+      });
 
       const result = await ingestMaterial(
         {
@@ -458,19 +464,23 @@ Vector addition follows the parallelogram law.`;
           storagePath: 'proj-1/slides.pdf',
           fileType: 'application/pdf',
         },
-        { onProgress, concurrency: 2 },
+        { onProgress, concurrency: 2, pageDelayMs: 50 },
       );
 
       expect(mockRasterizeDocument).toHaveBeenCalledWith(
         fakePdfBuffer,
         'application/pdf',
         'proj-1/slides.pdf',
+        expect.objectContaining({
+          onProgress: expect.any(Function),
+        }),
       );
 
       expect(mockExtractMarkdownFromPages).toHaveBeenCalledWith(
         expect.any(Array),
         expect.objectContaining({
           concurrency: 2,
+          pageDelayMs: 50,
           onProgress: expect.any(Function),
         }),
       );
@@ -496,9 +506,236 @@ Vector addition follows the parallelogram law.`;
 
       expect(result.pageCount).toBe(2);
       expect(result.chunkCount).toBe(2);
-      expect(progressEvents.some((e) => e.stage === 'rasterizing')).toBe(true);
-      expect(progressEvents.some((e) => e.stage === 'extracting_vision')).toBe(true);
+      expect(result.tokenCount).toBeGreaterThan(0);
+
+      // Verify all granular progress events across the lifecycle
+      const stages = progressEvents.map((e) => e.stage);
+      expect(stages).toContain('downloading');
+      expect(stages).toContain('rasterizing');
+      expect(stages).toContain('extracting_vision');
+      expect(stages).toContain('chunking');
+      expect(stages).toContain('embedding');
+      expect(stages).toContain('persisting');
+      expect(stages).toContain('completed');
+
+      // Verify rasterizing progress contains granular page info
+      const rasterProgress = progressEvents.filter((e) => e.stage === 'rasterizing');
+      expect(rasterProgress.length).toBeGreaterThanOrEqual(2);
+      expect(rasterProgress).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ stage: 'rasterizing', stagePercent: 15 }),
+          expect.objectContaining({
+            stage: 'rasterizing',
+            stagePercent: 20,
+            totalPages: 2,
+            currentPage: 1,
+            completedPages: 1,
+          }),
+          expect.objectContaining({
+            stage: 'rasterizing',
+            stagePercent: 25,
+            totalPages: 2,
+            currentPage: 2,
+            completedPages: 2,
+          }),
+        ]),
+      );
+
+      // Verify vision progress contains granular page info
+      const visionProgress = progressEvents.filter((e) => e.stage === 'extracting_vision');
+      expect(visionProgress.length).toBeGreaterThanOrEqual(2);
+      expect(visionProgress).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ stage: 'extracting_vision', stagePercent: 25 }),
+          expect.objectContaining({
+            stage: 'extracting_vision',
+            totalPages: 2,
+            currentPage: 1,
+            completedPages: 1,
+          }),
+          expect.objectContaining({
+            stage: 'extracting_vision',
+            totalPages: 2,
+            currentPage: 2,
+            completedPages: 2,
+          }),
+        ]),
+      );
+
+      // Verify DB updates include progress metadata
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-pdf-1',
+          status: 'processing',
+          metadata: expect.objectContaining({
+            progress: expect.objectContaining({
+              stage: 'rasterizing',
+            }),
+          }),
+        }),
+      );
+
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-pdf-1',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            pageCount: 2,
+            chunkCount: 2,
+            progress: expect.objectContaining({
+              stage: 'completed',
+              stagePercent: 100,
+              totalPages: 2,
+              completedPages: 2,
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('processes image documents (.png, .jpg) through multimodal pipeline', async () => {
+      const fakeImageBuffer = Buffer.from('fake-png-bytes');
+      mockDownload.mockResolvedValueOnce(fakeImageBuffer);
+
+      mockRasterizeDocument.mockImplementationOnce(async (_buf, _type, _path, options) => {
+        if (options?.onProgress) {
+          await options.onProgress(1, 1, 1);
+        }
+        return [
+          {
+            pageNumber: 1,
+            imageBuffer: Buffer.from('normalized-img'),
+            width: 800,
+            height: 600,
+            mimeType: 'image/png',
+          },
+        ];
+      });
+
+      mockExtractMarkdownFromPages.mockImplementationOnce(async (_pages, { onProgress }) => {
+        if (onProgress) {
+          await onProgress(1, 1, 1);
+        }
+        return [
+          {
+            pageNumber: 1,
+            markdown: '# Architecture Diagram\n\n```mermaid\ngraph LR\n  A --> B\n```',
+          },
+        ];
+      });
+
+      mockGenerateEmbeddings.mockResolvedValueOnce([new Array(768).fill(0.05)]);
+      mockInsertMaterialChunks.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-img-1', status: 'ready' });
+
+      const progressEvents: MaterialProgress[] = [];
+      const onProgress = (p: MaterialProgress) => {
+        progressEvents.push({ ...p });
+      };
+
+      const result = await ingestMaterial(
+        {
+          materialId: 'mat-img-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/diagram.png',
+          fileType: 'image/png',
+        },
+        { onProgress },
+      );
+
+      expect(mockRasterizeDocument).toHaveBeenCalledWith(
+        fakeImageBuffer,
+        'image/png',
+        'proj-1/diagram.png',
+        expect.any(Object),
+      );
+
+      expect(result.pageCount).toBe(1);
+      expect(result.chunkCount).toBe(1);
+      expect(mockInsertMaterialChunks).toHaveBeenCalledWith([
+        expect.objectContaining({
+          materialId: 'mat-img-1',
+          chunkIndex: 0,
+          metadata: expect.objectContaining({
+            pageNumber: 1,
+            heading: 'Architecture Diagram',
+          }),
+        }),
+      ]);
       expect(progressEvents[progressEvents.length - 1].stage).toBe('completed');
+    });
+
+    it('handles empty multimodal documents with zero rasterized pages gracefully', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('empty-doc'));
+      mockRasterizeDocument.mockResolvedValueOnce([]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-empty-pdf', status: 'ready' });
+
+      const result = await ingestMaterial({
+        materialId: 'mat-empty-pdf',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/empty.pdf',
+        fileType: 'application/pdf',
+      });
+
+      expect(result).toEqual({ chunkCount: 0, tokenCount: 0, pageCount: 0 });
+      expect(mockExtractMarkdownFromPages).not.toHaveBeenCalled();
+      expect(mockGenerateEmbeddings).not.toHaveBeenCalled();
+      expect(mockInsertMaterialChunks).not.toHaveBeenCalled();
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-empty-pdf',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            pageCount: 0,
+            chunkCount: 0,
+            tokenCount: 0,
+          }),
+        }),
+      );
+    });
+
+    it('handles empty vision extraction results without crashing', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('blank-pages-doc'));
+      mockRasterizeDocument.mockResolvedValueOnce([
+        {
+          pageNumber: 1,
+          imageBuffer: Buffer.from('blank-img'),
+          width: 800,
+          height: 600,
+          mimeType: 'image/png',
+        },
+      ]);
+      mockExtractMarkdownFromPages.mockResolvedValueOnce([
+        {
+          pageNumber: 1,
+          markdown: '   ',
+        },
+      ]);
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-blank-pdf', status: 'ready' });
+
+      const result = await ingestMaterial({
+        materialId: 'mat-blank-pdf',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        storagePath: 'proj-1/blank.pdf',
+        fileType: 'application/pdf',
+      });
+
+      expect(result).toEqual({ chunkCount: 0, tokenCount: 0, pageCount: 1 });
+      expect(mockGenerateEmbeddings).not.toHaveBeenCalled();
+      expect(mockInsertMaterialChunks).not.toHaveBeenCalled();
+      expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: 'mat-blank-pdf',
+          status: 'ready',
+          metadata: expect.objectContaining({
+            pageCount: 1,
+            chunkCount: 0,
+          }),
+        }),
+      );
     });
 
     it('records error with stage "rasterizing" when PDF rasterization fails', async () => {
@@ -524,6 +761,36 @@ Vector addition follows the parallelogram law.`;
           metadata: expect.objectContaining({
             error: expect.objectContaining({
               message: 'Invalid PDF format',
+              stage: 'rasterizing',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('records error with stage "rasterizing" when image rasterization fails', async () => {
+      mockDownload.mockResolvedValueOnce(Buffer.from('corrupted-image-stream'));
+      mockRasterizeDocument.mockRejectedValueOnce(new Error('Failed to rasterize image'));
+      mockUpdateMaterialStatus.mockResolvedValue({ id: 'mat-err-img-rast', status: 'failed' });
+
+      await expect(
+        ingestMaterial({
+          materialId: 'mat-err-img-rast',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          storagePath: 'proj-1/corrupt.png',
+          fileType: 'image/png',
+        }),
+      ).rejects.toThrow('Failed to rasterize image');
+
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mat-err-img-rast',
+          status: 'failed',
+          errorMessage: 'Failed to rasterize image',
+          metadata: expect.objectContaining({
+            error: expect.objectContaining({
+              message: 'Failed to rasterize image',
               stage: 'rasterizing',
             }),
           }),

@@ -200,6 +200,9 @@ This is the second chapter discussing linear transformations.`;
         fakePdfBuffer,
         'application/pdf',
         'proj-1/lecture.pdf',
+        expect.objectContaining({
+          onProgress: expect.any(Function),
+        }),
       );
 
       // Verify vision extraction was called with progress callback

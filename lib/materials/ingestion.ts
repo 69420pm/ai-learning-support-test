@@ -96,8 +96,27 @@ async function processMultimodalMaterial(
 ): Promise<IngestMaterialResult> {
   const { materialId, projectId, userId, storagePath, fileType } = input;
 
-  await reportProgress('rasterizing', 15, { totalPages: 0, currentPage: 0 });
-  const pages = await rasterizeDocument(buffer, fileType, storagePath);
+  await reportProgress('rasterizing', 15, {
+    totalPages: 0,
+    currentPage: 0,
+    completedPages: 0,
+  });
+
+  const pages = await rasterizeDocument(buffer, fileType, storagePath, {
+    onProgress: async (completed, total, currentPageNumber) => {
+      const stagePercent = 15 + Math.floor((completed / Math.max(1, total)) * 10);
+      await reportProgress(
+        'rasterizing',
+        stagePercent,
+        {
+          totalPages: total,
+          currentPage: currentPageNumber,
+          completedPages: completed,
+        },
+        { pageCount: total },
+      );
+    },
+  });
 
   if (pages.length === 0) {
     return await markCompleted(
@@ -110,7 +129,11 @@ async function processMultimodalMaterial(
   await reportProgress(
     'extracting_vision',
     25,
-    { totalPages: pages.length, currentPage: 0 },
+    {
+      totalPages: pages.length,
+      currentPage: 0,
+      completedPages: 0,
+    },
     { pageCount: pages.length },
   );
 
@@ -119,34 +142,28 @@ async function processMultimodalMaterial(
     concurrency: options?.concurrency,
     pageDelayMs: options?.pageDelayMs,
     onProgress: async (completed, total, currentPageNumber) => {
-      const stagePercent = 25 + Math.floor((completed / total) * 45);
-      const prog: MaterialProgress = {
-        stage: 'extracting_vision',
+      const stagePercent = 25 + Math.floor((completed / Math.max(1, total)) * 45);
+      await reportProgress(
+        'extracting_vision',
         stagePercent,
-        totalPages: total,
-        currentPage: currentPageNumber,
-        completedPages: completed,
-      };
-
-      if (options?.onProgress) {
-        await options.onProgress(prog);
-      }
-
-      await updateMaterialStatus({
-        id: materialId,
-        status: 'processing',
-        metadata: {
-          pageCount: total,
-          progress: prog,
+        {
+          totalPages: total,
+          currentPage: currentPageNumber,
+          completedPages: completed,
         },
-      });
+        { pageCount: total },
+      );
     },
   });
 
   await reportProgress(
     'chunking',
     75,
-    { totalPages: pages.length, currentPage: pages.length },
+    {
+      totalPages: pages.length,
+      currentPage: pages.length,
+      completedPages: pages.length,
+    },
     { pageCount: pages.length },
   );
 
@@ -162,7 +179,11 @@ async function processMultimodalMaterial(
   await reportProgress(
     'embedding',
     85,
-    { totalPages: pages.length, currentPage: pages.length },
+    {
+      totalPages: pages.length,
+      currentPage: pages.length,
+      completedPages: pages.length,
+    },
     { pageCount: pages.length, chunkCount: chunks.length },
   );
 
@@ -172,7 +193,11 @@ async function processMultimodalMaterial(
   await reportProgress(
     'persisting',
     95,
-    { totalPages: pages.length, currentPage: pages.length },
+    {
+      totalPages: pages.length,
+      currentPage: pages.length,
+      completedPages: pages.length,
+    },
     { pageCount: pages.length, chunkCount: chunks.length },
   );
 

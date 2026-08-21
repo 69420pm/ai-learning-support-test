@@ -302,7 +302,8 @@ export async function registerMaterialIngestWorker(boss: PgBoss): Promise<void> 
         await processMaterialIngest(job.data);
       } catch (err) {
         console.error(`Job ${job.id} failed:`, err);
-        throw err;
+        // Do not re-throw: status is already persisted as 'failed' in DB,
+        // preventing cascading retry storms from consuming API quotas.
       }
     }
   });

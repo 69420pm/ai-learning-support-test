@@ -35,6 +35,7 @@ build/
 Thumbs.db
 
 # Local Data / SQLite Databases
+data/
 .data/
 *.db
 *.db-journal

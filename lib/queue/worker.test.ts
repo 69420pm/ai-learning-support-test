@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { processMaterialIngest } from './worker';
+import { processMaterialIngest, registerMaterialIngestWorker } from './worker';
 
 const mockUpdateMaterialStatus = vi.fn();
 const mockInsertMaterialChunks = vi.fn();
@@ -404,6 +404,47 @@ This is the second chapter discussing linear transformations.`;
           }),
         }),
       );
+    });
+
+    it('registerMaterialIngestWorker catches job errors without re-throwing to pg-boss', async () => {
+      let workHandler:
+        | ((
+            jobs: Array<{ id: string; data: import('./boss').MaterialIngestJobData }>,
+          ) => Promise<void>)
+        | null = null;
+      const mockBoss = {
+        work: vi.fn().mockImplementation((_queue, handler) => {
+          workHandler = handler;
+          return Promise.resolve();
+        }),
+      };
+
+      await registerMaterialIngestWorker(mockBoss as unknown as import('pg-boss').PgBoss);
+      expect(mockBoss.work).toHaveBeenCalled();
+      expect(workHandler).not.toBeNull();
+
+      mockDownload.mockRejectedValueOnce(new Error('Download failed'));
+      mockUpdateMaterialStatus.mockResolvedValueOnce({ id: 'mat-retry-test', status: 'failed' });
+
+      // Executing work handler must not throw, preventing pg-boss retry loop
+      const handler = workHandler as unknown as (
+        jobs: Array<{ id: string; data: import('./boss').MaterialIngestJobData }>,
+      ) => Promise<void>;
+
+      await expect(
+        handler([
+          {
+            id: 'job-1',
+            data: {
+              materialId: 'mat-retry-test',
+              projectId: 'p1',
+              userId: 'u1',
+              storagePath: 'bad.pdf',
+              fileType: 'application/pdf',
+            },
+          },
+        ]),
+      ).resolves.not.toThrow();
     });
   });
 });

@@ -19,7 +19,7 @@ This research resolves the question: **What is the optimal, cost-effective, and 
 
 Adopt a **Two-Stage "Vision-to-Structured-Markdown + Standard 768d Text Embedding" Pipeline**:
 1. **Stage 1 (Vision Normalization & Structural Transcription):** Ingested pages/slides/images are rasterized and preprocessed in pure Node.js (`sharp` + `pdfjs-dist` / `officeparser`), then transcribed into rich, semantic Markdown via a fast Vision-LLM (Cloud: **Gemini 2.5/3.5 Flash** / **Gemini 3.5 Flash-Lite**; Local: **Ollama Qwen2.5-VL / Llama 3.2 Vision**). Diagrams and mindmaps are converted into explicit Markdown headings, bullet hierarchies, and `mermaid` syntax.
-2. **Stage 2 (Semantic Chunking & 768d Dense Embedding):** The structured Markdown is parsed with Markdown-aware semantic chunkers and embedded into standard **768-dimension vectors** (Cloud: Google `text-embedding-004` or `gemini-embedding-2` with MRL-768; Local: Ollama `nomic-embed-text` / `bge-base-en-v1.5`).
+2. **Stage 2 (Semantic Chunking & 768d Dense Embedding):** The structured Markdown is parsed with Markdown-aware semantic chunkers and embedded into standard **768-dimension vectors** (Cloud: Google `gemini-embedding-001` or `gemini-embedding-2` with MRL-768; Local: Ollama `nomic-embed-text` / `bge-base-en-v1.5`).
 3. **Stage 3 (Downstream GraphRAG Readiness):** The resulting structured Markdown chunks populate the PostgreSQL `chunks` table, providing immediate full-text search (`tsvector`), vector similarity search (`vector(768)` via `pgvector`), and high-fidelity text inputs ready for downstream LLM entity and relationship extraction without reprocessing raw images.
 
 ---
@@ -55,7 +55,7 @@ flowchart TD
 | **Material Types Handled** | PDF, PPTX, Images, Handwriting, Diagrams, Mindmaps, Mixed Layouts | Images, PDF page screenshots | PDFs, academic articles, tables (weak on handwriting/mindmaps) | PDF pages, image slides |
 | **Diagram & Mindmap Preservation** | **Exceptional** (converts spatial node connections to Mermaid / structured hierarchies) | **Moderate** (captures holistic visual sense, loses fine sub-concept associations) | **Poor to Moderate** (crops as raw images without semantic textual description) | **High** (indexes visual layout patches) |
 | **Handwriting OCR Quality** | **Exceptional** (Gemini / Qwen2.5-VL excel at unconstrained handwriting) | **Low** (cannot query specific handwritten keywords) | **Poor** (Surya / Tesseract struggle with cursive/slanted handwriting) | **Moderate** |
-| **768-Dim Vector Invariant ([ADR 0007](file:///workspaces/secure-ai-learning-support/docs/adr/0007-dual-mode-hosted-saas-and-local-privacy-deployment.md))** | **100% Compatible** (`text-embedding-004` / `nomic-embed-text` = 768d) | **Partially** (`gemini-embedding-2` supports 768d MRL; `multimodalembedding@001` is fixed at 1408d) | **100% Compatible** (if secondary embedding model is used) | **Incompatible** (~1024 patch vectors per page; requires multi-vector MaxSim scoring) |
+| **768-Dim Vector Invariant ([ADR 0007](file:///workspaces/secure-ai-learning-support/docs/adr/0007-dual-mode-hosted-saas-and-local-privacy-deployment.md))** | **100% Compatible** (`gemini-embedding-001` / `nomic-embed-text` = 768d) | **Partially** (`gemini-embedding-2` supports 768d MRL; `multimodalembedding@001` is fixed at 1408d) | **100% Compatible** (if secondary embedding model is used) | **Incompatible** (~1024 patch vectors per page; requires multi-vector MaxSim scoring) |
 | **GraphRAG Readiness** | **Immediate** (produces clean Markdown text with entity tags for entity extraction) | **Impossible without separate OCR** (vector alone cannot feed text extraction prompts) | **Good** (produces Markdown for text/tables, fails for visual flowcharts) | **Impossible without separate OCR** (no structured text produced) |
 | **Keyword / Hybrid Search** | **Full Support** (Postgres `tsvector` + `pgvector` hybrid search) | **None** (pure dense vector only) | **Full Support** | **None** (requires ColBERT engine) |
 | **Runtime Dependencies** | **Zero Python** (pure Node.js + Vercel AI SDK / Ollama HTTP) | **Zero Python** (Cloud API SDK) | **Heavy Python** (PyTorch, CUDA, Surya, C++ OCR engines) | **Heavy Python / Dedicated GPU** (Vespa or ColBERT-PG) |
@@ -94,7 +94,7 @@ sequenceDiagram
     participant Queue as lib/queue (pg-boss Worker)
     participant Engine as lib/materials/rasterizer (sharp / pdfjs)
     participant Vision as lib/ai (Gemini Flash / Ollama VLM)
-    participant Embed as lib/ai (text-embedding-004 / nomic)
+    participant Embed as lib/ai (gemini-embedding-001 / nomic)
     participant DB as lib/db (PostgreSQL + pgvector)
 
     User->>API: Upload Material (PDF / PPTX / Image)
@@ -132,8 +132,9 @@ Modern vision LLMs utilize dynamic image tiling. For Gemini (1.5/2.0/2.5/3.5 Fla
 | :--- | :--- | :--- | :--- | :--- |
 | **Gemini 3.5 Flash-Lite (Vision)** | $0.075 / 1M in, $0.30 / 1M out | $0.0375 / 1M in, $0.15 / 1M out | **$0.000165** | **$0.165** |
 | **Gemini 3.5 Flash (Vision)** | $0.150 / 1M in, $0.60 / 1M out | $0.0750 / 1M in, $0.30 / 1M out | **$0.000330** | **$0.330** |
-| **Google `text-embedding-004` (768d)** | $0.020 / 1M characters | N/A | **$0.000030** | **$0.030** |
+| **Google `gemini-embedding-001` (768d)** | $0.020 / 1M characters | N/A | **$0.000030** | **$0.030** |
 | **Total Ingestion Cost (Cloud SaaS)** | — | — | **~$0.00020** | **~$0.195** |
+
 | **Local Privacy Mode (Ollama)** | Local Compute / $0.00 | Local Compute / $0.00 | **$0.000000** | **$0.000** |
 
 > [!NOTE]
@@ -193,7 +194,7 @@ flowchart LR
     subgraph Cloud SaaS Target
         Detect -->|Cloud Mode| G_VLM[Gemini 3.5 Flash-Lite Vision]
         G_VLM --> G_MD[Structured Markdown]
-        G_MD --> G_EMB[Google text-embedding-004 768d]
+        G_MD --> G_EMB[Google gemini-embedding-001 768d]
     end
 
     subgraph Local Privacy Target

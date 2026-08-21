@@ -20,21 +20,21 @@ export type GetLanguageModelOptions = {
 };
 
 export const DEFAULT_PROVIDER: ProviderName = 'google';
-export const DEFAULT_MODEL_ID = 'gemini-3.7-flash';
+export const DEFAULT_MODEL_ID = 'gemini-3.5-flash-lite';
 
 export const SUPPORTED_MODELS: ModelOption[] = [
-  {
-    id: 'gemini-3.7-flash',
-    name: 'Gemini 3.7 Flash',
-    provider: 'google',
-    description: 'Fast & versatile model for multimodal tasks',
-    badge: 'Default',
-  },
   {
     id: 'gemini-3.5-flash-lite',
     name: 'Gemini 3.5 Flash-Lite',
     provider: 'google',
     description: 'Ultra-fast, lightweight model for high-throughput tasks',
+    badge: 'Default',
+  },
+  {
+    id: 'gemini-3.7-flash',
+    name: 'Gemini 3.7 Flash',
+    provider: 'google',
+    description: 'Fast & versatile model for multimodal tasks',
   },
   {
     id: 'qwen2.5-vl',

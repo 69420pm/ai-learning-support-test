@@ -4,7 +4,7 @@ import { type EmbeddingModel, embedMany } from 'ai';
 import { MockEmbeddingModelV4 } from 'ai/test';
 
 export const EMBEDDING_DIMENSIONS = 768;
-export const DEFAULT_EMBEDDING_MODEL_ID = 'text-embedding-004';
+export const DEFAULT_EMBEDDING_MODEL_ID = 'gemini-embedding-001';
 
 export type GetEmbeddingModelOptions = {
   provider?: 'google' | 'openai';
@@ -39,9 +39,9 @@ export function getEmbeddingModel(options: GetEmbeddingModelOptions = {}): Embed
 
   if (provider === 'google') {
     if (apiKey) {
-      return createGoogle({ apiKey }).textEmbeddingModel(modelId);
+      return createGoogle({ apiKey }).embedding(modelId);
     }
-    return google.textEmbeddingModel(modelId);
+    return google.embedding(modelId);
   }
 
   if (provider === 'openai') {
@@ -66,6 +66,14 @@ export async function generateEmbeddings(
   const result = await embedMany({
     model,
     values: texts,
+    providerOptions: {
+      google: {
+        outputDimensionality: EMBEDDING_DIMENSIONS,
+      },
+      openai: {
+        dimensions: EMBEDDING_DIMENSIONS,
+      },
+    },
   });
 
   return result.embeddings;

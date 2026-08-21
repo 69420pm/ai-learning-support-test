@@ -28,7 +28,7 @@ To eliminate duplicate code paths and schema drift, both deployment targets adhe
 
 1. **Standardized 768-Dimension Vector Embeddings**:
    * All vector columns in `pgvector` schemas are fixed at **768 dimensions**.
-   * The specific embedding model remains open and configurable (e.g., Google `text-embedding-004`, Ollama `nomic-embed-text`, BAAI `bge-base-en-v1.5`), ensuring database schemas and HNSW vector indexes remain invariant across cloud and local setups without dynamic SQL migrations.
+   * The specific embedding model remains open and configurable (e.g., Google `gemini-embedding-001` (768d MRL), Ollama `nomic-embed-text`, BAAI `bge-base-en-v1.5`), ensuring database schemas and HNSW vector indexes remain invariant across cloud and local setups without dynamic SQL migrations.
 
 2. **Unified Drizzle Data Model**:
    * Relational schemas, queries, and migrations in `lib/db` are 100% identical. The initial migration provisions an `auth` schema placeholder in standalone PostgreSQL to guarantee foreign key integrity with zero code changes.

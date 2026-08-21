@@ -11,6 +11,7 @@ export type MaterialIngestJobData = {
 };
 
 let bossInstance: PgBoss | null = null;
+let startPromise: Promise<PgBoss | null> | null = null;
 
 export function getPgBoss(): PgBoss {
   if (bossInstance) {
@@ -32,15 +33,23 @@ export function getPgBoss(): PgBoss {
 }
 
 export async function startQueue(): Promise<PgBoss | null> {
-  try {
-    const boss = getPgBoss();
+  if (startPromise) {
+    return await startPromise;
+  }
+
+  const boss = getPgBoss();
+
+  startPromise = (async () => {
     await boss.start();
     await boss.createQueue(MATERIAL_INGEST_QUEUE);
     return boss;
-  } catch (error) {
+  })().catch((error) => {
     console.error('Failed to start pg-boss queue:', error);
+    startPromise = null;
     return null;
-  }
+  });
+
+  return await startPromise;
 }
 
 export async function stopQueue(): Promise<void> {
@@ -51,19 +60,20 @@ export async function stopQueue(): Promise<void> {
       console.error('Error stopping pg-boss queue:', error);
     } finally {
       bossInstance = null;
+      startPromise = null;
     }
   }
 }
 
 export async function sendIngestJob(data: MaterialIngestJobData): Promise<string | null> {
   try {
-    const boss = getPgBoss();
-    // If not started yet, start it
-    if (!boss.isMaintaining) {
-      await boss.start();
-      await boss.createQueue(MATERIAL_INGEST_QUEUE);
+    const boss = await startQueue();
+    if (!boss) {
+      throw new Error('pg-boss queue is not available');
     }
-    const jobId = await boss.send(MATERIAL_INGEST_QUEUE, data);
+    const jobId = await boss.send(MATERIAL_INGEST_QUEUE, data, {
+      retryLimit: 0,
+    });
     return jobId;
   } catch (error) {
     console.error('Failed to dispatch material ingest job:', error);

@@ -1,4 +1,3 @@
-import { createCanvas } from '@napi-rs/canvas';
 import sharp from 'sharp';
 import { ChatbotError } from '@/lib/errors';
 
@@ -68,7 +67,10 @@ export async function rasterizePdf(
   const { maxDimension = DEFAULT_MAX_DIMENSION, scale = DEFAULT_SCALE } = options;
 
   try {
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const [{ createCanvas }, pdfjs] = await Promise.all([
+      import('@napi-rs/canvas'),
+      import('pdfjs-dist/legacy/build/pdf.mjs'),
+    ]);
     const uint8 = new Uint8Array(pdfBuffer);
     const loadingTask = pdfjs.getDocument({
       data: uint8,

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChatbotError } from '@/lib/errors';
 import { DELETE, GET } from './route';
 
 const mockGetUser = vi.fn();
@@ -15,14 +16,17 @@ vi.mock('@/lib/db/queries/project', () => ({
   getProjectById: (...args: unknown[]) => mockGetProjectById(...args),
 }));
 
+const mockInspectMaterialContent = vi.fn();
+vi.mock('@/lib/materials', () => ({
+  inspectMaterialContent: (...args: unknown[]) => mockInspectMaterialContent(...args),
+}));
+
 const mockGetMaterialById = vi.fn();
 const mockDeleteMaterialById = vi.fn();
-const mockGetMaterialChunksByMaterialId = vi.fn();
 const mockDeleteMaterialChunksByMaterialId = vi.fn();
 vi.mock('@/lib/db/queries/material', () => ({
   getMaterialById: (...args: unknown[]) => mockGetMaterialById(...args),
   deleteMaterialById: (...args: unknown[]) => mockDeleteMaterialById(...args),
-  getMaterialChunksByMaterialId: (...args: unknown[]) => mockGetMaterialChunksByMaterialId(...args),
   deleteMaterialChunksByMaterialId: (...args: unknown[]) =>
     mockDeleteMaterialChunksByMaterialId(...args),
 }));
@@ -49,6 +53,8 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
       });
 
       expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.code).toBe('unauthorized:chat');
     });
 
     it('returns 404 when project does not exist for user', async () => {
@@ -61,65 +67,55 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
       });
 
       expect(response.status).toBe(404);
+      expect(mockGetProjectById).toHaveBeenCalledWith({ id: 'proj-1', userId: 'user-1' });
     });
 
-    it('returns 404 when material does not exist', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
-      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
-      mockGetMaterialById.mockResolvedValueOnce(null);
-
-      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
-      const response = await GET(request, {
-        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
-      });
-
-      expect(response.status).toBe(404);
-    });
-
-    it('returns 200 with material metadata and chunk list', async () => {
+    it('delegates to inspectMaterialContent and returns 200 with material, chunks, and content', async () => {
       mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
 
-      const mockMaterial = {
-        id: 'mat-1',
-        projectId: 'proj-1',
-        userId: 'user-1',
-        title: 'Quantum Computing Notes',
-        filename: 'quantum.pdf',
-        fileType: 'application/pdf',
-        fileSize: 2048,
-        storagePath: 'proj-1/quantum.pdf',
-        status: 'ready',
-        metadata: { pageCount: 2, chunkCount: 2, tokenCount: 250 },
-        createdAt: '2026-08-20T17:00:00.000Z',
+      const mockInspectionResult = {
+        material: {
+          id: 'mat-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          title: 'Quantum Computing Notes',
+          filename: 'quantum.pdf',
+          fileType: 'application/pdf',
+          fileSize: 2048,
+          storagePath: 'proj-1/quantum.pdf',
+          status: 'ready' as const,
+          metadata: { pageCount: 2, chunkCount: 2, tokenCount: 250 },
+          createdAt: new Date('2026-08-20T17:00:00.000Z'),
+        },
+        chunks: [
+          {
+            id: 'chunk-1',
+            materialId: 'mat-1',
+            projectId: 'proj-1',
+            userId: 'user-1',
+            chunkIndex: 0,
+            content: '## Section 1: Qubits\nQubits can exist in superposition.',
+            tokenCount: 120,
+            metadata: { pageNumber: 1 },
+            createdAt: new Date('2026-08-20T17:01:00.000Z'),
+          },
+          {
+            id: 'chunk-2',
+            materialId: 'mat-1',
+            projectId: 'proj-1',
+            userId: 'user-1',
+            chunkIndex: 1,
+            content: '## Section 2: Entanglement\nQuantum entanglement connects particles.',
+            tokenCount: 130,
+            metadata: { pageNumber: 2 },
+            createdAt: new Date('2026-08-20T17:01:01.000Z'),
+          },
+        ],
+        content:
+          '## Section 1: Qubits\nQubits can exist in superposition.\n\n## Section 2: Entanglement\nQuantum entanglement connects particles.',
       };
-      mockGetMaterialById.mockResolvedValueOnce(mockMaterial);
-
-      const mockChunks = [
-        {
-          id: 'chunk-1',
-          materialId: 'mat-1',
-          projectId: 'proj-1',
-          userId: 'user-1',
-          chunkIndex: 0,
-          content: '## Section 1: Qubits\nQubits can exist in superposition.',
-          tokenCount: 120,
-          metadata: { pageNumber: 1 },
-          createdAt: '2026-08-20T17:01:00.000Z',
-        },
-        {
-          id: 'chunk-2',
-          materialId: 'mat-1',
-          projectId: 'proj-1',
-          userId: 'user-1',
-          chunkIndex: 1,
-          content: '## Section 2: Entanglement\nQuantum entanglement connects particles.',
-          tokenCount: 130,
-          metadata: { pageNumber: 2 },
-          createdAt: '2026-08-20T17:01:01.000Z',
-        },
-      ];
-      mockGetMaterialChunksByMaterialId.mockResolvedValueOnce(mockChunks);
+      mockInspectMaterialContent.mockResolvedValueOnce(mockInspectionResult);
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
       const response = await GET(request, {
@@ -128,10 +124,85 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
 
       expect(response.status).toBe(200);
       const json = await response.json();
-      expect(json.material).toEqual(mockMaterial);
-      expect(json.chunks).toEqual(mockChunks);
+      expect(json.material.id).toBe('mat-1');
+      expect(json.chunks).toHaveLength(2);
       expect(json.content).toContain('## Section 1: Qubits');
       expect(json.content).toContain('## Section 2: Entanglement');
+
+      expect(mockInspectMaterialContent).toHaveBeenCalledWith({
+        materialId: 'mat-1',
+        projectId: 'proj-1',
+        userId: 'user-1',
+      });
+    });
+
+    it('maps not_found domain ChatbotError from inspectMaterialContent to 404 response', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockInspectMaterialContent.mockRejectedValueOnce(
+        new ChatbotError('not_found:document', 'Material not found.'),
+      );
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
+      const response = await GET(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(404);
+      const json = await response.json();
+      expect(json.code).toBe('not_found:document');
+      expect(json.cause).toBe('Material not found.');
+    });
+
+    it('maps forbidden domain ChatbotError from inspectMaterialContent to 403 response', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockInspectMaterialContent.mockRejectedValueOnce(
+        new ChatbotError('forbidden:document', 'This document belongs to another user.'),
+      );
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
+      const response = await GET(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(403);
+      const json = await response.json();
+      expect(json.code).toBe('forbidden:document');
+      expect(json.cause).toBe('This document belongs to another user.');
+    });
+
+    it('maps bad_request domain ChatbotError from inspectMaterialContent to 400 response', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockInspectMaterialContent.mockRejectedValueOnce(
+        new ChatbotError('bad_request:document', 'Invalid inspection request parameters.'),
+      );
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
+      const response = await GET(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.code).toBe('bad_request:document');
+      expect(json.cause).toBe('Invalid inspection request parameters.');
+    });
+
+    it('returns 400 bad_request:api when an unexpected error occurs during inspection', async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
+      mockInspectMaterialContent.mockRejectedValueOnce(new Error('Unexpected DB timeout'));
+
+      const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
+      const response = await GET(request, {
+        params: Promise.resolve({ id: 'proj-1', materialId: 'mat-1' }),
+      });
+
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.code).toBe('bad_request:api');
     });
   });
 

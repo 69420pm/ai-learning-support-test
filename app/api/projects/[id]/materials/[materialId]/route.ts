@@ -2,10 +2,10 @@ import {
   deleteMaterialById,
   deleteMaterialChunksByMaterialId,
   getMaterialById,
-  getMaterialChunksByMaterialId,
 } from '@/lib/db/queries/material';
 import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
+import { inspectMaterialContent } from '@/lib/materials';
 import { getStorageDriver } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/server';
 
@@ -32,13 +32,11 @@ export async function GET(
       return new ChatbotError('not_found:chat', 'Project not found').toResponse();
     }
 
-    const material = await getMaterialById({ id: materialId, projectId, userId: user.id });
-    if (!material) {
-      return new ChatbotError('not_found:document', 'Material not found').toResponse();
-    }
-
-    const chunks = await getMaterialChunksByMaterialId({ materialId });
-    const content = chunks.map((chunk) => chunk.content).join('\n\n');
+    const { material, chunks, content } = await inspectMaterialContent({
+      materialId,
+      projectId,
+      userId: user.id,
+    });
 
     return Response.json({ material, chunks, content }, { status: 200 });
   } catch (error) {

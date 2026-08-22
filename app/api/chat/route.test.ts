@@ -253,6 +253,7 @@ describe('Chat API Handler (/api/chat)', () => {
             parts: [{ type: 'text', text: 'Search materials for gradient descent' }],
           },
           provider: 'google',
+          apiKey: 'custom-byok-key',
         }),
       });
 
@@ -274,6 +275,8 @@ describe('Chat API Handler (/api/chat)', () => {
           userId: testUser.id,
           projectId,
           dataStream: expect.anything(),
+          provider: 'google',
+          apiKey: 'custom-byok-key',
         }),
       );
     });

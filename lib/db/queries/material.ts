@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, gte, sql } from 'drizzle-orm';
-import { generateEmbeddings } from '@/lib/ai/embedding';
 import { db } from '@/lib/db';
 import {
   type Material,
@@ -214,10 +213,12 @@ export async function deleteMaterialChunksByMaterialId({
   }
 }
 
+export const DEFAULT_CHUNK_SEARCH_LIMIT = 5;
+export const DEFAULT_SIMILARITY_THRESHOLD = 0.4;
+
 export type SearchMaterialChunksParams = {
   projectId: string;
-  query?: string;
-  embedding?: number[];
+  embedding: number[];
   limit?: number;
   threshold?: number;
 };
@@ -237,23 +238,24 @@ export type MaterialChunkSearchResult = {
 
 export async function searchMaterialChunks({
   projectId,
-  query,
   embedding,
-  limit = 5,
-  threshold = 0.4,
+  limit = DEFAULT_CHUNK_SEARCH_LIMIT,
+  threshold = DEFAULT_SIMILARITY_THRESHOLD,
 }: SearchMaterialChunksParams): Promise<MaterialChunkSearchResult[]> {
   try {
-    let targetVector = embedding;
-    if (!targetVector && query && query.trim().length > 0) {
-      const embeddings = await generateEmbeddings([query.trim()]);
-      targetVector = embeddings[0];
-    }
-
-    if (!targetVector || targetVector.length === 0) {
+    if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
       return [];
     }
 
-    const vectorStr = `[${targetVector.join(',')}]`;
+    if (!projectId || typeof projectId !== 'string' || projectId.trim().length === 0) {
+      return [];
+    }
+
+    const safeLimit =
+      Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : DEFAULT_CHUNK_SEARCH_LIMIT;
+    const safeThreshold = Number.isFinite(threshold) ? threshold : DEFAULT_SIMILARITY_THRESHOLD;
+
+    const vectorStr = `[${embedding.join(',')}]`;
     const similaritySql = sql<number>`1 - (${materialChunks.embedding} <=> ${vectorStr}::vector)`;
 
     const rows = await db
@@ -271,9 +273,9 @@ export async function searchMaterialChunks({
       })
       .from(materialChunks)
       .innerJoin(materials, eq(materialChunks.materialId, materials.id))
-      .where(and(eq(materialChunks.projectId, projectId), gte(similaritySql, threshold)))
+      .where(and(eq(materialChunks.projectId, projectId.trim()), gte(similaritySql, safeThreshold)))
       .orderBy(desc(similaritySql))
-      .limit(Math.max(1, limit));
+      .limit(safeLimit);
 
     return rows.map((row) => ({
       ...row,

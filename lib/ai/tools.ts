@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { generateEmbeddings } from '@/lib/ai/embedding';
 import { searchMaterialChunks } from '@/lib/db/queries/material';
 
 export const MAX_SEARCH_OUTPUT_CHARS = 8000;
@@ -105,9 +106,30 @@ export function createTools({ projectId, dataStream }: CreateToolsOptions) {
           };
         }
 
+        const embeddings = await generateEmbeddings([query.trim()]);
+        const embedding = embeddings[0];
+
+        if (!embedding || embedding.length === 0) {
+          dataStream?.write({
+            type: 'data-tool-status',
+            data: {
+              tool: 'searchProjectMaterials',
+              status: 'completed',
+              query,
+              resultCount: 0,
+            },
+          });
+
+          return {
+            query,
+            results: [],
+            totalResults: 0,
+          };
+        }
+
         const rawResults = await searchMaterialChunks({
           projectId,
-          query,
+          embedding,
           limit: 5,
           threshold: 0.4,
         });

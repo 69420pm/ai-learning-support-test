@@ -303,7 +303,9 @@ describe('Material DB Queries', () => {
   });
 
   describe('searchMaterialChunks', () => {
-    it('executes pgvector similarity search and returns matching chunks', async () => {
+    const sampleEmbedding = [0.05, -0.02, 0.12, 0.34];
+
+    it('executes cosine similarity vector search with deterministic numeric embedding and returns ranked results', async () => {
       const mockRows = [
         {
           id: 'chunk-1',
@@ -315,7 +317,19 @@ describe('Material DB Queries', () => {
           chunkIndex: 0,
           content: 'Fundamental theorem of calculus',
           metadata: { pageNumber: 1 },
-          similarity: 0.85,
+          similarity: 0.92,
+        },
+        {
+          id: 'chunk-2',
+          materialId: 'mat-1',
+          projectId: 'proj-1',
+          materialTitle: 'Calculus Notes',
+          filename: 'calc.pdf',
+          fileType: 'application/pdf',
+          chunkIndex: 1,
+          content: 'Definite and indefinite integrals',
+          metadata: { pageNumber: 2 },
+          similarity: 0.81,
         },
       ];
 
@@ -333,30 +347,167 @@ describe('Material DB Queries', () => {
 
       const results = await searchMaterialChunks({
         projectId: 'proj-1',
-        query: 'calculus theorem',
+        embedding: sampleEmbedding,
         limit: 5,
         threshold: 0.4,
       });
 
-      expect(results).toHaveLength(1);
+      expect(results).toHaveLength(2);
       expect(results[0].materialTitle).toBe('Calculus Notes');
-      expect(results[0].similarity).toBe(0.85);
+      expect(results[0].similarity).toBe(0.92);
       expect(results[0].metadata).toEqual({ pageNumber: 1 });
+      expect(results[1].similarity).toBe(0.81);
     });
 
-    it('supports direct embedding vector parameter', async () => {
+    it('uses default limit (5) and threshold (0.4) when optional parameters are omitted', async () => {
+      const mockLimit = vi.fn().mockResolvedValueOnce([]);
+      mockSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          innerJoin: vi.fn().mockReturnValueOnce({
+            where: vi.fn().mockReturnValueOnce({
+              orderBy: vi.fn().mockReturnValueOnce({
+                limit: mockLimit,
+              }),
+            }),
+          }),
+        }),
+      });
+
+      const results = await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: sampleEmbedding,
+      });
+
+      expect(results).toEqual([]);
+      expect(mockLimit).toHaveBeenCalledWith(5);
+    });
+
+    it('respects custom limit and threshold parameters', async () => {
+      const mockLimit = vi.fn().mockResolvedValueOnce([]);
+      mockSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          innerJoin: vi.fn().mockReturnValueOnce({
+            where: vi.fn().mockReturnValueOnce({
+              orderBy: vi.fn().mockReturnValueOnce({
+                limit: mockLimit,
+              }),
+            }),
+          }),
+        }),
+      });
+
+      await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: sampleEmbedding,
+        limit: 10,
+        threshold: 0.75,
+      });
+
+      expect(mockLimit).toHaveBeenCalledWith(10);
+    });
+
+    it('safely normalizes invalid or non-positive limit parameters to default', async () => {
+      const mockLimit = vi.fn().mockResolvedValue([]);
+      mockSelect.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: mockLimit,
+              }),
+            }),
+          }),
+        }),
+      });
+
+      await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: sampleEmbedding,
+        limit: -3,
+      });
+      expect(mockLimit).toHaveBeenLastCalledWith(5);
+
+      await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: sampleEmbedding,
+        limit: 0,
+      });
+      expect(mockLimit).toHaveBeenLastCalledWith(5);
+
+      await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: sampleEmbedding,
+        limit: Number.NaN,
+      });
+      expect(mockLimit).toHaveBeenLastCalledWith(5);
+    });
+
+    it('returns empty array when embedding is empty array or invalid without calling database', async () => {
+      const emptyResult = await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: [],
+      });
+      expect(emptyResult).toEqual([]);
+
+      const invalidResult = await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: null as unknown as number[],
+      });
+      expect(invalidResult).toEqual([]);
+
+      expect(mockSelect).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array when projectId is empty or whitespace without calling database', async () => {
+      const emptyProjectResult = await searchMaterialChunks({
+        projectId: '',
+        embedding: sampleEmbedding,
+      });
+      expect(emptyProjectResult).toEqual([]);
+
+      const whitespaceProjectResult = await searchMaterialChunks({
+        projectId: '   ',
+        embedding: sampleEmbedding,
+      });
+      expect(whitespaceProjectResult).toEqual([]);
+
+      expect(mockSelect).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array when no matches are found in database', async () => {
+      mockSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          innerJoin: vi.fn().mockReturnValueOnce({
+            where: vi.fn().mockReturnValueOnce({
+              orderBy: vi.fn().mockReturnValueOnce({
+                limit: vi.fn().mockResolvedValueOnce([]),
+              }),
+            }),
+          }),
+        }),
+      });
+
+      const results = await searchMaterialChunks({
+        projectId: 'proj-1',
+        embedding: sampleEmbedding,
+      });
+
+      expect(results).toEqual([]);
+    });
+
+    it('safely handles non-object metadata and string similarity conversion', async () => {
       const mockRows = [
         {
-          id: 'chunk-2',
-          materialId: 'mat-2',
+          id: 'chunk-3',
+          materialId: 'mat-3',
           projectId: 'proj-1',
-          materialTitle: 'Physics Notes',
-          filename: 'physics.pdf',
-          fileType: 'application/pdf',
-          chunkIndex: 2,
-          content: 'Newton laws of motion',
-          metadata: { pageNumber: 3 },
-          similarity: 0.72,
+          materialTitle: 'Notes',
+          filename: 'notes.txt',
+          fileType: 'text/plain',
+          chunkIndex: 0,
+          content: 'Sample raw content',
+          metadata: null,
+          similarity: '0.875' as unknown as number,
         },
       ];
 
@@ -372,34 +523,23 @@ describe('Material DB Queries', () => {
         }),
       });
 
-      const dummyEmbedding = new Array(768).fill(0.01);
       const results = await searchMaterialChunks({
         projectId: 'proj-1',
-        embedding: dummyEmbedding,
+        embedding: sampleEmbedding,
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0].materialTitle).toBe('Physics Notes');
-      expect(results[0].similarity).toBe(0.72);
+      expect(results[0].metadata).toEqual({});
+      expect(results[0].similarity).toBe(0.875);
     });
 
-    it('returns empty array when query is empty and no embedding is provided', async () => {
-      const results = await searchMaterialChunks({
-        projectId: 'proj-1',
-        query: '',
-      });
-
-      expect(results).toEqual([]);
-      expect(mockSelect).not.toHaveBeenCalled();
-    });
-
-    it('throws ChatbotError on database search failure', async () => {
+    it('throws ChatbotError on database search query failure', async () => {
       mockSelect.mockReturnValueOnce({
         from: vi.fn().mockReturnValueOnce({
           innerJoin: vi.fn().mockReturnValueOnce({
             where: vi.fn().mockReturnValueOnce({
               orderBy: vi.fn().mockReturnValueOnce({
-                limit: vi.fn().mockRejectedValueOnce(new Error('Vector index error')),
+                limit: vi.fn().mockRejectedValueOnce(new Error('pgvector index error')),
               }),
             }),
           }),
@@ -409,7 +549,7 @@ describe('Material DB Queries', () => {
       await expect(
         searchMaterialChunks({
           projectId: 'proj-1',
-          query: 'fail test',
+          embedding: sampleEmbedding,
         }),
       ).rejects.toThrow(ChatbotError);
     });

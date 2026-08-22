@@ -1,14 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatbotError } from '@/lib/errors';
-import { DELETE, PATCH } from './route';
+import { DELETE, GET, PATCH } from './route';
 
-const mockGetUser = vi.fn();
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(async () => ({
-    auth: {
-      getUser: mockGetUser,
-    },
-  })),
+const mockRequireAuthUser = vi.fn();
+vi.mock('@/lib/auth/session', () => ({
+  requireAuthUser: (...args: unknown[]) => mockRequireAuthUser(...args),
 }));
 
 const mockUpdateProjectName = vi.fn();
@@ -27,16 +23,55 @@ vi.mock('@/lib/materials', () => ({
 }));
 
 describe('Project Item API Route (/api/projects/[id])', () => {
-  const defaultUser = { id: 'user-1' };
+  const defaultUser = { id: 'user-1', email: 'test@example.com' };
   const defaultProject = { id: 'p1', userId: 'user-1', name: 'Math' };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  describe('GET /api/projects/[id]', () => {
+    it('returns 401 when unauthenticated', async () => {
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
+
+      const request = new Request('http://localhost:3000/api/projects/p1');
+      const response = await GET(request, { params: Promise.resolve({ id: 'p1' }) });
+
+      expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.code).toBe('unauthorized:chat');
+    });
+
+    it('returns 404 when project does not exist for user', async () => {
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
+      mockGetProjectById.mockResolvedValueOnce(null);
+
+      const request = new Request('http://localhost:3000/api/projects/p1');
+      const response = await GET(request, { params: Promise.resolve({ id: 'p1' }) });
+
+      expect(response.status).toBe(404);
+      const json = await response.json();
+      expect(json.code).toBe('not_found:chat');
+      expect(mockGetProjectById).toHaveBeenCalledWith({ id: 'p1', userId: 'user-1' });
+    });
+
+    it('returns project when authenticated and project exists', async () => {
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
+      mockGetProjectById.mockResolvedValueOnce(defaultProject);
+
+      const request = new Request('http://localhost:3000/api/projects/p1');
+      const response = await GET(request, { params: Promise.resolve({ id: 'p1' }) });
+
+      expect(response.status).toBe(200);
+      const json = await response.json();
+      expect(json.project).toEqual(defaultProject);
+      expect(mockGetProjectById).toHaveBeenCalledWith({ id: 'p1', userId: 'user-1' });
+    });
+  });
+
   describe('PATCH /api/projects/[id]', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/projects/p1', {
         method: 'PATCH',
@@ -46,10 +81,12 @@ describe('Project Item API Route (/api/projects/[id])', () => {
       const response = await PATCH(request, { params: Promise.resolve({ id: 'p1' }) });
 
       expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.code).toBe('unauthorized:chat');
     });
 
     it('returns 400 when name is invalid', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: defaultUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
 
       const request = new Request('http://localhost:3000/api/projects/p1', {
         method: 'PATCH',
@@ -62,7 +99,7 @@ describe('Project Item API Route (/api/projects/[id])', () => {
     });
 
     it('updates project and returns 200', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: defaultUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       const updated = { id: 'p1', name: 'Updated Name', userId: defaultUser.id };
       mockUpdateProjectName.mockResolvedValueOnce(updated);
 
@@ -86,16 +123,18 @@ describe('Project Item API Route (/api/projects/[id])', () => {
 
   describe('DELETE /api/projects/[id]', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/projects/p1', { method: 'DELETE' });
       const response = await DELETE(request, { params: Promise.resolve({ id: 'p1' }) });
 
       expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.code).toBe('unauthorized:chat');
     });
 
     it('returns 404 when project does not exist or does not belong to user', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: defaultUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/projects/p1', { method: 'DELETE' });
@@ -111,7 +150,7 @@ describe('Project Item API Route (/api/projects/[id])', () => {
     });
 
     it('purges storage blobs and deletes project database record in order, returning 200', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: defaultUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(defaultProject);
 
       const callOrder: string[] = [];
@@ -149,7 +188,7 @@ describe('Project Item API Route (/api/projects/[id])', () => {
     });
 
     it('maps domain ChatbotError from storage purge to error response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: defaultUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(defaultProject);
       mockPurgeProjectMaterialsStorage.mockRejectedValueOnce(
         new ChatbotError('bad_request:document', 'A valid project ID is required.'),
@@ -166,7 +205,7 @@ describe('Project Item API Route (/api/projects/[id])', () => {
     });
 
     it('returns 400 bad_request:api when an unexpected error occurs during deletion', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: defaultUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(defaultProject);
       mockPurgeProjectMaterialsStorage.mockRejectedValueOnce(new Error('Unexpected network crash'));
 

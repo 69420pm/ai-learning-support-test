@@ -1,7 +1,7 @@
+import { requireAuthUser } from '@/lib/auth/session';
 import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
 import { deleteMaterial, inspectMaterialContent } from '@/lib/materials';
-import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
 
@@ -12,14 +12,7 @@ export async function GET(
 ) {
   try {
     const { id: projectId, materialId } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const project = await getProjectById({ id: projectId, userId: user.id });
     if (!project) {
@@ -48,14 +41,7 @@ export async function DELETE(
 ) {
   try {
     const { id: projectId, materialId } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const project = await getProjectById({ id: projectId, userId: user.id });
     if (!project) {

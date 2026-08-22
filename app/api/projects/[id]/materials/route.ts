@@ -1,8 +1,8 @@
+import { requireAuthUser } from '@/lib/auth/session';
 import { getMaterialsByProjectId } from '@/lib/db/queries/material';
 import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
 import { intakeMaterial } from '@/lib/materials';
-import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
 
@@ -10,14 +10,7 @@ export const maxDuration = 60;
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: projectId } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const project = await getProjectById({ id: projectId, userId: user.id });
     if (!project) {
@@ -38,14 +31,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: projectId } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const project = await getProjectById({ id: projectId, userId: user.id });
     if (!project) {

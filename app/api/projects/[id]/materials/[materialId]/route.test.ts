@@ -2,13 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatbotError } from '@/lib/errors';
 import { DELETE, GET } from './route';
 
-const mockGetUser = vi.fn();
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(async () => ({
-    auth: {
-      getUser: mockGetUser,
-    },
-  })),
+const mockRequireAuthUser = vi.fn();
+vi.mock('@/lib/auth/session', () => ({
+  requireAuthUser: (...args: unknown[]) => mockRequireAuthUser(...args),
 }));
 
 const mockGetProjectById = vi.fn();
@@ -24,13 +20,15 @@ vi.mock('@/lib/materials', () => ({
 }));
 
 describe('Project Single Material API Route (/api/projects/[id]/materials/[materialId])', () => {
+  const defaultUser = { id: 'user-1', email: 'test@example.com' };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('GET /api/projects/[id]/materials/[materialId]', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
       const response = await GET(request, {
@@ -43,7 +41,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('returns 404 when project does not exist for user', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1');
@@ -56,7 +54,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('delegates to inspectMaterialContent and returns 200 with material, chunks, and content', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
 
       const mockInspectionResult = {
@@ -122,7 +120,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('maps not_found domain ChatbotError from inspectMaterialContent to 404 response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockInspectMaterialContent.mockRejectedValueOnce(
         new ChatbotError('not_found:document', 'Material not found.'),
@@ -140,7 +138,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('maps forbidden domain ChatbotError from inspectMaterialContent to 403 response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockInspectMaterialContent.mockRejectedValueOnce(
         new ChatbotError('forbidden:document', 'This document belongs to another user.'),
@@ -158,7 +156,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('maps bad_request domain ChatbotError from inspectMaterialContent to 400 response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockInspectMaterialContent.mockRejectedValueOnce(
         new ChatbotError('bad_request:document', 'Invalid inspection request parameters.'),
@@ -176,7 +174,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('returns 400 bad_request:api when an unexpected error occurs during inspection', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockInspectMaterialContent.mockRejectedValueOnce(new Error('Unexpected DB timeout'));
 
@@ -193,7 +191,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
 
   describe('DELETE /api/projects/[id]/materials/[materialId]', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
         method: 'DELETE',
@@ -208,7 +206,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('returns 404 when project does not exist for user', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials/mat-1', {
@@ -225,7 +223,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('delegates to deleteMaterial domain function and returns 200 with success and materialId', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
 
       mockDeleteMaterial.mockResolvedValueOnce({
@@ -259,7 +257,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('maps not_found domain ChatbotError from deleteMaterial to 404 response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockDeleteMaterial.mockRejectedValueOnce(
         new ChatbotError('not_found:document', 'Material not found.'),
@@ -279,7 +277,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('maps forbidden domain ChatbotError from deleteMaterial to 403 response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockDeleteMaterial.mockRejectedValueOnce(
         new ChatbotError('forbidden:document', 'This document belongs to another user.'),
@@ -299,7 +297,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('maps bad_request domain ChatbotError from deleteMaterial to 400 response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockDeleteMaterial.mockRejectedValueOnce(
         new ChatbotError('bad_request:document', 'A valid material ID is required.'),
@@ -319,7 +317,7 @@ describe('Project Single Material API Route (/api/projects/[id]/materials/[mater
     });
 
     it('returns 400 bad_request:api when an unexpected error occurs during deletion', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', userId: 'user-1' });
       mockDeleteMaterial.mockRejectedValueOnce(new Error('Unexpected database failure'));
 

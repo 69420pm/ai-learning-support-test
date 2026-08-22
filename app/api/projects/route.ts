@@ -1,7 +1,7 @@
 import { z } from 'zod';
+import { requireAuthUser } from '@/lib/auth/session';
 import { createProject, getProjectsWithChatCount } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
-import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
 
@@ -12,14 +12,7 @@ const createProjectSchema = z.object({
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
 export async function GET(_request?: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const projects = await getProjectsWithChatCount({ userId: user.id });
     return Response.json({ projects }, { status: 200 });
@@ -34,14 +27,7 @@ export async function GET(_request?: Request) {
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const json = await request.json();
     const parsed = createProjectSchema.safeParse(json);

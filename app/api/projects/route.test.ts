@@ -1,13 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChatbotError } from '@/lib/errors';
 import { GET, POST } from './route';
 
-const mockGetUser = vi.fn();
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(async () => ({
-    auth: {
-      getUser: mockGetUser,
-    },
-  })),
+const mockRequireAuthUser = vi.fn();
+vi.mock('@/lib/auth/session', () => ({
+  requireAuthUser: (...args: unknown[]) => mockRequireAuthUser(...args),
 }));
 
 const mockGetProjectsWithChatCount = vi.fn();
@@ -25,17 +22,19 @@ describe('Projects API Route (/api/projects)', () => {
 
   describe('GET /api/projects', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/projects');
       const response = await GET(request);
 
       expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.code).toBe('unauthorized:chat');
     });
 
     it('returns projects list when authenticated', async () => {
-      const testUser = { id: 'user-1' };
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      const testUser = { id: 'user-1', email: 'test@example.com' };
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
       const mockProjects = [{ id: 'p1', name: 'Math', userId: 'user-1', chatCount: 2 }];
       mockGetProjectsWithChatCount.mockResolvedValueOnce(mockProjects);
 
@@ -51,7 +50,7 @@ describe('Projects API Route (/api/projects)', () => {
 
   describe('POST /api/projects', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/projects', {
         method: 'POST',
@@ -61,11 +60,13 @@ describe('Projects API Route (/api/projects)', () => {
       const response = await POST(request);
 
       expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.code).toBe('unauthorized:chat');
     });
 
     it('returns 400 when project name is empty or invalid', async () => {
-      const testUser = { id: 'user-1' };
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      const testUser = { id: 'user-1', email: 'test@example.com' };
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
 
       const request = new Request('http://localhost:3000/api/projects', {
         method: 'POST',
@@ -78,8 +79,8 @@ describe('Projects API Route (/api/projects)', () => {
     });
 
     it('creates project and returns 201 when valid', async () => {
-      const testUser = { id: 'user-1' };
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      const testUser = { id: 'user-1', email: 'test@example.com' };
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
       const mockCreated = { id: 'p1', name: 'Linear Algebra', userId: 'user-1' };
       mockCreateProject.mockResolvedValueOnce(mockCreated);
 

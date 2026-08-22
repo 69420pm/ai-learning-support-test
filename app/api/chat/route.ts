@@ -153,6 +153,8 @@ export async function POST(request: Request) {
           projectId: resolvedProjectId,
           dataStream,
           modelId,
+          provider,
+          apiKey,
         });
 
         const result = streamText({

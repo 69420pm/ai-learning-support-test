@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTools, type DataStreamWriter } from './tools';
 
-const mockSearchMaterialChunks = vi.fn();
-vi.mock('@/lib/db/queries/material', () => ({
-  searchMaterialChunks: (...args: unknown[]) => mockSearchMaterialChunks(...args),
-}));
+const mockRetrieveMaterials = vi.fn();
+vi.mock('@/lib/materials', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/materials')>();
+  return {
+    ...actual,
+    retrieveMaterials: (...args: unknown[]) => mockRetrieveMaterials(...args),
+  };
+});
 
 describe('AI Tools Registry (createTools)', () => {
   beforeEach(() => {
@@ -26,22 +30,26 @@ describe('AI Tools Registry (createTools)', () => {
       write: vi.fn(),
     };
 
-    const mockResults = [
-      {
-        id: 'chunk-1',
-        materialId: 'mat-1',
-        projectId: 'proj-1',
-        materialTitle: 'Biology 101',
-        filename: 'bio.pdf',
-        fileType: 'application/pdf',
-        chunkIndex: 0,
-        content: 'Mitochondria is the powerhouse of the cell.',
-        similarity: 0.88,
-        metadata: { pageNumber: 5 },
-      },
-    ];
+    const mockResult = {
+      query: 'mitochondria function',
+      results: [
+        {
+          id: 'chunk-1',
+          materialId: 'mat-1',
+          projectId: 'proj-1',
+          materialTitle: 'Biology 101',
+          filename: 'bio.pdf',
+          fileType: 'application/pdf',
+          pageNumber: 5,
+          chunkIndex: 0,
+          similarity: 0.88,
+          content: 'Mitochondria is the powerhouse of the cell.',
+        },
+      ],
+      totalResults: 1,
+    };
 
-    mockSearchMaterialChunks.mockResolvedValueOnce(mockResults);
+    mockRetrieveMaterials.mockResolvedValueOnce(mockResult);
 
     const tools = createTools({
       projectId: 'proj-1',
@@ -53,6 +61,12 @@ describe('AI Tools Registry (createTools)', () => {
       { query: 'mitochondria function' },
       { toolCallId: 'tc-1', messages: [], context: {} },
     );
+
+    expect(mockRetrieveMaterials).toHaveBeenCalledWith({
+      projectId: 'proj-1',
+      query: 'mitochondria function',
+      embeddingOptions: undefined,
+    });
 
     expect(mockDataStream.write).toHaveBeenCalledWith({
       type: 'data-tool-status',
@@ -73,72 +87,44 @@ describe('AI Tools Registry (createTools)', () => {
       },
     });
 
-    expect(output).toEqual({
-      query: 'mitochondria function',
-      results: [
-        {
-          materialId: 'mat-1',
-          materialTitle: 'Biology 101',
-          pageNumber: 5,
-          chunkIndex: 0,
-          similarity: 0.88,
-          content: 'Mitochondria is the powerhouse of the cell.',
-        },
-      ],
-      totalResults: 1,
-    });
+    expect(output).toEqual(mockResult);
   });
 
-  it('enforces 8,000 character output safety cap on combined chunk content', async () => {
-    const longText1 = 'A'.repeat(5000);
-    const longText2 = 'B'.repeat(5000);
+  it('passes BYOK credentials and embedding options to retrieveMaterials', async () => {
+    const mockDataStream: DataStreamWriter = {
+      write: vi.fn(),
+    };
 
-    mockSearchMaterialChunks.mockResolvedValueOnce([
-      {
-        id: 'chunk-1',
-        materialId: 'mat-1',
-        projectId: 'proj-1',
-        materialTitle: 'Doc 1',
-        filename: 'doc1.pdf',
-        fileType: 'application/pdf',
-        chunkIndex: 0,
-        content: longText1,
-        similarity: 0.9,
-        metadata: { pageNumber: 1 },
-      },
-      {
-        id: 'chunk-2',
-        materialId: 'mat-2',
-        projectId: 'proj-1',
-        materialTitle: 'Doc 2',
-        filename: 'doc2.pdf',
-        fileType: 'application/pdf',
-        chunkIndex: 1,
-        content: longText2,
-        similarity: 0.85,
-        metadata: { pageNumber: 2 },
-      },
-    ]);
+    mockRetrieveMaterials.mockResolvedValueOnce({
+      query: 'photosynthesis',
+      results: [],
+      totalResults: 0,
+    });
 
     const tools = createTools({
       projectId: 'proj-1',
       userId: 'user-1',
+      provider: 'google',
+      apiKey: 'test-google-api-key',
+      dataStream: mockDataStream,
     });
 
-    const output = (await tools.searchProjectMaterials.execute(
-      { query: 'test safety cap' },
+    await tools.searchProjectMaterials.execute(
+      { query: 'photosynthesis' },
       { toolCallId: 'tc-2', messages: [], context: {} },
-    )) as {
-      results: Array<{ content: string }>;
-    };
+    );
 
-    const totalChars = output.results.reduce((acc, r) => acc + r.content.length, 0);
-    expect(totalChars).toBeLessThanOrEqual(8000);
-    expect(output.results[0].content.length).toBe(5000);
-    expect(output.results[1].content.length).toBe(3000);
+    expect(mockRetrieveMaterials).toHaveBeenCalledWith({
+      projectId: 'proj-1',
+      query: 'photosynthesis',
+      embeddingOptions: {
+        provider: 'google',
+        apiKey: 'test-google-api-key',
+      },
+    });
   });
 
-  it('handles missing projectId gracefully', async () => {
+  it('handles missing projectId gracefully without calling retrieveMaterials', async () => {
     const mockDataStream: DataStreamWriter = { write: vi.fn() };
     const tools = createTools({
       userId: 'user-1',
@@ -152,12 +138,12 @@ describe('AI Tools Registry (createTools)', () => {
 
     expect(output.error).toContain('No project context');
     expect(output.results).toEqual([]);
-    expect(mockSearchMaterialChunks).not.toHaveBeenCalled();
+    expect(mockRetrieveMaterials).not.toHaveBeenCalled();
   });
 
   it('handles search failures and emits error status', async () => {
     const mockDataStream: DataStreamWriter = { write: vi.fn() };
-    mockSearchMaterialChunks.mockRejectedValueOnce(new Error('Vector search failed'));
+    mockRetrieveMaterials.mockRejectedValueOnce(new Error('Vector search failed'));
 
     const tools = createTools({
       projectId: 'proj-1',

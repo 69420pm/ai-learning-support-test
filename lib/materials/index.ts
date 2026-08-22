@@ -5,5 +5,6 @@ export * from './inspection';
 export * from './intake';
 export * from './purge';
 export * from './rasterizer';
+export * from './retrieval';
 export * from './validation';
 export * from './vision';

@@ -1,8 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { searchMaterialChunks } from '@/lib/db/queries/material';
-
-export const MAX_SEARCH_OUTPUT_CHARS = 8000;
+import type { GetEmbeddingModelOptions } from '@/lib/ai/embedding';
+import type { ProviderName } from '@/lib/ai/providers';
+import { retrieveMaterials, type SearchMaterialsResult } from '@/lib/materials';
 
 export type ToolStatusData =
   | {
@@ -37,47 +37,50 @@ export type CreateToolsOptions = {
   projectId?: string;
   dataStream?: DataStreamWriter;
   modelId?: string;
+  provider?: ProviderName;
+  apiKey?: string;
+  embeddingOptions?: GetEmbeddingModelOptions;
 };
 
-export function formatAndCapResults(
-  rawResults: Awaited<ReturnType<typeof searchMaterialChunks>>,
-  maxChars = MAX_SEARCH_OUTPUT_CHARS,
-) {
-  let remainingChars = maxChars;
-  const cappedResults = [];
+export type SearchProjectMaterialsResult =
+  | SearchMaterialsResult
+  | {
+      query: string;
+      results: unknown[];
+      error: string;
+    };
 
-  for (const item of rawResults) {
-    if (remainingChars <= 0) break;
+export type ProjectTools = {
+  searchProjectMaterials: ReturnType<typeof createSearchProjectMaterialsTool>;
+};
 
-    const metadata = item.metadata as Record<string, unknown>;
-    const pageNumber =
-      typeof metadata?.pageNumber === 'number' ? metadata.pageNumber : item.chunkIndex + 1;
-
-    const content = item.content || '';
-    let chunkText = content;
-
-    if (chunkText.length > remainingChars) {
-      chunkText = chunkText.slice(0, remainingChars);
-      remainingChars = 0;
-    } else {
-      remainingChars -= chunkText.length;
-    }
-
-    cappedResults.push({
-      materialId: item.materialId,
-      materialTitle: item.materialTitle,
-      pageNumber,
-      chunkIndex: item.chunkIndex,
-      similarity: Number(item.similarity.toFixed(2)),
-      content: chunkText,
-    });
+function resolveEmbeddingOptions(
+  options: Pick<CreateToolsOptions, 'provider' | 'apiKey' | 'embeddingOptions'>,
+): GetEmbeddingModelOptions | undefined {
+  if (options.embeddingOptions) {
+    return options.embeddingOptions;
   }
-
-  return cappedResults;
+  const { provider, apiKey } = options;
+  const isSupportedEmbeddingProvider = provider === 'google' || provider === 'openai';
+  if (!apiKey && !isSupportedEmbeddingProvider) {
+    return undefined;
+  }
+  return {
+    apiKey,
+    provider: isSupportedEmbeddingProvider ? provider : undefined,
+  };
 }
 
-export function createTools({ projectId, dataStream }: CreateToolsOptions) {
-  const searchProjectMaterials = tool({
+function createSearchProjectMaterialsTool({
+  projectId,
+  dataStream,
+  provider,
+  apiKey,
+  embeddingOptions,
+}: CreateToolsOptions) {
+  const resolvedEmbeddingOptions = resolveEmbeddingOptions({ provider, apiKey, embeddingOptions });
+
+  return tool({
     description:
       'Search through project-grounded course materials, lecture slides, textbooks, and notes for relevant concepts, explanations, diagrams, and citations.',
     inputSchema: z.object({
@@ -86,7 +89,7 @@ export function createTools({ projectId, dataStream }: CreateToolsOptions) {
         .min(1)
         .describe('The search query or concept keyword to search for in project materials'),
     }),
-    execute: async ({ query }: { query: string }) => {
+    execute: async ({ query }: { query: string }): Promise<SearchProjectMaterialsResult> => {
       try {
         dataStream?.write({
           type: 'data-tool-status',
@@ -105,14 +108,11 @@ export function createTools({ projectId, dataStream }: CreateToolsOptions) {
           };
         }
 
-        const rawResults = await searchMaterialChunks({
+        const searchResult = await retrieveMaterials({
           projectId,
           query,
-          limit: 5,
-          threshold: 0.4,
+          embeddingOptions: resolvedEmbeddingOptions,
         });
-
-        const cappedResults = formatAndCapResults(rawResults, MAX_SEARCH_OUTPUT_CHARS);
 
         dataStream?.write({
           type: 'data-tool-status',
@@ -120,15 +120,11 @@ export function createTools({ projectId, dataStream }: CreateToolsOptions) {
             tool: 'searchProjectMaterials',
             status: 'completed',
             query,
-            resultCount: cappedResults.length,
+            resultCount: searchResult.results.length,
           },
         });
 
-        return {
-          query,
-          results: cappedResults,
-          totalResults: cappedResults.length,
-        };
+        return searchResult;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown search error';
         dataStream?.write({
@@ -149,10 +145,10 @@ export function createTools({ projectId, dataStream }: CreateToolsOptions) {
       }
     },
   });
-
-  return {
-    searchProjectMaterials,
-  };
 }
 
-export type ProjectTools = ReturnType<typeof createTools>;
+export function createTools(options: CreateToolsOptions): ProjectTools {
+  return {
+    searchProjectMaterials: createSearchProjectMaterialsTool(options),
+  };
+}

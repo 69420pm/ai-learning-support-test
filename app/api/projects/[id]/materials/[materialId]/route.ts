@@ -1,12 +1,6 @@
-import {
-  deleteMaterialById,
-  deleteMaterialChunksByMaterialId,
-  getMaterialById,
-  getMaterialChunksByMaterialId,
-} from '@/lib/db/queries/material';
 import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
-import { getStorageDriver } from '@/lib/storage';
+import { deleteMaterial, inspectMaterialContent } from '@/lib/materials';
 import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
@@ -32,13 +26,11 @@ export async function GET(
       return new ChatbotError('not_found:chat', 'Project not found').toResponse();
     }
 
-    const material = await getMaterialById({ id: materialId, projectId, userId: user.id });
-    if (!material) {
-      return new ChatbotError('not_found:document', 'Material not found').toResponse();
-    }
-
-    const chunks = await getMaterialChunksByMaterialId({ materialId });
-    const content = chunks.map((chunk) => chunk.content).join('\n\n');
+    const { material, chunks, content } = await inspectMaterialContent({
+      materialId,
+      projectId,
+      userId: user.id,
+    });
 
     return Response.json({ material, chunks, content }, { status: 200 });
   } catch (error) {
@@ -70,29 +62,16 @@ export async function DELETE(
       return new ChatbotError('not_found:chat', 'Project not found').toResponse();
     }
 
-    const material = await getMaterialById({ id: materialId, projectId, userId: user.id });
-    if (!material) {
-      return new ChatbotError('not_found:document', 'Material not found').toResponse();
-    }
+    const result = await deleteMaterial({
+      materialId,
+      projectId,
+      userId: user.id,
+    });
 
-    // 1. Delete associated chunks
-    await deleteMaterialChunksByMaterialId({ materialId });
-
-    // 2. Delete database record
-    await deleteMaterialById({ id: materialId, projectId, userId: user.id });
-
-    // 3. Delete physical storage blob
-    try {
-      const storageDriver = getStorageDriver();
-      await storageDriver.delete(material.storagePath);
-    } catch (storageError) {
-      console.error(
-        `Failed to delete physical storage blob at ${material.storagePath}:`,
-        storageError,
-      );
-    }
-
-    return Response.json({ success: true, materialId }, { status: 200 });
+    return Response.json(
+      { success: result.success, materialId: result.materialId },
+      { status: 200 },
+    );
   } catch (error) {
     if (error instanceof ChatbotError) {
       return error.toResponse();

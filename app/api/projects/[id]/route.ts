@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { deleteProjectById, updateProjectName } from '@/lib/db/queries/project';
+import { deleteProjectById, getProjectById, updateProjectName } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
+import { purgeProjectMaterialsStorage } from '@/lib/materials';
 import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
@@ -57,16 +58,29 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return new ChatbotError('unauthorized:chat').toResponse();
     }
 
-    const deleted = await deleteProjectById({
+    const project = await getProjectById({
       id,
       userId: user.id,
     });
 
-    if (!deleted) {
+    if (!project) {
       return new ChatbotError('not_found:chat', 'Project not found').toResponse();
     }
 
-    return new Response('Project deleted successfully', { status: 200 });
+    await purgeProjectMaterialsStorage({
+      projectId: id,
+      userId: user.id,
+    });
+
+    await deleteProjectById({
+      id,
+      userId: user.id,
+    });
+
+    return Response.json(
+      { success: true, message: 'Project deleted successfully' },
+      { status: 200 },
+    );
   } catch (error) {
     if (error instanceof ChatbotError) {
       return error.toResponse();

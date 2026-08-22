@@ -1,8 +1,8 @@
 import { z } from 'zod';
+import { requireAuthUser } from '@/lib/auth/session';
 import { deleteProjectById, getProjectById, updateProjectName } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
 import { purgeProjectMaterialsStorage } from '@/lib/materials';
-import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
 
@@ -11,17 +11,34 @@ const updateProjectSchema = z.object({
 });
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const user = await requireAuthUser();
+
+    const project = await getProjectById({
+      id,
+      userId: user.id,
+    });
+
+    if (!project) {
+      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
+    }
+
+    return Response.json({ project }, { status: 200 });
+  } catch (error) {
+    if (error instanceof ChatbotError) {
+      return error.toResponse();
+    }
+    return new ChatbotError('bad_request:api').toResponse();
+  }
+}
+
+// biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const json = await request.json();
     const parsed = updateProjectSchema.safeParse(json);
@@ -49,14 +66,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const project = await getProjectById({
       id,

@@ -1,14 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChatbotError } from '@/lib/errors';
 import { GET } from './route';
 
 // Mock dependencies
-const mockGetUser = vi.fn();
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(async () => ({
-    auth: {
-      getUser: mockGetUser,
-    },
-  })),
+const mockRequireAuthUser = vi.fn();
+vi.mock('@/lib/auth/session', () => ({
+  requireAuthUser: (...args: unknown[]) => mockRequireAuthUser(...args),
 }));
 
 const mockGetChatsByUserId = vi.fn();
@@ -22,7 +19,7 @@ describe('History API Handler (/api/history)', () => {
   });
 
   it('returns 401 Unauthorized when session is unauthenticated', async () => {
-    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+    mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
     const request = new Request('http://localhost:3000/api/history');
     const response = await GET(request);
@@ -34,7 +31,7 @@ describe('History API Handler (/api/history)', () => {
 
   it('returns user chat history when authenticated', async () => {
     const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
-    mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+    mockRequireAuthUser.mockResolvedValueOnce(testUser);
     const mockChats = [
       { id: 'chat-1', userId: testUser.id, title: 'Chat 1', createdAt: new Date() },
       { id: 'chat-2', userId: testUser.id, title: 'Chat 2', createdAt: new Date() },
@@ -58,7 +55,7 @@ describe('History API Handler (/api/history)', () => {
 
   it('filters by projectId when query parameter is provided', async () => {
     const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
-    mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+    mockRequireAuthUser.mockResolvedValueOnce(testUser);
     const mockChats = [
       {
         id: 'chat-1',

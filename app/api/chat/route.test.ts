@@ -1,14 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChatbotError } from '@/lib/errors';
 import { DELETE, POST } from './route';
 
 // Mock dependencies
-const mockGetUser = vi.fn();
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(async () => ({
-    auth: {
-      getUser: mockGetUser,
-    },
-  })),
+const mockRequireAuthUser = vi.fn();
+vi.mock('@/lib/auth/session', () => ({
+  requireAuthUser: (...args: unknown[]) => mockRequireAuthUser(...args),
 }));
 
 const mockSaveChat = vi.fn();
@@ -84,7 +81,7 @@ describe('Chat API Handler (/api/chat)', () => {
 
   describe('POST /api/chat', () => {
     it('returns 401 Unauthorized when session is unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/chat', {
         method: 'POST',
@@ -119,7 +116,7 @@ describe('Chat API Handler (/api/chat)', () => {
     it('creates chat and streams response when authenticated', async () => {
       const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
       const projectId = '770e8400-e29b-41d4-a716-446655440000';
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
       mockGetChatById.mockResolvedValueOnce(null); // Chat does not exist yet
       mockGetProjectById.mockResolvedValueOnce({
         id: projectId,
@@ -182,7 +179,7 @@ describe('Chat API Handler (/api/chat)', () => {
 
     it('returns 400 if projectId is missing for a new chat', async () => {
       const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
       mockGetChatById.mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/chat', {
@@ -202,7 +199,7 @@ describe('Chat API Handler (/api/chat)', () => {
 
     it('returns 403 Forbidden if user tries to post to another user chat', async () => {
       const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
       mockGetChatById.mockResolvedValueOnce({
         id: '550e8400-e29b-41d4-a716-446655440000',
         userId: 'other-user-id',
@@ -227,7 +224,7 @@ describe('Chat API Handler (/api/chat)', () => {
     it('injects tools with strict projectId and user context during chat stream', async () => {
       const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
       const projectId = '770e8400-e29b-41d4-a716-446655440000';
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
       mockGetChatById.mockResolvedValueOnce(null);
       mockGetProjectById.mockResolvedValueOnce({
         id: projectId,
@@ -284,7 +281,7 @@ describe('Chat API Handler (/api/chat)', () => {
 
   describe('DELETE /api/chat', () => {
     it('returns 401 Unauthorized when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request(
         'http://localhost:3000/api/chat?id=550e8400-e29b-41d4-a716-446655440000',
@@ -299,7 +296,7 @@ describe('Chat API Handler (/api/chat)', () => {
 
     it('deletes chat when authenticated user owns it', async () => {
       const testUser = { id: 'user-uuid-123' };
-      mockGetUser.mockResolvedValueOnce({ data: { user: testUser }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
       mockGetChatById.mockResolvedValueOnce({
         id: '550e8400-e29b-41d4-a716-446655440000',
         userId: testUser.id,

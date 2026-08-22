@@ -10,6 +10,7 @@ import {
 import { systemPrompt, titlePrompt } from '@/lib/ai/prompts';
 import { getLanguageModel, getTitleModel, type ProviderName } from '@/lib/ai/providers';
 import { createTools } from '@/lib/ai/tools';
+import { requireAuthUser } from '@/lib/auth/session';
 import {
   deleteChatById,
   getChatById,
@@ -20,7 +21,6 @@ import {
 } from '@/lib/db/queries/chat';
 import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
-import { createClient } from '@/lib/supabase/server';
 import type { ChatMessage } from '@/lib/types';
 import { convertToUIMessages, generateUUID, getTextFromMessage } from '@/lib/utils';
 import { type PostRequestBody, postRequestBodySchema } from './schema';
@@ -121,14 +121,7 @@ export async function POST(request: Request) {
     const { id, message, messages, model, selectedChatModel, provider, apiKey, projectId } =
       requestBody;
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const modelId = model ?? selectedChatModel;
     const userMessage =
@@ -216,14 +209,7 @@ export async function DELETE(request: Request) {
       return new ChatbotError('bad_request:api').toResponse();
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const chat = await getChatById({ id, userId: user.id });
 

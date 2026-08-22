@@ -2,13 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatbotError } from '@/lib/errors';
 import { GET, POST } from './route';
 
-const mockGetUser = vi.fn();
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(async () => ({
-    auth: {
-      getUser: mockGetUser,
-    },
-  })),
+const mockRequireAuthUser = vi.fn();
+vi.mock('@/lib/auth/session', () => ({
+  requireAuthUser: (...args: unknown[]) => mockRequireAuthUser(...args),
 }));
 
 const mockGetProjectById = vi.fn();
@@ -27,13 +23,15 @@ vi.mock('@/lib/materials', () => ({
 }));
 
 describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
+  const defaultUser = { id: 'user-1', email: 'test@example.com' };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('GET /api/projects/[id]/materials', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials');
       const response = await GET(request, { params: Promise.resolve({ id: 'proj-1' }) });
@@ -44,7 +42,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('returns 404 when project does not exist for user', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/projects/proj-1/materials');
@@ -55,7 +53,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('returns 200 with list of materials for project', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',
@@ -79,7 +77,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('returns 400 when an unexpected error occurs during material query', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',
@@ -98,7 +96,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
 
   describe('POST /api/projects/[id]/materials', () => {
     it('returns 401 when unauthenticated', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+      mockRequireAuthUser.mockRejectedValueOnce(new ChatbotError('unauthorized:chat'));
 
       const formData = new FormData();
       formData.append('file', new File(['hello'], 'notes.md', { type: 'text/markdown' }));
@@ -115,7 +113,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('returns 404 when project does not exist or user is not owner', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(null);
 
       const formData = new FormData();
@@ -132,7 +130,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('returns 400 when no file is uploaded', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',
@@ -154,7 +152,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('returns 400 when file payload is a string instead of File', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',
@@ -176,7 +174,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('delegates to intakeMaterial with custom title and returns 201 on success', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',
@@ -220,7 +218,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('delegates to intakeMaterial without title (undefined) and returns 201 on success', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',
@@ -263,7 +261,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('maps domain ChatbotError from intakeMaterial to standard HTTP response', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',
@@ -296,7 +294,7 @@ describe('Project Materials API Route (/api/projects/[id]/materials)', () => {
     });
 
     it('returns 400 when an unexpected error occurs during upload intake', async () => {
-      mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+      mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce({
         id: 'proj-1',
         name: 'Calculus',

@@ -1,20 +1,13 @@
+import { requireAuthUser } from '@/lib/auth/session';
 import { getChatsByUserId } from '@/lib/db/queries/chat';
 import { ChatbotError } from '@/lib/errors';
-import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new ChatbotError('unauthorized:chat').toResponse();
-    }
+    const user = await requireAuthUser();
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId') || searchParams.get('project_id') || undefined;

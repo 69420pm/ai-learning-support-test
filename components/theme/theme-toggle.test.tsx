@@ -4,8 +4,13 @@ import { ThemeProvider } from './theme-provider';
 import { THEME_OPTIONS, ThemeToggle } from './theme-toggle';
 
 const mockSetTheme = vi.fn();
+const mockUpdateThemePreference = vi.fn().mockResolvedValue({ success: true, theme: 'dark' });
 let mockTheme = 'system';
 let mockResolvedTheme = 'light';
+
+vi.mock('@/app/actions/theme', () => ({
+  updateThemePreference: (theme: string) => mockUpdateThemePreference(theme),
+}));
 
 vi.mock('next-themes', () => ({
   useTheme: () => ({
@@ -108,6 +113,27 @@ describe('Theme Engine & Switching Components', () => {
         mockSetTheme(option.value);
         expect(mockSetTheme).toHaveBeenCalledWith(option.value);
       }
+    });
+
+    it('asynchronously persists theme changes via updateThemePreference server action', async () => {
+      mockUpdateThemePreference.mockResolvedValueOnce({ success: true, theme: 'dark' });
+      const { updateThemePreference } = await import('@/app/actions/theme');
+
+      const result = await updateThemePreference('dark');
+      expect(result).toEqual({ success: true, theme: 'dark' });
+      expect(mockUpdateThemePreference).toHaveBeenCalledWith('dark');
+    });
+
+    it('fails gracefully when updateThemePreference encounters errors', async () => {
+      mockUpdateThemePreference.mockRejectedValueOnce(new Error('Network error'));
+      const { updateThemePreference } = await import('@/app/actions/theme');
+
+      await expect(
+        updateThemePreference('light').catch((err) => {
+          expect(err.message).toBe('Network error');
+          return { success: false, error: err.message };
+        }),
+      ).resolves.toEqual({ success: false, error: 'Network error' });
     });
   });
 });

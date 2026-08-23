@@ -3,6 +3,7 @@
 import { Check, Laptop, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import * as React from 'react';
+import { type Theme, updateThemePreference } from '@/app/actions/theme';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -31,6 +32,13 @@ export function ThemeToggle({ className, align = 'end' }: ThemeToggleProps) {
     setMounted(true);
   }, []);
 
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+    void updateThemePreference(newTheme).catch(() => {
+      // Gracefully ignore network or background persistence errors on client
+    });
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -52,7 +60,7 @@ export function ThemeToggle({ className, align = 'end' }: ThemeToggleProps) {
           return (
             <DropdownMenuItem
               key={value}
-              onClick={() => setTheme(value)}
+              onClick={() => handleThemeChange(value)}
               className="flex items-center justify-between"
               data-active={isSelected ? 'true' : 'false'}
             >

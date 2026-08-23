@@ -10,12 +10,18 @@ describe('Drizzle Profiles Schema', () => {
     expect(schemaExports.authUsers).toBe(authUsers);
   });
 
-  it('defines correct profiles table structure', () => {
+  it('defines correct profiles table structure including theme preference', () => {
     expect(profiles.id).toBeDefined();
     expect(profiles.email).toBeDefined();
     expect(profiles.fullName).toBeDefined();
     expect(profiles.avatarUrl).toBeDefined();
+    expect(profiles.theme).toBeDefined();
+    expect(profiles.theme.default).toBe('system');
     expect(profiles.createdAt).toBeDefined();
     expect(profiles.updatedAt).toBeDefined();
+  });
+
+  it('exports themeEnum with system, light, and dark modes', () => {
+    expect(schemaExports.themeEnum).toEqual(['system', 'light', 'dark']);
   });
 });

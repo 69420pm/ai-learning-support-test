@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { signOut } from '@/lib/auth/actions';
+import { getInitials } from '@/lib/utils';
 
 export type UserNavProps = {
   user: {
@@ -26,15 +27,7 @@ export type UserNavProps = {
 export function UserNav({ user }: UserNavProps) {
   if (!user) return null;
 
-  const initials = user.fullName
-    ? user.fullName
-        .split(' ')
-        .filter(Boolean)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : user.email.slice(0, 2).toUpperCase();
+  const initials = getInitials(user.fullName, user.email);
 
   return (
     <DropdownMenu>
@@ -70,7 +63,11 @@ export function UserNav({ user }: UserNavProps) {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings" className="flex w-full items-center gap-2 cursor-pointer">
+            <Link
+              href="/settings"
+              className="flex w-full items-center gap-2 cursor-pointer"
+              data-testid="user-nav-settings"
+            >
               <Settings className="size-4" />
               Settings
             </Link>

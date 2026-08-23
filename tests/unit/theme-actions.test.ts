@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { themeSchema, updateThemePreference, updateThemeSchema } from '@/app/actions/theme';
+import { updateThemePreference } from '@/app/actions/theme';
 import * as authSession from '@/lib/auth/session';
 import * as profileQueries from '@/lib/db/queries/profile';
+import { themeSchema, updateThemeSchema } from '@/lib/theme/schema';
 
 // Mock auth session
 vi.mock('@/lib/auth/session', () => ({

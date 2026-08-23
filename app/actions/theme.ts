@@ -1,19 +1,10 @@
 'use server';
 
-import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth/session';
 import { updateProfileTheme } from '@/lib/db/queries/profile';
-import { type Theme, themeEnum } from '@/lib/db/schema/profiles';
+import { type Theme, type ThemeInput, updateThemeSchema } from '@/lib/theme/schema';
 
-export type { Theme };
-
-export const themeSchema = z.enum(themeEnum);
-
-export const updateThemeSchema = z.object({
-  theme: themeSchema,
-});
-
-export type ThemeInput = z.infer<typeof updateThemeSchema>;
+export type { Theme, ThemeInput };
 
 export type ThemeActionResult = {
   success: boolean;

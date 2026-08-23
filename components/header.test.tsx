@@ -17,7 +17,7 @@ vi.mock('@/components/theme/theme-toggle', () => ({
   ),
 }));
 
-vi.mock('@/components/auth/user-nav', () => ({
+vi.mock('@/components/user-nav', () => ({
   // biome-ignore lint/style/useNamingConvention: Component mock exports
   UserNav: ({ user }: { user: { email: string } }) => (
     <div data-testid="user-nav">{user.email}</div>

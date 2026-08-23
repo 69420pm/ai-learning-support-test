@@ -1,8 +1,8 @@
 import { BookOpen } from 'lucide-react';
 import Link from 'next/link';
-import { UserNav } from '@/components/auth/user-nav';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { UserNav } from '@/components/user-nav';
 import { getCurrentUser } from '@/lib/auth/session';
 
 export async function Header() {

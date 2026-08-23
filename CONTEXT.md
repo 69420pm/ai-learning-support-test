@@ -91,8 +91,16 @@ _Avoid_: RAG, vector search, semantic search
 A structured, goal-oriented study curriculum dynamically synthesized from ingested materials and learner objectives.
 _Avoid_: Course, syllabus, curriculum, roadmap
 
+**Exam Target**:
+A concrete learning milestone or formal assessment deadline within a Project that defines a required mastery scope and timeline.
+_Avoid_: Exam, goal, test, milestone, quiz deadline
+
+**Learner Knowledge State**:
+The per-project, topic-level probabilistic memory model tracking user comprehension, retrieval strength, and FSRS stability parameters.
+_Avoid_: Knowledge map, user profile, user memory, skill tree
+
 **FSRS (Free Spaced Repetition Scheduler)**:
-The mathematical model used to calculate memory stability, item difficulty, and optimal review intervals for spaced repetition flashcards.
+The mathematical model used to calculate memory stability, item difficulty, and optimal review intervals for spaced repetition flashcards and topic reviews.
 _Avoid_: Anki algorithm, SM-2, Leitner system, spaced rep algorithm
 
 **Feynman Audit**:
@@ -100,8 +108,22 @@ An active-learning exercise where the learner explains a concept in simple langu
 _Avoid_: Quiz, test, exam, comprehension check, oral exam
 
 **Guided Encoding**:
-An interactive prompt sequence that prompts the learner to elaborate, generate analogies, or self-test on material before review.
-_Avoid_: Tutoring, scaffolding, coaching
+An interactive, Socratic study mode that presents material in structured conceptual chunks with progressive scaffolding, visual diagrams, and immediate comprehension checks.
+_Avoid_: Tutoring, scaffolding, coaching, lecture mode
+
+**Active Practice**:
+A retrieval-focused study mode presenting multi-format problems (multiple-choice, calculations, conceptual applications) to stress-test retention without prior lecture scaffolding.
+_Avoid_: Homework, problem set, quiz, exam drill
+
+### Learner Profile & Configuration
+
+**Learner Profile**:
+The system-wide learner record (`profiles` table) tracking identity, display preferences, and platform configuration.
+_Avoid_: User account, user info, account details
+
+**Theme Mode**:
+The visual color scheme preference (`system`, `light`, `dark`) chosen by a learner or defaulted to match their operating system environment.
+_Avoid_: Color mode, dark theme setting, UI skin
 
 ### System & Sessions
 
@@ -110,5 +132,9 @@ A top-level organizational boundary (e.g. subject, course, or topic) that groups
 _Avoid_: Workspace, folder, subject, category, course
 
 **Study Session**:
-A focused learning interaction bounded by a specific material, topic, or pedagogical exercise (chat, flashcards, Feynman audit).
-_Avoid_: Chat session, lesson, class
+A discrete, state-managed learning interaction bounded by a specific material topic or exam target, executing either a Guided Encoding or Active Practice mode.
+_Avoid_: Chat session, lesson, class, learning session
+
+**Sidecar Chat**:
+An isolated conversational side-channel running alongside an active Study Session, allowing learners to ask immediate clarifying questions without polluting the core pedagogical state or history.
+_Avoid_: Quick chat, assistant sidebar, parallel prompt

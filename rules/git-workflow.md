@@ -50,18 +50,26 @@ When an epic is being executed across multiple plans:
 
 All issue management runs through GitHub Issues via the `gh` CLI as documented in [`docs/agents/issue-tracker.md`](file:///workspaces/secure-ai-learning-support/docs/agents/issue-tracker.md) and [`docs/agents/triage-labels.md`](file:///workspaces/secure-ai-learning-support/docs/agents/triage-labels.md):
 
+* **Native Hierarchy (Sub-issues)**:
+  - Create child tickets attached to a parent spec/epic: `gh issue create --parent <parent-number> ...`.
+  - Link or manage parents on existing issues: `gh issue edit <child-number> --parent <parent-number>` or `gh issue edit <parent-number> --add-sub-issue <child-numbers>`.
+  - Query parent/sub-issue structure: `gh issue view/list --json parent,subIssues,subIssuesSummary`.
+* **Native Dependencies (Blocking)**:
+  - Link blocking relationships natively: `gh issue create --blocked-by <numbers> ...` or `gh issue edit <child-number> --add-blocked-by <numbers>`.
+  - Query blocker state: `gh issue view/list --json blockedBy,blocking`.
 * **Wayfinding (`/wayfinder`)**:
   - Map issue created with `--label wayfinder:map`.
-  - Child tickets created with `--label wayfinder:<research|prototype|grilling|task>`.
-  - Dependency blocking uses GitHub's native issue dependencies (`gh api ... /dependencies/blocked_by`).
-  - Unblocked frontier queries filter for `issue_dependencies_summary.blocked_by == 0` and unassigned tickets.
+  - Child tickets created with `--parent <map-number> --label wayfinder:<research|prototype|grilling|task>`.
+  - Blocking wired natively via `--add-blocked-by <numbers>`.
+  - Unblocked frontier queries filter for tickets with no open `blockedBy` issues and no assignee.
 * **Vertical Slices (`/to-tickets` & `/implement`)**:
   - Publishes tracer-bullet issues with `ready-for-agent` label.
-  - Links blocking edges blockers-first.
+  - Linked to parent spec via `--parent <spec-number>` and dependencies via `--blocked-by <blocker-numbers>` in blockers-first order.
 * **Triage (`/triage`)**:
   - Evaluates incoming raw requests and assigns canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
 * **PR Linkage**:
   - Always link the corresponding issue in the PR summary using `Closes #<number>` or `Part of #<number>`.
+
 
 ---
 

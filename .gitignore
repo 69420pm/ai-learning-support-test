@@ -60,5 +60,5 @@ supabase/.temp/
 # Git Worktrees
 .worktrees/
 
-
-
+# Temp Files
+# .scratch/

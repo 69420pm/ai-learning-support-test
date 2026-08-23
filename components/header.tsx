@@ -1,6 +1,7 @@
 import { BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '@/components/auth/user-nav';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { getCurrentUser } from '@/lib/auth/session';
 
@@ -14,7 +15,8 @@ export async function Header() {
           <BookOpen className="size-5 text-primary" />
           <span>AI Learning Support</span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <ThemeToggle />
           {navUser ? (
             <div className="flex items-center gap-3">
               <UserNav user={navUser} />

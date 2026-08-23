@@ -47,3 +47,20 @@ export async function fetcher<T>(url: string): Promise<T> {
   }
   return res.json();
 }
+
+export function getInitials(name?: string, fallback = ''): string {
+  if (name && name.trim().length > 0) {
+    return name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }
+  if (fallback && fallback.trim().length > 0) {
+    return fallback.trim().slice(0, 2).toUpperCase();
+  }
+  return '';
+}

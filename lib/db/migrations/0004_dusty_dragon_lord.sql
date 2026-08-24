@@ -1,1 +1,0 @@
-ALTER TABLE "profiles" ADD COLUMN "theme" varchar(16) DEFAULT 'system' NOT NULL;

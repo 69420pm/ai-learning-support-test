@@ -15,12 +15,16 @@ The project is structured as a **Single Next.js Application Architecture** (App 
 - **Architectural decisions**: Read `docs/adr/` when making or checking foundational technology and boundary choices.
 - **Tech stack & docs**: Read `rules/tech-stack.md` when verifying package versions, imports, or official/local doc sources.
 - **Coding standards**: Read `rules/coding-style.md` when writing TypeScript types, thin API route controllers, or domain errors.
-- **UI & styling**: Read `rules/styling.md` when building UI components with Tailwind CSS, CVA, or Radix primitives.
+- **UI & styling**: Read `rules/styling.md` when building UI components with Tailwind CSS, CVA, Radix primitives, or translating Figma mockups.
 - **Testing**: Read `rules/testing.md` when writing Vitest unit tests, Playwright POMs, or mocking network boundaries.
 - **Git & PRs**: Read `rules/git-workflow.md` when creating branches, committing changes, or opening PRs.
 - **External repos**: Read `rules/external-repos.md` when referencing sibling codebases (`../chatbot`, `../opencode`).
 
 ## Agent skills
+
+### Figma & design-to-code
+
+Pair-designing UI mockups or translating Figma frames into code. See `.agents/skills/figma/SKILL.md`.
 
 ### Issue tracker
 

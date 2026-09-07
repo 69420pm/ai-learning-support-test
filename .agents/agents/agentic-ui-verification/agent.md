@@ -88,6 +88,24 @@ For each DoD item, perform the required interaction using `agent-browser` comman
 3. Read page content if needed: `agent-browser read`
 4. Evaluate against the DoD criterion
 
+### 4b. Figma Design Fidelity Audit (When Figma Link is Present)
+
+If the ticket, spec, or DoD includes a Figma frame link (`figma.com/design/...` or `figma.com/file/...`):
+
+1. Consult [`.agents/skills/figma/SKILL.md`](file:///workspaces/secure-ai-learning-support/.agents/skills/figma/SKILL.md) to inspect the target frame specifications and export the preview image.
+2. Set matching viewports to verify responsive layouts:
+   - Mobile: `agent-browser resize --width 375 --height 812`
+   - Desktop: `agent-browser resize --width 1280 --height 800`
+3. Capture annotated visual screenshots:
+   ```bash
+   agent-browser screenshot --annotate
+   ```
+4. Audit fidelity against [`rules/styling.md`](file:///workspaces/secure-ai-learning-support/rules/styling.md) Section 6:
+   - **Spacing & Alignment**: Gap and padding adhere to the 4px/8px auto-layout mapping.
+   - **Design Tokens**: All colors reflect semantic theme tokens (`bg-background`, `text-foreground`, `bg-primary`).
+   - **Primitives**: Standard UI elements map to `@/components/ui/*` (shadcn) rather than custom markup.
+   - **Dark Mode**: Visual contrast and styling hold up in `.dark`.
+
 ### 5. React-Level Verification
 
 Use React devtools introspection to check framework-level health:
@@ -125,6 +143,13 @@ Compare all observations against the DoD and produce a structured report:
 
 - [x] / [ ] <DoD item 1> — <observation>
 - [x] / [ ] <DoD item 2> — <observation>
+
+### Figma Fidelity (if applicable)
+
+- Status: PASS | FAIL | N/A
+- Spacing & Auto-Layout: <observation>
+- Design Tokens & Colors: <observation>
+- Component Primitives: <observation>
 
 ### Runtime Health
 

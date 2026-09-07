@@ -1,6 +1,8 @@
 import type { PgBoss } from 'pg-boss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  cleanupMaterialExtractedGraph,
+  getActiveProjectConceptNames,
   getKnowledgeComponentsByProjectId,
   insertExercises,
   insertKnowledgeDependencies,
@@ -24,6 +26,8 @@ vi.mock('@/lib/db/queries/knowledge', () => ({
   insertKnowledgeDependencies: vi.fn(),
   insertExercises: vi.fn(),
   getKnowledgeComponentsByProjectId: vi.fn(),
+  getActiveProjectConceptNames: vi.fn(),
+  cleanupMaterialExtractedGraph: vi.fn(),
 }));
 
 vi.mock('ai', async (importOriginal) => {
@@ -58,9 +62,13 @@ describe('Concept Graph Extraction Worker Job', () => {
   const mockInsertKd = vi.mocked(insertKnowledgeDependencies);
   const mockInsertExercises = vi.mocked(insertExercises);
   const mockGetKcsByProjectId = vi.mocked(getKnowledgeComponentsByProjectId);
+  const mockGetActiveProjectConceptNames = vi.mocked(getActiveProjectConceptNames);
+  const mockCleanupMaterialExtractedGraph = vi.mocked(cleanupMaterialExtractedGraph);
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetActiveProjectConceptNames.mockResolvedValue([]);
+    mockCleanupMaterialExtractedGraph.mockResolvedValue(undefined);
   });
 
   it('stitches chunks, extracts concepts/prereqs via generateObject, and updates status to ready', async () => {
@@ -547,5 +555,272 @@ describe('Concept Graph Extraction Worker Job', () => {
     await registerConceptGraphExtractWorker(mockBoss as unknown as PgBoss);
 
     expect(mockBoss.work).toHaveBeenCalledWith('concept-graph-extract', expect.any(Function));
+  });
+
+  it('atomically cleans up exercises and material-attributed dependencies before inserting fresh batches on re-extraction', async () => {
+    const { generateObject } = await import('ai');
+    const mockGenerateObject = vi.mocked(generateObject);
+
+    mockGetMaterialById.mockResolvedValueOnce({
+      id: 'mat-reextract',
+      projectId: 'proj-1',
+      userId: 'user-1',
+      title: 'Operating Systems Re-extract',
+      filename: 'os.md',
+      fileType: 'text/markdown',
+      fileSize: 100,
+      storagePath: 'proj-1/os.md',
+      status: 'ready',
+      errorMessage: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    mockGetMaterialChunks.mockResolvedValueOnce([
+      {
+        id: 'chunk-1',
+        materialId: 'mat-reextract',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: 'Processes and Threads',
+        tokenCount: 50,
+        embedding: null,
+        metadata: { pageNumber: 1 },
+        createdAt: new Date(),
+      },
+    ]);
+
+    mockGenerateObject.mockResolvedValueOnce({
+      object: {
+        concepts: [{ name: 'Process', pacerCategory: 'conceptual', bloomLevel: 2, aliases: [] }],
+        prerequisites: [],
+        exercises: [],
+      },
+    } as never);
+
+    mockUpsertKc.mockResolvedValueOnce([]);
+
+    await processGraphExtraction({
+      projectId: 'proj-1',
+      userId: 'user-1',
+      materialIds: ['mat-reextract'],
+    });
+
+    // Verify cleanup was invoked before generating object / inserting new records
+    expect(mockCleanupMaterialExtractedGraph).toHaveBeenCalledTimes(1);
+    expect(mockCleanupMaterialExtractedGraph).toHaveBeenCalledWith({
+      materialId: 'mat-reextract',
+      projectId: 'proj-1',
+    });
+  });
+
+  it('injects up to 500 existing active project concepts into extraction prompt for vocabulary grounding', async () => {
+    const { generateObject } = await import('ai');
+    const mockGenerateObject = vi.mocked(generateObject);
+
+    mockGetMaterialById.mockResolvedValueOnce({
+      id: 'mat-vocab',
+      projectId: 'proj-1',
+      userId: 'user-1',
+      title: 'Graph Algorithms',
+      filename: 'graphs.md',
+      fileType: 'text/markdown',
+      fileSize: 100,
+      storagePath: 'proj-1/graphs.md',
+      status: 'ready',
+      errorMessage: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    mockGetMaterialChunks.mockResolvedValueOnce([
+      {
+        id: 'chunk-1',
+        materialId: 'mat-vocab',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: 'Graph traversal algorithms.',
+        tokenCount: 20,
+        embedding: null,
+        metadata: { pageNumber: 1 },
+        createdAt: new Date(),
+      },
+    ]);
+
+    mockGetActiveProjectConceptNames.mockResolvedValueOnce([
+      'Depth First Search',
+      'Breadth First Search',
+      'Graph',
+    ]);
+
+    mockGenerateObject.mockResolvedValueOnce({
+      object: {
+        concepts: [
+          { name: 'Graph Traversal', pacerCategory: 'conceptual', bloomLevel: 2, aliases: [] },
+        ],
+        prerequisites: [],
+        exercises: [],
+      },
+    } as never);
+
+    mockUpsertKc.mockResolvedValueOnce([]);
+
+    await processGraphExtraction({
+      projectId: 'proj-1',
+      userId: 'user-1',
+      materialIds: ['mat-vocab'],
+    });
+
+    expect(mockGetActiveProjectConceptNames).toHaveBeenCalledWith({
+      projectId: 'proj-1',
+      limit: 500,
+    });
+
+    expect(mockGenerateObject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringMatching(
+          /Depth First Search[\s\S]*Breadth First Search[\s\S]*Reuse existing concept names whenever the text discusses a concept already in the vocabulary\. Only create a new concept name if the concept is genuinely distinct\./,
+        ),
+      }),
+    );
+  });
+
+  it('processes multiple materials sequentially so downstream materials ground against concepts extracted from earlier materials', async () => {
+    const { generateObject } = await import('ai');
+    const mockGenerateObject = vi.mocked(generateObject);
+
+    const callOrder: string[] = [];
+
+    mockGetMaterialById.mockImplementation(({ id }: { id: string }) => {
+      callOrder.push(`getMaterialById:${id}`);
+      return Promise.resolve({
+        id,
+        projectId: 'proj-1',
+        userId: 'user-1',
+        title: `Doc ${id}`,
+        filename: `${id}.md`,
+        fileType: 'text/markdown',
+        fileSize: 100,
+        storagePath: `proj-1/${id}.md`,
+        status: 'ready',
+        errorMessage: null,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    mockGetMaterialChunks.mockImplementation(({ materialId }: { materialId: string }) => {
+      callOrder.push(`getChunks:${materialId}`);
+      return Promise.resolve([
+        {
+          id: `chunk-${materialId}`,
+          materialId,
+          projectId: 'proj-1',
+          userId: 'user-1',
+          chunkIndex: 0,
+          content: `Content for ${materialId}`,
+          tokenCount: 20,
+          embedding: null,
+          metadata: { pageNumber: 1 },
+          createdAt: new Date(),
+        },
+      ]);
+    });
+
+    mockCleanupMaterialExtractedGraph.mockImplementation(
+      ({ materialId }: { materialId: string }) => {
+        callOrder.push(`cleanup:${materialId}`);
+        return Promise.resolve();
+      },
+    );
+
+    // Material 1 extraction finds 'Linear Search'
+    // Material 2 should see 'Linear Search' in vocabulary
+    mockGetActiveProjectConceptNames
+      .mockResolvedValueOnce([]) // for mat-1
+      .mockResolvedValueOnce(['Linear Search']); // for mat-2 (reflects mat-1 concepts)
+
+    mockGenerateObject
+      .mockImplementationOnce(() => {
+        callOrder.push('generateObject:mat-1');
+        return Promise.resolve({
+          object: {
+            concepts: [
+              { name: 'Linear Search', pacerCategory: 'procedural', bloomLevel: 2, aliases: [] },
+            ],
+            prerequisites: [],
+            exercises: [],
+          },
+        } as never);
+      })
+      .mockImplementationOnce(() => {
+        callOrder.push('generateObject:mat-2');
+        return Promise.resolve({
+          object: {
+            concepts: [
+              { name: 'Binary Search', pacerCategory: 'procedural', bloomLevel: 3, aliases: [] },
+            ],
+            prerequisites: [],
+            exercises: [],
+          },
+        } as never);
+      });
+
+    mockUpsertKc.mockImplementation((kcs) => {
+      callOrder.push(`upsertKc:${kcs[0]?.name}`);
+      return Promise.resolve([
+        {
+          id: `kc-${kcs[0]?.slug}`,
+          projectId: 'proj-1',
+          userId: 'user-1',
+          slug: kcs[0]?.slug ?? '',
+          name: kcs[0]?.name ?? '',
+          pacerCategory: 'procedural',
+          bloomLevel: 2,
+          aliases: [],
+          embedding: null,
+          sourceMaterialId: 'mat-1',
+          status: 'active',
+          orderIndex: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+    });
+
+    const result = await processGraphExtraction({
+      projectId: 'proj-1',
+      userId: 'user-1',
+      materialIds: ['mat-1', 'mat-2'],
+    });
+
+    expect(result.processedCount).toBe(2);
+
+    // Verify sequential execution order
+    expect(callOrder).toEqual([
+      'getMaterialById:mat-1',
+      'cleanup:mat-1',
+      'getChunks:mat-1',
+      'generateObject:mat-1',
+      'upsertKc:Linear Search',
+      'getMaterialById:mat-2',
+      'cleanup:mat-2',
+      'getChunks:mat-2',
+      'generateObject:mat-2',
+      'upsertKc:Binary Search',
+    ]);
+
+    // Verify mat-2's prompt included Linear Search
+    expect(mockGenerateObject).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        prompt: expect.stringContaining('Linear Search'),
+      }),
+    );
   });
 });

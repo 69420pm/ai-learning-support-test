@@ -11,6 +11,7 @@ import {
   Loader2,
   MoreVertical,
   Network,
+  RefreshCw,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -98,8 +99,11 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [isSyncingGraph, setIsSyncingGraph] = useState(false);
 
   const { materials, isLoading, mutate } = useMaterials(projectId);
+
+  const isExtractingGraph = materials.some(isMaterialExtractingGraph);
 
   const handleInspect = (materialId: string) => {
     setPreviewMaterialId(materialId);
@@ -109,6 +113,31 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
   const handleDeletePrompt = (material: MaterialItem) => {
     setDeleteTargetMaterial(material);
     setDeleteDialogOpen(true);
+  };
+
+  const handleSyncGraph = async () => {
+    setIsSyncingGraph(true);
+    setExtractError(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/graph/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({}));
+        throw new Error(
+          errorJson.cause || errorJson.message || 'Failed to trigger graph synchronization',
+        );
+      }
+
+      await mutate();
+    } catch (err: unknown) {
+      setExtractError(err instanceof Error ? err.message : 'Failed to synchronize graph');
+    } finally {
+      setIsSyncingGraph(false);
+    }
   };
 
   const handleExtractConcepts = async (materialId: string) => {
@@ -202,16 +231,34 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
             data-testid="material-file-input"
           />
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setUploadDialogOpen(true)}
-            data-testid="upload-material-button"
-          >
-            <Upload className="size-3" />
-            <span>Upload</span>
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              data-testid="sync-graph-button"
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              onClick={handleSyncGraph}
+              disabled={isExtractingGraph || isSyncingGraph}
+            >
+              {isExtractingGraph || isSyncingGraph ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3" />
+              )}
+              <span>Sync Graph</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setUploadDialogOpen(true)}
+              data-testid="upload-material-button"
+            >
+              <Upload className="size-3" />
+              <span>Upload</span>
+            </Button>
+          </div>
         </div>
 
         {/* Error Notice */}

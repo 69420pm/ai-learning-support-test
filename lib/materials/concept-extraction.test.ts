@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MaterialChunk } from '@/lib/db/schema';
 import {
   conceptExtractionSchema,
+  isMaterialExtractingGraph,
   linkExercisesToKcs,
   sanitizeExtractedGraph,
   sliceMaterialChunksIntoBatches,
@@ -571,6 +572,36 @@ describe('Concept Extraction Domain Logic', () => {
       expect(batches).toHaveLength(2);
       expect(batches[0].chunkIndices).toEqual([0]);
       expect(batches[1].chunkIndices).toEqual([1]);
+    });
+  });
+
+  describe('isMaterialExtractingGraph', () => {
+    it('returns true when metadata has status queued or extracting', () => {
+      expect(isMaterialExtractingGraph({ graphExtraction: { status: 'queued' } })).toBe(true);
+      expect(isMaterialExtractingGraph({ graphExtraction: { status: 'extracting' } })).toBe(true);
+      expect(isMaterialExtractingGraph({ graphExtraction: { status: 'ready' } })).toBe(false);
+      expect(isMaterialExtractingGraph({ graphExtraction: { status: 'failed' } })).toBe(false);
+      expect(isMaterialExtractingGraph({})).toBe(false);
+      expect(isMaterialExtractingGraph(null)).toBe(false);
+      expect(isMaterialExtractingGraph(undefined)).toBe(false);
+    });
+
+    it('returns true when passed material object containing metadata', () => {
+      expect(
+        isMaterialExtractingGraph({
+          id: 'mat-1',
+          status: 'ready',
+          metadata: { graphExtraction: { status: 'extracting' } },
+        }),
+      ).toBe(true);
+
+      expect(
+        isMaterialExtractingGraph({
+          id: 'mat-2',
+          status: 'ready',
+          metadata: { graphExtraction: { status: 'ready' } },
+        }),
+      ).toBe(false);
     });
   });
 });

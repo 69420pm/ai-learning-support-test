@@ -1,8 +1,10 @@
 import { generateObject, type LanguageModel } from 'ai';
 import type { PgBoss } from 'pg-boss';
-import { CONCEPT_GRAPH_EXTRACTION_PROMPT } from '@/lib/ai/prompts';
+import { buildConceptExtractionPrompt, CONCEPT_GRAPH_EXTRACTION_PROMPT } from '@/lib/ai/prompts';
 import { getLanguageModel } from '@/lib/ai/providers';
 import {
+  cleanupMaterialExtractedGraph,
+  getActiveProjectConceptNames,
   getKnowledgeComponentsByProjectId,
   insertExercises,
   insertKnowledgeDependencies,
@@ -147,16 +149,26 @@ async function extractMaterialBatches(
     return { kcCount: 0, exerciseCount: 0 };
   }
 
+  const existingVocabulary = await getActiveProjectConceptNames({
+    projectId: ctx.projectId,
+    limit: 500,
+  });
+
   const batches = sliceMaterialChunksIntoBatches(chunks);
   const distinctConceptSlugs = new Set<string>();
   let totalExerciseCount = 0;
 
   for (const batch of batches) {
+    const prompt = buildConceptExtractionPrompt({
+      content: batch.content,
+      existingVocabulary,
+    });
+
     const result = await generateObject({
       model: ctx.model,
       schema: conceptExtractionSchema,
       system: CONCEPT_GRAPH_EXTRACTION_PROMPT,
-      prompt: `Extract knowledge concepts, prerequisite dependencies, and practice exercises/problems from the following educational material:\n\n${batch.content}`,
+      prompt,
     });
 
     const sanitized = sanitizeExtractedGraph(result.object);
@@ -219,6 +231,11 @@ async function processSingleMaterial(
   }
 
   await setExtractionStatus(material, 'extracting');
+
+  await cleanupMaterialExtractedGraph({
+    materialId: ctx.materialId,
+    projectId: ctx.projectId,
+  });
 
   try {
     const counts = await extractMaterialBatches(ctx);

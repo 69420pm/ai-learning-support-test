@@ -175,4 +175,33 @@ describe('POST /api/projects/[id]/graph/extract', () => {
       materialIds: ['mat-1', 'mat-2'],
     });
   });
+
+  it('handles singleton debouncing gracefully when extraction job is already queued/active', async () => {
+    mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
+    mockGetProjectById.mockResolvedValueOnce({ id: 'proj-1', name: 'CS101', userId: 'user-1' });
+    mockGetMaterialsByProjectId.mockResolvedValueOnce([
+      { id: 'mat-1', projectId: 'proj-1', status: 'ready', metadata: {} },
+    ]);
+    // pg-boss debounces duplicate singletonKey by returning null
+    mockSendConceptGraphExtractJob.mockResolvedValueOnce(null);
+
+    const request = new Request('http://localhost:3000/api/projects/proj-1/graph/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ materialIds: ['mat-1'] }),
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'proj-1' }) });
+
+    expect(response.status).toBe(202);
+    const json = await response.json();
+    expect(json).toEqual({
+      enqueued: false,
+      materialCount: 1,
+      jobId: null,
+    });
+
+    // Material status should not be updated when debounced
+    expect(mockUpdateMaterialStatus).not.toHaveBeenCalled();
+  });
 });

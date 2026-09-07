@@ -1,4 +1,4 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   type Exercise,
@@ -29,8 +29,11 @@ export async function upsertKnowledgeComponents(
         set: {
           name: sql`EXCLUDED.name`,
           pacerCategory: sql`EXCLUDED.pacer_category`,
-          bloomLevel: sql`EXCLUDED.bloom_level`,
-          aliases: sql`EXCLUDED.aliases`,
+          bloomLevel: sql`GREATEST(${knowledgeComponents.bloomLevel}, EXCLUDED.bloom_level)`,
+          aliases: sql`(
+            SELECT COALESCE(jsonb_agg(DISTINCT elem), '[]'::jsonb)
+            FROM jsonb_array_elements_text(${knowledgeComponents.aliases} || EXCLUDED.aliases) AS elem
+          )`,
           status: sql`EXCLUDED.status`,
           orderIndex: sql`EXCLUDED.order_index`,
           sourceMaterialId: sql`COALESCE(${knowledgeComponents.sourceMaterialId}, EXCLUDED.source_material_id)`,
@@ -106,6 +109,64 @@ export async function insertExercises(exercisesToInsert: NewExercise[]): Promise
 
   try {
     return await db.insert(exercises).values(exercisesToInsert).returning();
+  } catch (error) {
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export async function getActiveProjectConceptNames({
+  projectId,
+  limit = 500,
+}: {
+  projectId: string;
+  limit?: number;
+}): Promise<string[]> {
+  try {
+    const rows = await db
+      .select({
+        name: knowledgeComponents.name,
+      })
+      .from(knowledgeComponents)
+      .where(
+        and(eq(knowledgeComponents.projectId, projectId), eq(knowledgeComponents.status, 'active')),
+      )
+      .orderBy(desc(knowledgeComponents.updatedAt))
+      .limit(limit + 1);
+
+    if (rows.length > limit) {
+      console.warn(
+        `[vocabulary-grounding] Project ${projectId} has active concepts exceeding limit of ${limit}. Using the ${limit} most recently updated concepts.`,
+      );
+      return rows.slice(0, limit).map((r) => r.name);
+    }
+
+    return rows.map((r) => r.name);
+  } catch (error) {
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export async function cleanupMaterialExtractedGraph({
+  materialId,
+  projectId,
+}: {
+  materialId: string;
+  projectId: string;
+}): Promise<void> {
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(exercises)
+        .where(and(eq(exercises.materialId, materialId), eq(exercises.projectId, projectId)));
+      await tx
+        .delete(knowledgeDependencies)
+        .where(
+          and(
+            eq(knowledgeDependencies.sourceMaterialId, materialId),
+            eq(knowledgeDependencies.projectId, projectId),
+          ),
+        );
+    });
   } catch (error) {
     throw new ChatbotError('bad_request:database', { cause: error });
   }

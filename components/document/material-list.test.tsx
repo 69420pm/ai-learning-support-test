@@ -115,4 +115,84 @@ describe('MaterialList Component', () => {
     expect(html).toContain('Extract Concepts');
     expect(html).toContain('extract-concepts-option-mat-1');
   });
+
+  describe('Sync Graph Button', () => {
+    it('renders "Sync Graph" button enabled in idle state with ready materials', () => {
+      mockUseMaterials.mockReturnValue({
+        materials: [
+          {
+            id: 'mat-1',
+            title: 'Doc.pdf',
+            fileType: 'application/pdf',
+            filename: 'doc.pdf',
+            status: 'ready',
+            metadata: {},
+          },
+        ],
+        isLoading: false,
+        mutate: vi.fn(),
+      });
+
+      const html = renderToString(<MaterialList projectId="proj-1" />);
+
+      expect(html).toContain('data-testid="sync-graph-button"');
+      expect(html).toContain('Sync Graph');
+      // In idle state, button should not have disabled attribute and should not have animate-spin on sync button
+      expect(html).toMatch(/<button[^>]*data-testid="sync-graph-button"(?![^>]*disabled)[^>]*>/);
+    });
+
+    it('renders "Sync Graph" button disabled with spinning indicator when any material is extracting', () => {
+      mockUseMaterials.mockReturnValue({
+        materials: [
+          {
+            id: 'mat-1',
+            title: 'Doc.pdf',
+            fileType: 'application/pdf',
+            filename: 'doc.pdf',
+            status: 'ready',
+            metadata: {
+              graphExtraction: {
+                status: 'extracting',
+              },
+            },
+          },
+        ],
+        isLoading: false,
+        mutate: vi.fn(),
+      });
+
+      const html = renderToString(<MaterialList projectId="proj-1" />);
+
+      expect(html).toContain('data-testid="sync-graph-button"');
+      expect(html).toMatch(/<button[^>]*data-testid="sync-graph-button"[^>]*disabled/);
+      expect(html).toContain('animate-spin');
+    });
+
+    it('renders "Sync Graph" button disabled with spinning indicator when any material is queued', () => {
+      mockUseMaterials.mockReturnValue({
+        materials: [
+          {
+            id: 'mat-1',
+            title: 'Doc.pdf',
+            fileType: 'application/pdf',
+            filename: 'doc.pdf',
+            status: 'ready',
+            metadata: {
+              graphExtraction: {
+                status: 'queued',
+              },
+            },
+          },
+        ],
+        isLoading: false,
+        mutate: vi.fn(),
+      });
+
+      const html = renderToString(<MaterialList projectId="proj-1" />);
+
+      expect(html).toContain('data-testid="sync-graph-button"');
+      expect(html).toMatch(/<button[^>]*data-testid="sync-graph-button"[^>]*disabled/);
+      expect(html).toContain('animate-spin');
+    });
+  });
 });

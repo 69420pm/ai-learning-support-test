@@ -10,7 +10,7 @@ import {
 } from '@/lib/db/schema/knowledge';
 import { ChatbotError } from '@/lib/errors';
 import { sendConceptGraphExtractJob } from '@/lib/queue/boss';
-import type { MaterialGraphExtractionMetadata } from './types';
+import type { MaterialGraphExtractionMetadata, MaterialMetadata } from './types';
 
 export function slugifyConceptName(name: string): string {
   return name
@@ -374,9 +374,22 @@ export function updateMaterialGraphExtractionMetadata(
   };
 }
 
-export function isMaterialExtractingGraph(metadata?: Record<string, unknown> | null): boolean {
-  const graphExtraction = metadata?.graphExtraction as MaterialGraphExtractionMetadata | undefined;
-  return graphExtraction?.status === 'queued' || graphExtraction?.status === 'extracting';
+export type MaterialWithMetadata = {
+  metadata?: MaterialMetadata | Record<string, unknown> | null;
+};
+
+export function isMaterialExtractingGraph(
+  materialOrMetadata?: MaterialWithMetadata | MaterialMetadata | Record<string, unknown> | null,
+): boolean {
+  if (!materialOrMetadata) return false;
+  const metadata =
+    'metadata' in materialOrMetadata &&
+    materialOrMetadata.metadata !== null &&
+    typeof materialOrMetadata.metadata === 'object'
+      ? (materialOrMetadata.metadata as MaterialMetadata)
+      : (materialOrMetadata as MaterialMetadata);
+  const status = metadata?.graphExtraction?.status;
+  return status === 'queued' || status === 'extracting';
 }
 
 export type QueueGraphExtractionParams = {
@@ -388,7 +401,7 @@ export type QueueGraphExtractionParams = {
 export type QueueGraphExtractionResult = {
   enqueued: boolean;
   materialCount: number;
-  jobId: string;
+  jobId: string | null;
 };
 
 export async function queueGraphExtraction({
@@ -431,7 +444,12 @@ export async function queueGraphExtraction({
   });
 
   if (!jobId) {
-    throw new ChatbotError('bad_request:api', 'Failed to queue graph extraction job.');
+    // Debounced by pg-boss singletonKey because an extraction job for this project is already active or queued
+    return {
+      enqueued: false,
+      materialCount: targetIds.length,
+      jobId: null,
+    };
   }
 
   const projectMaterialMap = new Map(projectMaterials.map((m) => [m.id, m]));

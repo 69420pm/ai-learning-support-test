@@ -28,4 +28,34 @@ describe('AI Prompts', () => {
     expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toMatch(/solution/i);
     expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toMatch(/unsolved|hallucinat/i);
   });
+
+  it('CONCEPT_GRAPH_EXTRACTION_PROMPT instructs LLM to reuse existing concept names', () => {
+    expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toContain(
+      'Reuse existing concept names whenever the text discusses a concept already in the vocabulary. Only create a new concept name if the concept is genuinely distinct.',
+    );
+  });
+
+  it('buildConceptExtractionPrompt formats prompt with existing vocabulary and grounding instruction', async () => {
+    const { buildConceptExtractionPrompt } = await import('./prompts');
+
+    const promptWithVocab = buildConceptExtractionPrompt({
+      content: 'Sample text about trees',
+      existingVocabulary: ['Binary Search Tree', 'AVL Tree'],
+    });
+
+    expect(promptWithVocab).toContain('Binary Search Tree');
+    expect(promptWithVocab).toContain('AVL Tree');
+    expect(promptWithVocab).toContain(
+      'Reuse existing concept names whenever the text discusses a concept already in the vocabulary. Only create a new concept name if the concept is genuinely distinct.',
+    );
+    expect(promptWithVocab).toContain('Sample text about trees');
+
+    const promptWithoutVocab = buildConceptExtractionPrompt({
+      content: 'Sample text about graphs',
+      existingVocabulary: [],
+    });
+
+    expect(promptWithoutVocab).not.toContain('Existing project concept vocabulary');
+    expect(promptWithoutVocab).toContain('Sample text about graphs');
+  });
 });

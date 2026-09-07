@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  cleanupMaterialExtractedGraph,
+  getActiveProjectConceptNames,
   getKnowledgeComponentsByProjectId,
   getKnowledgeDependenciesByProjectId,
   insertExercises,
@@ -9,13 +11,34 @@ import {
 
 const mockDbInsert = vi.fn();
 const mockDbSelect = vi.fn();
+const mockDbDelete = vi.fn();
+const mockDbTransaction = vi.fn();
 
 vi.mock('@/lib/db', () => ({
   db: {
     insert: (...args: unknown[]) => mockDbInsert(...args),
     select: (...args: unknown[]) => mockDbSelect(...args),
+    delete: (...args: unknown[]) => mockDbDelete(...args),
+    transaction: (...args: unknown[]) => mockDbTransaction(...args),
   },
 }));
+
+function extractChunkText(c: unknown): string {
+  if (typeof c === 'string') return c;
+  if (!c || typeof c !== 'object') return '';
+  if ('value' in c) {
+    const val = (c as { value: unknown }).value;
+    return Array.isArray(val) ? val.join(' ') : String(val);
+  }
+  if ('name' in c) {
+    return String((c as { name: unknown }).name);
+  }
+  return '';
+}
+
+function getSqlString(sqlObj: { queryChunks?: unknown[] }): string {
+  return sqlObj.queryChunks?.map(extractChunkText).join(' ') ?? '';
+}
 
 describe('Knowledge Graph DB Queries', () => {
   beforeEach(() => {
@@ -65,6 +88,35 @@ describe('Knowledge Graph DB Queries', () => {
       expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(1);
       expect(result[0].slug).toBe('graphs');
+    });
+
+    it('merges aliases via deduplicated jsonb set union and updates bloomLevel to GREATEST on conflict', async () => {
+      const mockReturning = vi.fn().mockResolvedValueOnce([]);
+      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({ returning: mockReturning });
+      const mockValues = vi.fn().mockReturnValue({ onConflictDoUpdate: mockOnConflictDoUpdate });
+      mockDbInsert.mockReturnValue({ values: mockValues });
+
+      await upsertKnowledgeComponents([
+        {
+          projectId: 'proj-1',
+          userId: 'user-1',
+          slug: 'trees',
+          name: 'Trees',
+          pacerCategory: 'conceptual',
+          bloomLevel: 3,
+          aliases: ['B-Tree'],
+        },
+      ]);
+
+      const conflictUpdateArg = mockOnConflictDoUpdate.mock.calls[0][0];
+      const setClauses = conflictUpdateArg.set;
+
+      const bloomLevelSql = getSqlString(setClauses.bloomLevel);
+      const aliasesSql = getSqlString(setClauses.aliases);
+
+      expect(bloomLevelSql).toContain('GREATEST');
+      expect(aliasesSql).toContain('jsonb_agg(DISTINCT elem)');
+      expect(aliasesSql).toContain('jsonb_array_elements_text');
     });
   });
 
@@ -184,6 +236,73 @@ describe('Knowledge Graph DB Queries', () => {
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('ex-1');
       expect(result[0].pageNumber).toBe(5);
+    });
+  });
+
+  describe('getActiveProjectConceptNames', () => {
+    it('returns active concept names ordered by updatedAt desc', async () => {
+      const mockLimit = vi
+        .fn()
+        .mockResolvedValueOnce([{ name: 'Binary Search' }, { name: 'Linear Search' }]);
+      const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+      mockDbSelect.mockReturnValue({ from: mockFrom });
+
+      const result = await getActiveProjectConceptNames({ projectId: 'proj-1' });
+
+      expect(mockDbSelect).toHaveBeenCalledTimes(1);
+      expect(mockLimit).toHaveBeenCalledWith(501);
+      expect(result).toEqual(['Binary Search', 'Linear Search']);
+    });
+
+    it('limits to 500 concepts and logs warning when active concepts exceed 500', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // no-op mock for warning in test
+      });
+      const manyConcepts = Array.from({ length: 501 }, (_, i) => ({
+        name: `Concept ${i + 1}`,
+      }));
+
+      const mockLimit = vi.fn().mockResolvedValueOnce(manyConcepts);
+      const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+      mockDbSelect.mockReturnValue({ from: mockFrom });
+
+      const result = await getActiveProjectConceptNames({ projectId: 'proj-1', limit: 500 });
+
+      expect(result).toHaveLength(500);
+      expect(result[0]).toBe('Concept 1');
+      expect(result[499]).toBe('Concept 500');
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('active concepts exceeding limit of 500'),
+      );
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('cleanupMaterialExtractedGraph', () => {
+    it('atomically deletes exercises and material-attributed dependencies in a transaction', async () => {
+      const mockTxDelete = vi.fn();
+      const mockTxWhere = vi.fn().mockResolvedValue(undefined);
+      mockTxDelete.mockReturnValue({ where: mockTxWhere });
+
+      const mockTx = {
+        delete: mockTxDelete,
+      };
+
+      mockDbTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+        return await callback(mockTx);
+      });
+
+      await cleanupMaterialExtractedGraph({
+        materialId: 'mat-1',
+        projectId: 'proj-1',
+      });
+
+      expect(mockDbTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTxDelete).toHaveBeenCalledTimes(2);
     });
   });
 });

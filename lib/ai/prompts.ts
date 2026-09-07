@@ -46,12 +46,16 @@ Follow these strict transcription rules:
 6. Equations: Transcribe mathematical expressions and chemical formulas in standard LaTeX notation ($inline$ or $$block$$).
 7. Noise Reduction: Omit recurring decorative page elements (slide template logos, page numbers in isolation) while keeping substantive footer notes.`.trim();
 
+export const VOCABULARY_GROUNDING_INSTRUCTION =
+  'Reuse existing concept names whenever the text discusses a concept already in the vocabulary. Only create a new concept name if the concept is genuinely distinct.';
+
 export const CONCEPT_GRAPH_EXTRACTION_PROMPT = `You are an expert pedagogical knowledge engineer.
 Analyze the provided educational text and extract key teachable concepts (Knowledge Components) and their direct prerequisite dependencies.
 
 Rules:
 1. Concepts:
    - Identify atomic, teachable concepts described in the text.
+   - ${VOCABULARY_GROUNDING_INSTRUCTION}
    - Assign PACER category:
      - 'procedural': algorithms, techniques, how-to problem-solving steps.
      - 'analogous': comparisons, metaphors, mental models.
@@ -76,3 +80,23 @@ Rules:
      - Provide optional \`prompt\` (text/LaTeX transcription of the problem statement).
      - Provide \`solution\` ONLY if explicitly stated in the text. Omit solution if unsolved to avoid hallucinations.
      - Identify \`targetConceptName\` indicating the concept that this exercise primarily tests.`.trim();
+
+export function buildConceptExtractionPrompt(options: {
+  content: string;
+  existingVocabulary?: string[];
+}): string {
+  const parts: string[] = [];
+
+  if (options.existingVocabulary && options.existingVocabulary.length > 0) {
+    const list = options.existingVocabulary.map((name) => `- ${name}`).join('\n');
+    parts.push(
+      `Existing project concept vocabulary:\n${list}\n\n${VOCABULARY_GROUNDING_INSTRUCTION}`,
+    );
+  }
+
+  parts.push(
+    `Extract knowledge concepts, prerequisite dependencies, and practice exercises/problems from the following educational material:\n\n${options.content}`,
+  );
+
+  return parts.join('\n\n');
+}

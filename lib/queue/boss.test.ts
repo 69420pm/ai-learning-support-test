@@ -134,4 +134,21 @@ describe('pg-boss queue lifecycle', () => {
       },
     );
   });
+
+  it('sendConceptGraphExtractJob returns null when debounced by singletonKey', async () => {
+    mockStart.mockResolvedValueOnce(undefined);
+    mockCreateQueue.mockResolvedValue(undefined);
+    // pg-boss returns null when a job with matching singletonKey is active/queued
+    mockSend.mockResolvedValueOnce(null);
+
+    const { sendConceptGraphExtractJob } = await import('./boss');
+
+    const jobId = await sendConceptGraphExtractJob({
+      projectId: 'proj-duplicate',
+      userId: 'user-456',
+      materialIds: ['mat-1'],
+    });
+
+    expect(jobId).toBeNull();
+  });
 });

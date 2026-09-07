@@ -10,9 +10,11 @@ import {
   FileText,
   Loader2,
   MoreVertical,
+  Network,
   Trash2,
   Upload,
 } from 'lucide-react';
+
 import { type ChangeEvent, useRef, useState } from 'react';
 import { DeleteMaterialDialog } from '@/components/document/delete-material-dialog';
 import { MaterialPreviewDialog } from '@/components/document/material-preview-dialog';
@@ -27,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { type MaterialItem, type MaterialStatus, useMaterials } from '@/lib/hooks/use-materials';
+import { isMaterialExtractingGraph } from '@/lib/materials';
 import { ACCEPTED_FILE_TYPES_STRING, getFileIconType } from '@/lib/materials/validation';
 import { cn } from '@/lib/utils';
 
@@ -94,6 +97,7 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
   const [deleteTargetMaterial, setDeleteTargetMaterial] = useState<MaterialItem | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
 
   const { materials, isLoading, mutate } = useMaterials(projectId);
 
@@ -105,6 +109,28 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
   const handleDeletePrompt = (material: MaterialItem) => {
     setDeleteTargetMaterial(material);
     setDeleteDialogOpen(true);
+  };
+
+  const handleExtractConcepts = async (materialId: string) => {
+    setExtractError(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/graph/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materialIds: [materialId] }),
+      });
+
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({}));
+        throw new Error(
+          errorJson.cause || errorJson.message || 'Failed to trigger concept extraction',
+        );
+      }
+
+      await mutate();
+    } catch (err: unknown) {
+      setExtractError(err instanceof Error ? err.message : 'Failed to extract concepts');
+    }
   };
 
   // Direct file input handler (fallback / backward compat)
@@ -189,9 +215,9 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
         </div>
 
         {/* Error Notice */}
-        {uploadError && (
+        {(uploadError || extractError) && (
           <div className="rounded bg-destructive/10 p-1.5 text-[11px] text-destructive">
-            {uploadError}
+            {uploadError || extractError}
           </div>
         )}
 
@@ -241,6 +267,17 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
                 <div className="flex items-center gap-1 shrink-0">
                   {getStatusBadge(material.status, material.metadata?.progress?.stage)}
 
+                  {isMaterialExtractingGraph(material.metadata) && (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] px-1.5 py-0 animate-pulse"
+                      data-testid={`material-extracting-graph-${material.id}`}
+                    >
+                      <Loader2 className="size-2.5 animate-spin" />
+                      <span>Extracting Graph...</span>
+                    </Badge>
+                  )}
+
                   {/* Actions Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -266,6 +303,22 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
                         <ExternalLink className="size-3.5 text-primary" />
                         <span>Inspect Chunks</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExtractConcepts(material.id);
+                        }}
+                        disabled={
+                          material.status !== 'ready' ||
+                          isMaterialExtractingGraph(material.metadata)
+                        }
+                        className="gap-1.5 cursor-pointer text-xs"
+                        data-testid={`extract-concepts-option-${material.id}`}
+                      >
+                        <Network className="size-3.5 text-purple-500" />
+                        <span>Extract Concepts</span>
+                      </DropdownMenuItem>
+
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={(e) => {

@@ -45,3 +45,24 @@ Follow these strict transcription rules:
 5. Handwritten Content: Transcribe all handwritten notes, margin annotations, and whiteboard drawings verbatim. Tag them with '> **Handwritten Note:** ...'.
 6. Equations: Transcribe mathematical expressions and chemical formulas in standard LaTeX notation ($inline$ or $$block$$).
 7. Noise Reduction: Omit recurring decorative page elements (slide template logos, page numbers in isolation) while keeping substantive footer notes.`.trim();
+
+export const CONCEPT_GRAPH_EXTRACTION_PROMPT = `You are an expert pedagogical knowledge engineer.
+Analyze the provided educational text and extract key teachable concepts (Knowledge Components) and their direct prerequisite dependencies.
+
+Rules:
+1. Concepts:
+   - Identify atomic, teachable concepts described in the text.
+   - Assign PACER category:
+     - 'procedural': algorithms, techniques, how-to problem-solving steps.
+     - 'analogous': comparisons, metaphors, mental models.
+     - 'conceptual': definitions, core theoretical principles, mental schemas.
+     - 'evidence': empirical observations, proofs, experimental results.
+     - 'reference': standardized tables, formulas, citations, specifications.
+   - Assign Bloom taxonomy cognitive depth level (1: Remember, 2: Understand, 3: Apply, 4: Analyze, 5: Evaluate, 6: Create).
+   - Provide aliases (synonyms, acronyms, common alternative names) if applicable.
+2. Prerequisites:
+   - A prerequisite relationship means sourceName must be understood BEFORE targetName can be learned.
+   - sourceName is the prerequisite; targetName is the dependent concept.
+   - Do NOT create self-loops (sourceName must not equal targetName).
+   - Only include relationships between concepts extracted from this text.
+   - Provide concise pedagogical reasoning for why source is a prerequisite for target.`.trim();

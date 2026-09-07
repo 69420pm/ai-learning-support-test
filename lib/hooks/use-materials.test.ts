@@ -24,6 +24,30 @@ describe('useMaterials Hook Helpers', () => {
     expect(calculateMaterialsRefreshInterval(data)).toBe(2500);
   });
 
+  it('returns 2500ms when any material has graphExtraction status queued or extracting', () => {
+    const queuedData = {
+      materials: [
+        {
+          id: '1',
+          status: 'ready' as const,
+          metadata: { graphExtraction: { status: 'queued' as const } },
+        },
+      ] as MaterialItem[],
+    };
+    expect(calculateMaterialsRefreshInterval(queuedData)).toBe(2500);
+
+    const extractingData = {
+      materials: [
+        {
+          id: '1',
+          status: 'ready' as const,
+          metadata: { graphExtraction: { status: 'extracting' as const } },
+        },
+      ] as MaterialItem[],
+    };
+    expect(calculateMaterialsRefreshInterval(extractingData)).toBe(2500);
+  });
+
   it('returns 0 (idling) when all materials are in terminal states (ready or failed)', () => {
     const data = {
       materials: [

@@ -36,6 +36,13 @@
       "when": 1787502448813,
       "tag": "0004_dusty_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788776692106,
+      "tag": "0005_first_firestar",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,10 @@
 'use client';
 
 import useSWR from 'swr';
+import type { GraphExtractionStatus, MaterialGraphExtractionMetadata } from '@/lib/materials/types';
 import { fetcher } from '@/lib/utils';
 
+export type { GraphExtractionStatus, MaterialGraphExtractionMetadata };
 export type MaterialStatus = 'pending' | 'processing' | 'ready' | 'failed';
 
 export type MaterialProgress = {
@@ -18,6 +20,7 @@ export type MaterialMetadata = {
   chunkCount?: number;
   tokenCount?: number;
   progress?: MaterialProgress;
+  graphExtraction?: MaterialGraphExtractionMetadata;
   error?: {
     message?: string;
     stage?: string;
@@ -48,17 +51,23 @@ export type MaterialsResponse = {
 };
 
 export function calculateMaterialsRefreshInterval(
-  data?: MaterialsResponse | { materials?: { status: MaterialStatus }[] },
+  data?:
+    | MaterialsResponse
+    | { materials?: { status: MaterialStatus; metadata?: MaterialMetadata }[] },
 ): number {
   if (!data?.materials || data.materials.length === 0) {
     return 0;
   }
 
-  const hasActiveIngestion = data.materials.some(
-    (m) => m.status === 'pending' || m.status === 'processing',
-  );
+  const hasActiveProcessing = data.materials.some((m) => {
+    const isIngesting = m.status === 'pending' || m.status === 'processing';
+    const isExtractingGraph =
+      m.metadata?.graphExtraction?.status === 'queued' ||
+      m.metadata?.graphExtraction?.status === 'extracting';
+    return isIngesting || isExtractingGraph;
+  });
 
-  return hasActiveIngestion ? 2500 : 0;
+  return hasActiveProcessing ? 2500 : 0;
 }
 
 export function useMaterials(projectId?: string | null) {

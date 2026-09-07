@@ -2,15 +2,27 @@ import { generateObject, type LanguageModel } from 'ai';
 import type { PgBoss } from 'pg-boss';
 import { CONCEPT_GRAPH_EXTRACTION_PROMPT } from '@/lib/ai/prompts';
 import { getLanguageModel } from '@/lib/ai/providers';
-import { insertKnowledgeDependencies, upsertKnowledgeComponents } from '@/lib/db/queries/knowledge';
+import {
+  getKnowledgeComponentsByProjectId,
+  insertExercises,
+  insertKnowledgeDependencies,
+  upsertKnowledgeComponents,
+} from '@/lib/db/queries/knowledge';
 import {
   getMaterialById,
   getMaterialChunksByMaterialId,
   updateMaterialStatus,
 } from '@/lib/db/queries/material';
-import type { Material, NewKnowledgeComponent, NewKnowledgeDependency } from '@/lib/db/schema';
+import type {
+  KnowledgeComponent,
+  Material,
+  NewKnowledgeComponent,
+  NewKnowledgeDependency,
+} from '@/lib/db/schema';
 import {
   conceptExtractionSchema,
+  type KcIdentifier,
+  linkExercisesToKcs,
   type SanitizedExtractionResult,
   sanitizeExtractedGraph,
   sliceMaterialChunksIntoBatches,
@@ -33,14 +45,15 @@ export type ProcessGraphExtractionOptions = {
 export type ProcessGraphExtractionResult = {
   processedCount: number;
   kcCount: number;
+  exerciseCount: number;
 };
 
-async function persistExtractedGraph(
+async function persistKnowledgeGraph(
   ctx: ExtractionContext,
   sanitized: SanitizedExtractionResult,
-): Promise<void> {
+): Promise<KnowledgeComponent[]> {
   if (sanitized.concepts.length === 0) {
-    return;
+    return [];
   }
 
   const newKcs: NewKnowledgeComponent[] = sanitized.concepts.map((c, idx) => ({
@@ -79,23 +92,71 @@ async function persistExtractedGraph(
   if (newKds.length > 0) {
     await insertKnowledgeDependencies(newKds);
   }
+
+  return upsertedKcs;
 }
 
-async function extractMaterialBatches(ctx: ExtractionContext): Promise<number> {
+async function persistExtractedExercises(
+  ctx: ExtractionContext,
+  sanitized: SanitizedExtractionResult,
+  upsertedKcs: KnowledgeComponent[],
+): Promise<number> {
+  if (!sanitized.exercises || sanitized.exercises.length === 0) {
+    return 0;
+  }
+
+  const existingProjectKcs = await getKnowledgeComponentsByProjectId({
+    projectId: ctx.projectId,
+  });
+
+  const availableKcsMap = new Map<string, KcIdentifier>();
+  for (const kc of [...existingProjectKcs, ...upsertedKcs]) {
+    availableKcsMap.set(kc.id, { id: kc.id, name: kc.name, slug: kc.slug });
+  }
+
+  const linkedExercises = linkExercisesToKcs({
+    exercises: sanitized.exercises,
+    availableKcs: Array.from(availableKcsMap.values()),
+    projectId: ctx.projectId,
+    userId: ctx.userId,
+    materialId: ctx.materialId,
+  });
+
+  if (linkedExercises.length === 0) {
+    return 0;
+  }
+
+  const inserted = await insertExercises(linkedExercises);
+  return inserted.length;
+}
+
+async function persistExtractedGraph(
+  ctx: ExtractionContext,
+  sanitized: SanitizedExtractionResult,
+): Promise<{ exerciseCount: number }> {
+  const upsertedKcs = await persistKnowledgeGraph(ctx, sanitized);
+  const exerciseCount = await persistExtractedExercises(ctx, sanitized, upsertedKcs);
+  return { exerciseCount };
+}
+
+async function extractMaterialBatches(
+  ctx: ExtractionContext,
+): Promise<{ kcCount: number; exerciseCount: number }> {
   const chunks = await getMaterialChunksByMaterialId({ materialId: ctx.materialId });
   if (chunks.length === 0) {
-    return 0;
+    return { kcCount: 0, exerciseCount: 0 };
   }
 
   const batches = sliceMaterialChunksIntoBatches(chunks);
   const distinctConceptSlugs = new Set<string>();
+  let totalExerciseCount = 0;
 
   for (const batch of batches) {
     const result = await generateObject({
       model: ctx.model,
       schema: conceptExtractionSchema,
       system: CONCEPT_GRAPH_EXTRACTION_PROMPT,
-      prompt: `Extract knowledge concepts and prerequisite dependencies from the following educational material:\n\n${batch.content}`,
+      prompt: `Extract knowledge concepts, prerequisite dependencies, and practice exercises/problems from the following educational material:\n\n${batch.content}`,
     });
 
     const sanitized = sanitizeExtractedGraph(result.object);
@@ -103,16 +164,20 @@ async function extractMaterialBatches(ctx: ExtractionContext): Promise<number> {
       distinctConceptSlugs.add(c.slug);
     }
 
-    await persistExtractedGraph(ctx, sanitized);
+    const persistResult = await persistExtractedGraph(ctx, sanitized);
+    totalExerciseCount += persistResult.exerciseCount;
   }
 
-  return distinctConceptSlugs.size;
+  return {
+    kcCount: distinctConceptSlugs.size,
+    exerciseCount: totalExerciseCount,
+  };
 }
 
 async function setExtractionStatus(
   material: Material,
   status: 'extracting' | 'ready' | 'failed',
-  details: { kcCount?: number; error?: string } = {},
+  details: { kcCount?: number; exerciseCount?: number; error?: string } = {},
 ): Promise<void> {
   const now = new Date().toISOString();
   const update: Record<string, unknown> = { status };
@@ -122,6 +187,7 @@ async function setExtractionStatus(
   } else if (status === 'ready') {
     update.completedAt = now;
     update.kcCount = details.kcCount ?? 0;
+    update.exerciseCount = details.exerciseCount ?? 0;
   } else if (status === 'failed') {
     update.completedAt = now;
     update.error = details.error;
@@ -142,22 +208,22 @@ async function setExtractionStatus(
 async function processSingleMaterial(
   ctx: ExtractionContext,
   isFinalAttempt: boolean,
-): Promise<number> {
+): Promise<{ kcCount: number; exerciseCount: number }> {
   const material = await getMaterialById({
     id: ctx.materialId,
     projectId: ctx.projectId,
     userId: ctx.userId,
   });
   if (!material) {
-    return 0;
+    return { kcCount: 0, exerciseCount: 0 };
   }
 
   await setExtractionStatus(material, 'extracting');
 
   try {
-    const kcCount = await extractMaterialBatches(ctx);
-    await setExtractionStatus(material, 'ready', { kcCount });
-    return kcCount;
+    const counts = await extractMaterialBatches(ctx);
+    await setExtractionStatus(material, 'ready', counts);
+    return counts;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Concept graph extraction failed';
     if (isFinalAttempt) {
@@ -181,9 +247,10 @@ export async function processGraphExtraction(
 
   let processedCount = 0;
   let totalKcCount = 0;
+  let totalExerciseCount = 0;
 
   for (const materialId of materialIds) {
-    const kcCount = await processSingleMaterial(
+    const counts = await processSingleMaterial(
       {
         materialId,
         projectId,
@@ -193,12 +260,14 @@ export async function processGraphExtraction(
       isFinalAttempt,
     );
     processedCount++;
-    totalKcCount += kcCount;
+    totalKcCount += counts.kcCount;
+    totalExerciseCount += counts.exerciseCount;
   }
 
   return {
     processedCount,
     kcCount: totalKcCount,
+    exerciseCount: totalExerciseCount,
   };
 }
 

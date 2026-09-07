@@ -19,4 +19,13 @@ describe('AI Prompts', () => {
     expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toContain('pedagogical knowledge engineer');
     expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toContain('PACER');
   });
+
+  it('CONCEPT_GRAPH_EXTRACTION_PROMPT contains practice problem and exercise extraction rules', () => {
+    expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toMatch(/exercises?|practice problems?/i);
+    expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toContain('pageNumber');
+    expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toContain('questionType');
+    expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toContain('difficulty');
+    expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toMatch(/solution/i);
+    expect(CONCEPT_GRAPH_EXTRACTION_PROMPT).toMatch(/unsolved|hallucinat/i);
+  });
 });

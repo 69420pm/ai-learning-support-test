@@ -65,4 +65,14 @@ Rules:
    - sourceName is the prerequisite; targetName is the dependent concept.
    - Do NOT create self-loops (sourceName must not equal targetName).
    - Only include relationships between concepts extracted from this text.
-   - Provide concise pedagogical reasoning for why source is a prerequisite for target.`.trim();
+   - Provide concise pedagogical reasoning for why source is a prerequisite for target.
+3. Exercises and Practice Problems:
+   - Extract practice problems, exercises, questions, and self-checks present in the text.
+   - For each exercise:
+     - Identify \`pageNumber\` in source material where exercise appears.
+     - Identify \`questionType\`: 'multiple_choice', 'calculation', 'conceptual', or 'code'.
+     - Assign \`difficulty\` on a scale of 1 to 5 (default 1).
+     - Provide optional \`title\` (e.g. "Problem 3.1", "Exercise 2").
+     - Provide optional \`prompt\` (text/LaTeX transcription of the problem statement).
+     - Provide \`solution\` ONLY if explicitly stated in the text. Omit solution if unsolved to avoid hallucinations.
+     - Identify \`targetConceptName\` indicating the concept that this exercise primarily tests.`.trim();

@@ -1,10 +1,13 @@
 import { asc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
+  type Exercise,
+  exercises,
   type KnowledgeComponent,
   type KnowledgeDependency,
   knowledgeComponents,
   knowledgeDependencies,
+  type NewExercise,
   type NewKnowledgeComponent,
   type NewKnowledgeDependency,
 } from '@/lib/db/schema';
@@ -91,6 +94,18 @@ export async function getKnowledgeDependenciesByProjectId({
       .select()
       .from(knowledgeDependencies)
       .where(eq(knowledgeDependencies.projectId, projectId));
+  } catch (error) {
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export async function insertExercises(exercisesToInsert: NewExercise[]): Promise<Exercise[]> {
+  if (!exercisesToInsert || exercisesToInsert.length === 0) {
+    return [];
+  }
+
+  try {
+    return await db.insert(exercises).values(exercisesToInsert).returning();
   } catch (error) {
     throw new ChatbotError('bad_request:database', { cause: error });
   }

@@ -1,6 +1,11 @@
 import type { PgBoss } from 'pg-boss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { insertKnowledgeDependencies, upsertKnowledgeComponents } from '@/lib/db/queries/knowledge';
+import {
+  getKnowledgeComponentsByProjectId,
+  insertExercises,
+  insertKnowledgeDependencies,
+  upsertKnowledgeComponents,
+} from '@/lib/db/queries/knowledge';
 import {
   getMaterialById,
   getMaterialChunksByMaterialId,
@@ -17,6 +22,8 @@ vi.mock('@/lib/db/queries/material', () => ({
 vi.mock('@/lib/db/queries/knowledge', () => ({
   upsertKnowledgeComponents: vi.fn(),
   insertKnowledgeDependencies: vi.fn(),
+  insertExercises: vi.fn(),
+  getKnowledgeComponentsByProjectId: vi.fn(),
 }));
 
 vi.mock('ai', async (importOriginal) => {
@@ -49,6 +56,8 @@ describe('Concept Graph Extraction Worker Job', () => {
   const mockUpdateMaterialStatus = vi.mocked(updateMaterialStatus);
   const mockUpsertKc = vi.mocked(upsertKnowledgeComponents);
   const mockInsertKd = vi.mocked(insertKnowledgeDependencies);
+  const mockInsertExercises = vi.mocked(insertExercises);
+  const mockGetKcsByProjectId = vi.mocked(getKnowledgeComponentsByProjectId);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -325,6 +334,207 @@ describe('Concept Graph Extraction Worker Job', () => {
           graphExtraction: expect.objectContaining({
             status: 'failed',
             error: 'AI rate limit exhausted',
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('extracts, links, and persists practice exercises anchoring to page numbers and tracks exerciseCount', async () => {
+    const { generateObject } = await import('ai');
+    const mockGenerateObject = vi.mocked(generateObject);
+
+    mockGetMaterialById.mockResolvedValueOnce({
+      id: 'mat-exercises',
+      projectId: 'proj-1',
+      userId: 'user-1',
+      title: 'Math Course',
+      filename: 'math.pdf',
+      fileType: 'application/pdf',
+      fileSize: 200,
+      storagePath: 'proj-1/math.pdf',
+      status: 'ready',
+      errorMessage: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    mockGetMaterialChunks.mockResolvedValueOnce([
+      {
+        id: 'chunk-1',
+        materialId: 'mat-exercises',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: '# Chapter 1: Limits and Derivatives\nProblem 1.1: Calculate limit.',
+        tokenCount: 50,
+        embedding: null,
+        metadata: { pageNumber: 4 },
+        createdAt: new Date(),
+      },
+    ]);
+
+    mockGenerateObject.mockResolvedValueOnce({
+      object: {
+        concepts: [
+          {
+            name: 'Derivatives',
+            pacerCategory: 'conceptual',
+            bloomLevel: 2,
+            aliases: [],
+          },
+        ],
+        prerequisites: [],
+        exercises: [
+          {
+            pageNumber: 4,
+            title: 'Problem 1.1',
+            prompt: 'Compute limit as x -> 0 of sin(x)/x',
+            solution: '1',
+            questionType: 'calculation',
+            difficulty: 2,
+            targetConceptName: 'Limits', // matches existing project KC
+          },
+          {
+            pageNumber: 5,
+            title: 'Problem 1.2',
+            prompt: 'Explain derivative definition',
+            solution: undefined,
+            questionType: 'conceptual',
+            difficulty: 3,
+            targetConceptName: 'Derivatives', // matches active batch KC
+          },
+          {
+            pageNumber: 5,
+            title: 'Problem 1.3',
+            prompt: 'Dangling problem',
+            solution: undefined,
+            questionType: 'multiple_choice',
+            difficulty: 1,
+            targetConceptName: 'Unresolved Concept', // dangling, should be discarded
+          },
+        ],
+      },
+    } as never);
+
+    mockUpsertKc.mockResolvedValueOnce([
+      {
+        id: 'kc-derivatives',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        slug: 'derivatives',
+        name: 'Derivatives',
+        pacerCategory: 'conceptual',
+        bloomLevel: 2,
+        aliases: [],
+        embedding: null,
+        sourceMaterialId: 'mat-exercises',
+        status: 'active',
+        orderIndex: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    mockGetKcsByProjectId.mockResolvedValueOnce([
+      {
+        id: 'kc-limits',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        slug: 'limits',
+        name: 'Limits',
+        pacerCategory: 'conceptual',
+        bloomLevel: 2,
+        aliases: [],
+        embedding: null,
+        sourceMaterialId: null,
+        status: 'active',
+        orderIndex: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    mockInsertKd.mockResolvedValueOnce([]);
+    mockInsertExercises.mockResolvedValueOnce([
+      {
+        id: 'ex-1',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        materialId: 'mat-exercises',
+        kcId: 'kc-limits',
+        pageNumber: 4,
+        title: 'Problem 1.1',
+        prompt: 'Compute limit as x -> 0 of sin(x)/x',
+        solution: '1',
+        questionType: 'calculation',
+        difficulty: 2,
+        createdAt: new Date(),
+      },
+      {
+        id: 'ex-2',
+        projectId: 'proj-1',
+        userId: 'user-1',
+        materialId: 'mat-exercises',
+        kcId: 'kc-derivatives',
+        pageNumber: 5,
+        title: 'Problem 1.2',
+        prompt: 'Explain derivative definition',
+        solution: null,
+        questionType: 'conceptual',
+        difficulty: 3,
+        createdAt: new Date(),
+      },
+    ]);
+
+    const result = await processGraphExtraction({
+      projectId: 'proj-1',
+      userId: 'user-1',
+      materialIds: ['mat-exercises'],
+    });
+
+    expect(result.processedCount).toBe(1);
+    expect(result.kcCount).toBe(1);
+    expect(result.exerciseCount).toBe(2);
+
+    // Verify insertExercises was called with resolved KCs, anchored pageNumbers, and discarded dangling
+    expect(mockInsertExercises).toHaveBeenCalledWith([
+      expect.objectContaining({
+        projectId: 'proj-1',
+        userId: 'user-1',
+        materialId: 'mat-exercises',
+        kcId: 'kc-limits',
+        pageNumber: 4,
+        title: 'Problem 1.1',
+        prompt: 'Compute limit as x -> 0 of sin(x)/x',
+        solution: '1',
+        questionType: 'calculation',
+        difficulty: 2,
+      }),
+      expect.objectContaining({
+        projectId: 'proj-1',
+        userId: 'user-1',
+        materialId: 'mat-exercises',
+        kcId: 'kc-derivatives',
+        pageNumber: 5,
+        title: 'Problem 1.2',
+        prompt: 'Explain derivative definition',
+        solution: null,
+        questionType: 'conceptual',
+        difficulty: 3,
+      }),
+    ]);
+
+    // Verify material status update tracks exerciseCount alongside kcCount
+    expect(mockUpdateMaterialStatus).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: 'mat-exercises',
+        metadata: expect.objectContaining({
+          graphExtraction: expect.objectContaining({
+            status: 'ready',
+            kcCount: 1,
+            exerciseCount: 2,
           }),
         }),
       }),

@@ -92,3 +92,46 @@ export const knowledgeDependencies = pgTable(
 
 export type KnowledgeDependency = typeof knowledgeDependencies.$inferSelect;
 export type NewKnowledgeDependency = typeof knowledgeDependencies.$inferInsert;
+
+export const EXERCISE_QUESTION_TYPES = [
+  'multiple_choice',
+  'calculation',
+  'conceptual',
+  'code',
+] as const;
+
+export type ExerciseQuestionType = (typeof EXERCISE_QUESTION_TYPES)[number];
+
+export const exercises = pgTable(
+  'exercises',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    materialId: uuid('material_id')
+      .notNull()
+      .references(() => materials.id, { onDelete: 'cascade' }),
+    kcId: uuid('kc_id')
+      .notNull()
+      .references(() => knowledgeComponents.id, { onDelete: 'cascade' }),
+    pageNumber: integer('page_number').notNull(),
+    title: text('title'),
+    prompt: text('prompt'),
+    solution: text('solution'),
+    questionType: text('question_type').$type<ExerciseQuestionType>().notNull(),
+    difficulty: integer('difficulty').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_exercises_project').on(table.projectId),
+    index('idx_exercises_material').on(table.materialId),
+    index('idx_exercises_kc').on(table.kcId),
+  ],
+);
+
+export type Exercise = typeof exercises.$inferSelect;
+export type NewExercise = typeof exercises.$inferInsert;

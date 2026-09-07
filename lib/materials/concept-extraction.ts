@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { getMaterialsByProjectId, updateMaterialStatus } from '@/lib/db/queries/material';
 import type { MaterialChunk } from '@/lib/db/schema';
-import { PACER_CATEGORIES, type PacerCategory } from '@/lib/db/schema/knowledge';
+import {
+  EXERCISE_QUESTION_TYPES,
+  type ExerciseQuestionType,
+  type NewExercise,
+  PACER_CATEGORIES,
+  type PacerCategory,
+} from '@/lib/db/schema/knowledge';
 import { ChatbotError } from '@/lib/errors';
 import { sendConceptGraphExtractJob } from '@/lib/queue/boss';
 import type { MaterialGraphExtractionMetadata } from './types';
@@ -15,6 +21,23 @@ export function slugifyConceptName(name: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+export const exerciseExtractionSchema = z.object({
+  pageNumber: z.number().int().describe('Page number in source material where exercise appears'),
+  title: z.string().optional().describe('Label or title, e.g. "Problem 3.1"'),
+  prompt: z
+    .string()
+    .optional()
+    .describe('Text/LaTeX transcription of problem statement if applicable'),
+  solution: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Answer or solution if explicitly stated in text; omit if unsolved'),
+  questionType: z.enum(EXERCISE_QUESTION_TYPES),
+  difficulty: z.number().int().min(1).max(5).default(1),
+  targetConceptName: z.string().describe('Concept name that this exercise primarily tests'),
+});
 
 export const conceptExtractionSchema = z.object({
   concepts: z.array(
@@ -40,10 +63,12 @@ export const conceptExtractionSchema = z.object({
       reasoning: z.string().trim().optional(),
     }),
   ),
+  exercises: z.array(exerciseExtractionSchema).default([]),
 });
 
 export type RawConcept = z.infer<typeof conceptExtractionSchema>['concepts'][number];
 export type RawPrerequisite = z.infer<typeof conceptExtractionSchema>['prerequisites'][number];
+export type RawExercise = z.infer<typeof conceptExtractionSchema>['exercises'][number];
 export type RawExtractionResult = z.infer<typeof conceptExtractionSchema>;
 
 export type SanitizedConcept = {
@@ -63,9 +88,21 @@ export type SanitizedPrerequisite = {
   reasoning?: string;
 };
 
+export type SanitizedExercise = {
+  pageNumber: number;
+  title?: string;
+  prompt?: string;
+  solution?: string | null;
+  questionType: ExerciseQuestionType;
+  difficulty: number;
+  targetConceptName: string;
+  targetConceptSlug: string;
+};
+
 export type SanitizedExtractionResult = {
   concepts: SanitizedConcept[];
   prerequisites: SanitizedPrerequisite[];
+  exercises: SanitizedExercise[];
 };
 
 function sanitizeConcepts(rawConcepts: RawConcept[]): SanitizedConcept[] {
@@ -132,15 +169,114 @@ function sanitizePrerequisites(
   return validPrerequisites;
 }
 
-export function sanitizeExtractedGraph(raw: RawExtractionResult): SanitizedExtractionResult {
+function sanitizeExercises(rawExercises: RawExercise[] = []): SanitizedExercise[] {
+  const validExercises: SanitizedExercise[] = [];
+
+  for (const e of rawExercises) {
+    const targetConceptName = e.targetConceptName?.trim();
+    if (!targetConceptName) continue;
+    const targetConceptSlug = slugifyConceptName(targetConceptName);
+    if (!targetConceptSlug) continue;
+
+    const solution =
+      e.solution === null
+        ? null
+        : typeof e.solution === 'string' && e.solution.trim().length > 0
+          ? e.solution.trim()
+          : null;
+
+    validExercises.push({
+      pageNumber: e.pageNumber,
+      title: e.title?.trim() || undefined,
+      prompt: e.prompt?.trim() || undefined,
+      solution,
+      questionType: e.questionType,
+      difficulty: e.difficulty ?? 1,
+      targetConceptName,
+      targetConceptSlug,
+    });
+  }
+
+  return validExercises;
+}
+
+export function sanitizeExtractedGraph(raw: {
+  concepts: RawConcept[];
+  prerequisites: RawPrerequisite[];
+  exercises?: RawExercise[];
+}): SanitizedExtractionResult {
   const concepts = sanitizeConcepts(raw.concepts);
   const validSlugs = new Set(concepts.map((c) => c.slug));
   const prerequisites = sanitizePrerequisites(raw.prerequisites, validSlugs);
+  const exercises = sanitizeExercises(raw.exercises ?? []);
 
   return {
     concepts,
     prerequisites,
+    exercises,
   };
+}
+
+export type KcIdentifier = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export type LinkExercisesToKcsParams = {
+  exercises: SanitizedExercise[];
+  availableKcs: KcIdentifier[];
+  projectId: string;
+  userId: string;
+  materialId: string;
+};
+
+export function linkExercisesToKcs({
+  exercises,
+  availableKcs,
+  projectId,
+  userId,
+  materialId,
+}: LinkExercisesToKcsParams): NewExercise[] {
+  if (!exercises || exercises.length === 0 || !availableKcs || availableKcs.length === 0) {
+    return [];
+  }
+
+  const kcBySlug = new Map<string, string>();
+  const kcByName = new Map<string, string>();
+
+  for (const kc of availableKcs) {
+    kcBySlug.set(kc.slug, kc.id);
+    kcByName.set(kc.name.trim().toLowerCase(), kc.id);
+  }
+
+  const linkedExercises: NewExercise[] = [];
+
+  for (const ex of exercises) {
+    const kcId =
+      kcBySlug.get(ex.targetConceptSlug) ??
+      kcBySlug.get(slugifyConceptName(ex.targetConceptName)) ??
+      kcByName.get(ex.targetConceptName.trim().toLowerCase());
+
+    if (!kcId) {
+      continue;
+    }
+
+    linkedExercises.push({
+      projectId,
+      userId,
+      materialId,
+      kcId,
+      pageNumber: ex.pageNumber,
+      title: ex.title,
+      prompt: ex.prompt,
+      solution: ex.solution ?? null,
+      questionType: ex.questionType,
+      difficulty: ex.difficulty,
+    });
+  }
+
+  return linkedExercises;
 }
 
 export type BatchOptions = {

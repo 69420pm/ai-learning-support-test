@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getKnowledgeComponentsByProjectId,
   getKnowledgeDependenciesByProjectId,
+  insertExercises,
   insertKnowledgeDependencies,
   upsertKnowledgeComponents,
 } from './knowledge';
@@ -134,6 +135,55 @@ describe('Knowledge Graph DB Queries', () => {
       expect(mockDbSelect).toHaveBeenCalledTimes(1);
       expect(mockWhere).toHaveBeenCalledTimes(1);
       expect(result).toEqual([{ id: 'kd-1', relationshipType: 'prerequisite' }]);
+    });
+  });
+
+  describe('insertExercises', () => {
+    it('returns empty array when input is empty', async () => {
+      const result = await insertExercises([]);
+      expect(result).toEqual([]);
+      expect(mockDbInsert).not.toHaveBeenCalled();
+    });
+
+    it('inserts exercises and returns created records', async () => {
+      const mockReturning = vi.fn().mockResolvedValueOnce([
+        {
+          id: 'ex-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          materialId: 'mat-1',
+          kcId: 'kc-1',
+          pageNumber: 5,
+          title: 'Problem 1',
+          prompt: 'Solve 2x=4',
+          solution: 'x=2',
+          questionType: 'calculation',
+          difficulty: 2,
+        },
+      ]);
+      const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+      mockDbInsert.mockReturnValue({ values: mockValues });
+
+      const result = await insertExercises([
+        {
+          projectId: 'proj-1',
+          userId: 'user-1',
+          materialId: 'mat-1',
+          kcId: 'kc-1',
+          pageNumber: 5,
+          title: 'Problem 1',
+          prompt: 'Solve 2x=4',
+          solution: 'x=2',
+          questionType: 'calculation',
+          difficulty: 2,
+        },
+      ]);
+
+      expect(mockDbInsert).toHaveBeenCalledTimes(1);
+      expect(mockValues).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('ex-1');
+      expect(result[0].pageNumber).toBe(5);
     });
   });
 });

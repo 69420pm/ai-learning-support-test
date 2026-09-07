@@ -21,13 +21,12 @@ This skill guides Antigravity agents through collaborating on Figma UI mockups, 
 
 Figma tools are provided via the **Figma MCP Server** (`figma` in `~/.gemini/config/mcp_config.json`):
 
-- **Remote Server (Default)**: `https://mcp.figma.com/mcp` (Figma's official hosted endpoint with OAuth).
-- **Desktop Dev Mode (Local)**: `http://127.0.0.1:3845/mcp` (when running the Figma desktop app).
-- **Stdio Fallback**: `@modelcontextprotocol/server-figma` using `FIGMA_PERSONAL_ACCESS_TOKEN`.
+- **Stdio Transport with PAT (Recommended)**: Runs `npx -y figma-developer-mcp --stdio` with `FIGMA_API_KEY` (Personal Access Token). Requires no OAuth flow and works seamlessly in containerized environments.
+- **Desktop Dev Mode (Alternative)**: `http://127.0.0.1:3845/mcp` when running the Figma desktop app with Dev Mode MCP server enabled.
 
-### Key MCP Capabilities
-- **Read / Inspect**: `get_file`, `get_node`, `get_image` — inspect layout hierarchy, auto-layout constraints, color styles, and export frame images.
-- **Write / Canvas**: `use_figma`, `generate_figma_design` — create and manipulate native frames, text, auto-layout containers, and component instances.
+### Key MCP Tools
+- **`get_figma_data`**: Fetches comprehensive layout, hierarchy, auto-layout constraints, typography, and styling variables by `fileKey` and optional `nodeId`.
+- **`download_figma_images`**: Downloads raster PNGs or vector SVGs directly into the project workspace for visual inspection or static assets.
 
 ---
 
@@ -58,11 +57,11 @@ When an issue or spec provides a Figma link (`figma.com/design/...` or `figma.co
 
 ### Step 1: Extract & Export Frame Visuals
 1. Parse the `file_key` and `node_id` from the URL.
-2. If Figma MCP image tools are available, export a rendered PNG of the frame to the scratch directory (e.g., `<appDataDir>/scratch/figma-<node_id>.png`).
-3. Inspect the image with `view_file` to gain immediate visual context of spacing, typography weight, hierarchy, and component composition.
+2. Call `download_figma_images` or `get_figma_data` to fetch rendered preview assets or node JSON.
+3. Inspect exported images with `view_file` to gain immediate visual context of spacing, typography weight, hierarchy, and component composition.
 
 ### Step 2: Read Node Auto-Layout & Properties
-Query the node details through the Figma MCP tool (`get_node` or equivalent):
+Query node hierarchy and styling via `get_figma_data({ fileKey, nodeId })`:
 - **Layout Direction**: `HORIZONTAL` $\rightarrow$ `flex flex-row`, `VERTICAL` $\rightarrow$ `flex flex-col`.
 - **Item Spacing (Gap)**:
   - 4px $\rightarrow$ `gap-1`

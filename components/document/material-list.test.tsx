@@ -3,22 +3,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MaterialList } from './material-list';
 
 const mockUseMaterials = vi.fn();
+
 vi.mock('@/lib/hooks/use-materials', () => ({
-  useMaterials: (...args: unknown[]) => mockUseMaterials(...args),
+  useMaterials: (projectId: string) => mockUseMaterials(projectId),
 }));
 
-// Mock Dialogs to avoid Radix Portal / DOM issues in SSR
-vi.mock('@/components/document/delete-material-dialog', () => ({
-  // biome-ignore lint/style/useNamingConvention: React mock component export
-  DeleteMaterialDialog: () => null,
-}));
-vi.mock('@/components/document/material-preview-dialog', () => ({
-  // biome-ignore lint/style/useNamingConvention: React mock component export
-  MaterialPreviewDialog: () => null,
-}));
 vi.mock('@/components/document/material-upload-dialog', () => ({
-  // biome-ignore lint/style/useNamingConvention: React mock component export
-  MaterialUploadDialog: () => null,
+  // biome-ignore lint/style/useNamingConvention: Component mock export
+  MaterialUploadDialog: () => <div data-testid="mock-upload-dialog" />,
+}));
+
+vi.mock('@/components/document/material-preview-dialog', () => ({
+  // biome-ignore lint/style/useNamingConvention: Component mock export
+  MaterialPreviewDialog: () => <div data-testid="mock-preview-dialog" />,
+}));
+
+vi.mock('@/components/document/delete-material-dialog', () => ({
+  // biome-ignore lint/style/useNamingConvention: Component mock export
+  DeleteMaterialDialog: () => <div data-testid="mock-delete-dialog" />,
 }));
 
 // Mock DropdownMenu components so items render inline for SSR testing
@@ -46,40 +48,44 @@ describe('MaterialList Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders "Extracting Graph..." badge with spinner when graphExtraction.status is queued or extracting', () => {
+  it('renders loading skeletons while materials are fetching', () => {
+    mockUseMaterials.mockReturnValue({
+      materials: [],
+      isLoading: true,
+      mutate: vi.fn(),
+    });
+
+    const html = renderToString(<MaterialList projectId="proj-1" />);
+
+    expect(html).toContain('animate-pulse');
+    expect(html).not.toContain('No materials uploaded yet');
+  });
+
+  it('renders empty callout when project has no materials', () => {
+    mockUseMaterials.mockReturnValue({
+      materials: [],
+      isLoading: false,
+      mutate: vi.fn(),
+    });
+
+    const html = renderToString(<MaterialList projectId="proj-1" />);
+
+    expect(html).toContain('No materials uploaded yet. Click to add.');
+    expect(html).toContain('data-testid="empty-materials-list"');
+  });
+
+  it('renders material list items with title and status indicators', () => {
     mockUseMaterials.mockReturnValue({
       materials: [
         {
           id: 'mat-1',
-          title: 'Graph Theory.pdf',
+          title: 'Calculus Syllabus.pdf',
           fileType: 'application/pdf',
-          filename: 'graph.pdf',
+          filename: 'syllabus.pdf',
           status: 'ready',
           metadata: {
-            graphExtraction: {
-              status: 'extracting',
-            },
+            progress: { stage: 'completed' },
           },
-        },
-        {
-          id: 'mat-2',
-          title: 'Algorithms.md',
-          fileType: 'text/markdown',
-          filename: 'algo.md',
-          status: 'ready',
-          metadata: {
-            graphExtraction: {
-              status: 'queued',
-            },
-          },
-        },
-        {
-          id: 'mat-3',
-          title: 'Calculus.pdf',
-          fileType: 'application/pdf',
-          filename: 'calc.pdf',
-          status: 'ready',
-          metadata: {},
         },
       ],
       isLoading: false,
@@ -88,13 +94,37 @@ describe('MaterialList Component', () => {
 
     const html = renderToString(<MaterialList projectId="proj-1" />);
 
-    expect(html).toContain('Extracting Graph...');
-    expect(html).toContain('material-extracting-graph-mat-1');
-    expect(html).toContain('material-extracting-graph-mat-2');
-    expect(html).not.toContain('material-extracting-graph-mat-3');
+    expect(html).toContain('Calculus Syllabus.pdf');
+    expect(html).toContain('data-testid="material-status-ready"');
+    expect(html).toContain('data-testid="material-item-mat-1"');
   });
 
-  it('renders "Extract Concepts" action item in dropdown menu', () => {
+  it('renders extracting graph status indicator when material is currently extracting', () => {
+    mockUseMaterials.mockReturnValue({
+      materials: [
+        {
+          id: 'mat-1',
+          title: 'Calculus Syllabus.pdf',
+          fileType: 'application/pdf',
+          filename: 'syllabus.pdf',
+          status: 'ready',
+          metadata: {
+            graphExtraction: {
+              status: 'extracting',
+            },
+          },
+        },
+      ],
+      isLoading: false,
+      mutate: vi.fn(),
+    });
+
+    const html = renderToString(<MaterialList projectId="proj-1" />);
+
+    expect(html).toContain('data-testid="material-extracting-graph-mat-1"');
+  });
+
+  it('renders Extract Concepts option in dropdown menu for ready materials', () => {
     mockUseMaterials.mockReturnValue({
       materials: [
         {
@@ -116,8 +146,29 @@ describe('MaterialList Component', () => {
     expect(html).toContain('extract-concepts-option-mat-1');
   });
 
+  it('does not render "Sync Graph" button by default in streamlined sidebar mode', () => {
+    mockUseMaterials.mockReturnValue({
+      materials: [
+        {
+          id: 'mat-1',
+          title: 'Doc.pdf',
+          fileType: 'application/pdf',
+          filename: 'doc.pdf',
+          status: 'ready',
+          metadata: {},
+        },
+      ],
+      isLoading: false,
+      mutate: vi.fn(),
+    });
+
+    const html = renderToString(<MaterialList projectId="proj-1" />);
+
+    expect(html).not.toContain('data-testid="sync-graph-button"');
+  });
+
   describe('Sync Graph Button', () => {
-    it('renders "Sync Graph" button enabled in idle state with ready materials', () => {
+    it('renders "Sync Graph" button enabled in idle state with ready materials when showSyncGraph is true', () => {
       mockUseMaterials.mockReturnValue({
         materials: [
           {
@@ -133,11 +184,10 @@ describe('MaterialList Component', () => {
         mutate: vi.fn(),
       });
 
-      const html = renderToString(<MaterialList projectId="proj-1" />);
+      const html = renderToString(<MaterialList projectId="proj-1" showSyncGraph />);
 
       expect(html).toContain('data-testid="sync-graph-button"');
       expect(html).toContain('Sync Graph');
-      // In idle state, button should not have disabled attribute and should not have animate-spin on sync button
       expect(html).toMatch(/<button[^>]*data-testid="sync-graph-button"(?![^>]*disabled)[^>]*>/);
     });
 
@@ -161,7 +211,7 @@ describe('MaterialList Component', () => {
         mutate: vi.fn(),
       });
 
-      const html = renderToString(<MaterialList projectId="proj-1" />);
+      const html = renderToString(<MaterialList projectId="proj-1" showSyncGraph />);
 
       expect(html).toContain('data-testid="sync-graph-button"');
       expect(html).toMatch(/<button[^>]*data-testid="sync-graph-button"[^>]*disabled/);
@@ -188,7 +238,7 @@ describe('MaterialList Component', () => {
         mutate: vi.fn(),
       });
 
-      const html = renderToString(<MaterialList projectId="proj-1" />);
+      const html = renderToString(<MaterialList projectId="proj-1" showSyncGraph />);
 
       expect(html).toContain('data-testid="sync-graph-button"');
       expect(html).toMatch(/<button[^>]*data-testid="sync-graph-button"[^>]*disabled/);

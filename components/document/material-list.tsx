@@ -1,13 +1,11 @@
 'use client';
 
 import {
-  AlertCircle,
-  Check,
-  Clock,
   ExternalLink,
   FileCode,
   FileImage,
   FileText,
+  FolderKanban,
   Loader2,
   MoreVertical,
   Network,
@@ -15,12 +13,12 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
+import Link from 'next/link';
 
 import { type ChangeEvent, useRef, useState } from 'react';
 import { DeleteMaterialDialog } from '@/components/document/delete-material-dialog';
 import { MaterialPreviewDialog } from '@/components/document/material-preview-dialog';
 import { MaterialUploadDialog } from '@/components/document/material-upload-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -39,58 +37,78 @@ export type { MaterialItem, MaterialStatus } from '@/lib/hooks/use-materials';
 export type MaterialListProps = {
   projectId: string;
   className?: string;
+  showNavigationLinks?: boolean;
+  showSyncGraph?: boolean;
 };
 
-function getStatusBadge(status: MaterialStatus, stage?: string) {
+function getStatusDot(status: MaterialStatus, stage?: string) {
   switch (status) {
     case 'ready':
       return (
-        <Badge
-          variant="outline"
-          className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] px-1.5 py-0"
+        <span
+          className="flex items-center justify-center p-0.5 text-emerald-500"
+          title="Status: Ready"
           data-testid="material-status-ready"
         >
-          <Check className="size-2.5" />
-          <span>Ready</span>
-        </Badge>
+          <span className="size-2 rounded-full bg-emerald-500" />
+        </span>
       );
     case 'processing':
       return (
-        <Badge
-          variant="outline"
-          className="gap-1 border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] px-1.5 py-0 animate-pulse"
+        <span
+          className="flex items-center justify-center p-0.5 text-blue-500"
+          title={stage ? `Processing: ${stage}` : 'Processing...'}
           data-testid="material-status-processing"
         >
-          <Loader2 className="size-2.5 animate-spin" />
-          <span>{stage ? `${stage}` : 'Processing'}</span>
-        </Badge>
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-blue-500" />
+          </span>
+        </span>
       );
     case 'failed':
       return (
-        <Badge
-          variant="destructive"
-          className="gap-1 text-[10px] px-1.5 py-0"
+        <span
+          className="flex items-center justify-center p-0.5 text-destructive"
+          title="Status: Failed"
           data-testid="material-status-failed"
         >
-          <AlertCircle className="size-2.5" />
-          <span>Failed</span>
-        </Badge>
+          <span className="size-2 rounded-full bg-destructive" />
+        </span>
       );
     default:
       return (
-        <Badge
-          variant="secondary"
-          className="gap-1 text-[10px] px-1.5 py-0 text-muted-foreground"
+        <span
+          className="flex items-center justify-center p-0.5 text-muted-foreground"
+          title="Status: Pending"
           data-testid="material-status-pending"
         >
-          <Clock className="size-2.5" />
-          <span>Pending</span>
-        </Badge>
+          <span className="size-2 rounded-full bg-muted-foreground/60" />
+        </span>
       );
   }
 }
 
-export function MaterialList({ projectId, className }: MaterialListProps) {
+const FILE_ICON_CONFIG: Record<string, { icon: typeof FileText; colorClass: string }> = {
+  pdf: { icon: FileText, colorClass: 'text-red-500' },
+  image: { icon: FileImage, colorClass: 'text-blue-500' },
+  markdown: { icon: FileCode, colorClass: 'text-emerald-500' },
+  default: { icon: FileText, colorClass: 'text-muted-foreground' },
+};
+
+function renderItemIcon(material: MaterialItem) {
+  const iconType = getFileIconType(material.fileType, material.filename);
+  const config = FILE_ICON_CONFIG[iconType] ?? FILE_ICON_CONFIG.default;
+  const IconComponent = config.icon;
+  return <IconComponent className={cn('size-3.5 shrink-0', config.colorClass)} />;
+}
+
+export function MaterialList({
+  projectId,
+  className,
+  showNavigationLinks = true,
+  showSyncGraph = false,
+}: MaterialListProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [previewMaterialId, setPreviewMaterialId] = useState<string | null>(null);
@@ -193,20 +211,6 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
     }
   };
 
-  const renderItemIcon = (material: MaterialItem) => {
-    const iconType = getFileIconType(material.fileType, material.filename);
-    switch (iconType) {
-      case 'pdf':
-        return <FileText className="size-3.5 shrink-0 text-red-500" />;
-      case 'image':
-        return <FileImage className="size-3.5 shrink-0 text-blue-500" />;
-      case 'markdown':
-        return <FileCode className="size-3.5 shrink-0 text-emerald-500" />;
-      default:
-        return <FileText className="size-3.5 shrink-0 text-muted-foreground" />;
-    }
-  };
-
   return (
     <>
       <div className={cn('flex flex-col gap-2', className)} data-testid="material-list">
@@ -232,21 +236,23 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
           />
 
           <div className="flex items-center gap-1">
-            <Button
-              data-testid="sync-graph-button"
-              variant="ghost"
-              size="sm"
-              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-              onClick={handleSyncGraph}
-              disabled={isExtractingGraph || isSyncingGraph}
-            >
-              {isExtractingGraph || isSyncingGraph ? (
-                <Loader2 className="size-3 animate-spin" />
-              ) : (
-                <RefreshCw className="size-3" />
-              )}
-              <span>Sync Graph</span>
-            </Button>
+            {showSyncGraph && (
+              <Button
+                data-testid="sync-graph-button"
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                onClick={handleSyncGraph}
+                disabled={isExtractingGraph || isSyncingGraph}
+              >
+                {isExtractingGraph || isSyncingGraph ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-3" />
+                )}
+                <span>Sync Graph</span>
+              </Button>
+            )}
 
             <Button
               variant="ghost"
@@ -270,7 +276,7 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
 
         {/* Loading Skeleton */}
         {isLoading && (
-          <div className="space-y-1.5 px-1 py-1">
+          <div className="flex flex-col gap-1.5 px-1 py-1">
             <div className="h-6 animate-pulse rounded bg-muted/40" />
             <div className="h-6 animate-pulse rounded bg-muted/40 w-3/4" />
           </div>
@@ -294,12 +300,12 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
             {materials.map((material) => (
               <div
                 key={material.id}
-                className="group flex items-center justify-between gap-1.5 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors"
+                className="group flex items-center justify-between gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-muted/50 transition-colors"
                 data-testid={`material-item-${material.id}`}
               >
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 min-w-0 flex-1 text-left cursor-pointer"
+                  className="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer overflow-hidden"
                   onClick={() => handleInspect(material.id)}
                 >
                   {renderItemIcon(material)}
@@ -312,17 +318,16 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
                 </button>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  {getStatusBadge(material.status, material.metadata?.progress?.stage)}
+                  {getStatusDot(material.status, material.metadata?.progress?.stage)}
 
                   {isMaterialExtractingGraph(material.metadata) && (
-                    <Badge
-                      variant="outline"
-                      className="gap-1 border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] px-1.5 py-0 animate-pulse"
+                    <span
+                      className="flex items-center justify-center p-0.5 text-purple-500"
+                      title="Extracting Knowledge Graph"
                       data-testid={`material-extracting-graph-${material.id}`}
                     >
                       <Loader2 className="size-2.5 animate-spin" />
-                      <span>Extracting Graph...</span>
-                    </Badge>
+                    </span>
                   )}
 
                   {/* Actions Dropdown */}
@@ -383,6 +388,36 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Quick Navigation Links to Graph and Materials */}
+        {showNavigationLinks && (
+          <div className="mt-1 flex flex-col gap-0.5 border-t border-border/40 pt-1.5">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-6 w-full justify-start gap-1.5 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+              data-testid="sidebar-nav-graph"
+            >
+              <Link href={`/projects/${projectId}/graph`}>
+                <Network className="size-3 text-primary shrink-0" />
+                <span className="truncate">Knowledge Graph</span>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-6 w-full justify-start gap-1.5 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+              data-testid="sidebar-nav-materials"
+            >
+              <Link href={`/projects/${projectId}/materials`}>
+                <FolderKanban className="size-3 text-muted-foreground shrink-0" />
+                <span className="truncate">Manage Materials</span>
+              </Link>
+            </Button>
           </div>
         )}
       </div>

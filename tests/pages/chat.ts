@@ -191,4 +191,28 @@ export class ChatPage {
     const confirmBtn = this.getConfirmDeleteMaterialButton();
     await confirmBtn.click();
   }
+
+  getProjectNav() {
+    return this.page.getByTestId('project-nav');
+  }
+
+  getProjectNavChat() {
+    return this.page.getByTestId('project-nav-chat');
+  }
+
+  getProjectNavGraph() {
+    return this.page.getByTestId('project-nav-graph');
+  }
+
+  getProjectNavMaterials() {
+    return this.page.getByTestId('project-nav-materials');
+  }
+
+  getSidebarNavGraph() {
+    return this.page.getByTestId('sidebar-nav-graph');
+  }
+
+  getSidebarNavMaterials() {
+    return this.page.getByTestId('sidebar-nav-materials');
+  }
 }

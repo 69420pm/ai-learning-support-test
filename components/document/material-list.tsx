@@ -10,9 +10,12 @@ import {
   FileText,
   Loader2,
   MoreVertical,
+  Network,
+  RefreshCw,
   Trash2,
   Upload,
 } from 'lucide-react';
+
 import { type ChangeEvent, useRef, useState } from 'react';
 import { DeleteMaterialDialog } from '@/components/document/delete-material-dialog';
 import { MaterialPreviewDialog } from '@/components/document/material-preview-dialog';
@@ -27,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { type MaterialItem, type MaterialStatus, useMaterials } from '@/lib/hooks/use-materials';
+import { isMaterialExtractingGraph } from '@/lib/materials/types';
 import { ACCEPTED_FILE_TYPES_STRING, getFileIconType } from '@/lib/materials/validation';
 import { cn } from '@/lib/utils';
 
@@ -94,8 +98,12 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
   const [deleteTargetMaterial, setDeleteTargetMaterial] = useState<MaterialItem | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [isSyncingGraph, setIsSyncingGraph] = useState(false);
 
   const { materials, isLoading, mutate } = useMaterials(projectId);
+
+  const isExtractingGraph = materials.some(isMaterialExtractingGraph);
 
   const handleInspect = (materialId: string) => {
     setPreviewMaterialId(materialId);
@@ -105,6 +113,53 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
   const handleDeletePrompt = (material: MaterialItem) => {
     setDeleteTargetMaterial(material);
     setDeleteDialogOpen(true);
+  };
+
+  const handleSyncGraph = async () => {
+    setIsSyncingGraph(true);
+    setExtractError(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/graph/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({}));
+        throw new Error(
+          errorJson.cause || errorJson.message || 'Failed to trigger graph synchronization',
+        );
+      }
+
+      await mutate();
+    } catch (err: unknown) {
+      setExtractError(err instanceof Error ? err.message : 'Failed to synchronize graph');
+    } finally {
+      setIsSyncingGraph(false);
+    }
+  };
+
+  const handleExtractConcepts = async (materialId: string) => {
+    setExtractError(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/graph/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materialIds: [materialId] }),
+      });
+
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({}));
+        throw new Error(
+          errorJson.cause || errorJson.message || 'Failed to trigger concept extraction',
+        );
+      }
+
+      await mutate();
+    } catch (err: unknown) {
+      setExtractError(err instanceof Error ? err.message : 'Failed to extract concepts');
+    }
   };
 
   // Direct file input handler (fallback / backward compat)
@@ -176,22 +231,40 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
             data-testid="material-file-input"
           />
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setUploadDialogOpen(true)}
-            data-testid="upload-material-button"
-          >
-            <Upload className="size-3" />
-            <span>Upload</span>
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              data-testid="sync-graph-button"
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              onClick={handleSyncGraph}
+              disabled={isExtractingGraph || isSyncingGraph}
+            >
+              {isExtractingGraph || isSyncingGraph ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3" />
+              )}
+              <span>Sync Graph</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setUploadDialogOpen(true)}
+              data-testid="upload-material-button"
+            >
+              <Upload className="size-3" />
+              <span>Upload</span>
+            </Button>
+          </div>
         </div>
 
         {/* Error Notice */}
-        {uploadError && (
+        {(uploadError || extractError) && (
           <div className="rounded bg-destructive/10 p-1.5 text-[11px] text-destructive">
-            {uploadError}
+            {uploadError || extractError}
           </div>
         )}
 
@@ -241,6 +314,17 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
                 <div className="flex items-center gap-1 shrink-0">
                   {getStatusBadge(material.status, material.metadata?.progress?.stage)}
 
+                  {isMaterialExtractingGraph(material.metadata) && (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] px-1.5 py-0 animate-pulse"
+                      data-testid={`material-extracting-graph-${material.id}`}
+                    >
+                      <Loader2 className="size-2.5 animate-spin" />
+                      <span>Extracting Graph...</span>
+                    </Badge>
+                  )}
+
                   {/* Actions Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -266,6 +350,22 @@ export function MaterialList({ projectId, className }: MaterialListProps) {
                         <ExternalLink className="size-3.5 text-primary" />
                         <span>Inspect Chunks</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExtractConcepts(material.id);
+                        }}
+                        disabled={
+                          material.status !== 'ready' ||
+                          isMaterialExtractingGraph(material.metadata)
+                        }
+                        className="gap-1.5 cursor-pointer text-xs"
+                        data-testid={`extract-concepts-option-${material.id}`}
+                      >
+                        <Network className="size-3.5 text-purple-500" />
+                        <span>Extract Concepts</span>
+                      </DropdownMenuItem>
+
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={(e) => {

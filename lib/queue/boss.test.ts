@@ -103,4 +103,52 @@ describe('pg-boss queue lifecycle', () => {
 
     expect(jobId).toBeNull();
   });
+
+  it('sendConceptGraphExtractJob dispatches with singletonKey, retryLimit: 2, retryDelay: 15, and retryBackoff: true', async () => {
+    mockStart.mockResolvedValueOnce(undefined);
+    mockCreateQueue.mockResolvedValue(undefined);
+    mockSend.mockResolvedValueOnce('extract-job-999');
+
+    const { CONCEPT_GRAPH_EXTRACT_QUEUE, sendConceptGraphExtractJob } = await import('./boss');
+
+    const jobId = await sendConceptGraphExtractJob({
+      projectId: 'proj-123',
+      userId: 'user-456',
+      materialIds: ['mat-789'],
+    });
+
+    expect(jobId).toBe('extract-job-999');
+    expect(mockCreateQueue).toHaveBeenCalledWith(CONCEPT_GRAPH_EXTRACT_QUEUE);
+    expect(mockSend).toHaveBeenCalledWith(
+      CONCEPT_GRAPH_EXTRACT_QUEUE,
+      {
+        projectId: 'proj-123',
+        userId: 'user-456',
+        materialIds: ['mat-789'],
+      },
+      {
+        singletonKey: 'project:proj-123',
+        retryLimit: 2,
+        retryDelay: 15,
+        retryBackoff: true,
+      },
+    );
+  });
+
+  it('sendConceptGraphExtractJob returns null when debounced by singletonKey', async () => {
+    mockStart.mockResolvedValueOnce(undefined);
+    mockCreateQueue.mockResolvedValue(undefined);
+    // pg-boss returns null when a job with matching singletonKey is active/queued
+    mockSend.mockResolvedValueOnce(null);
+
+    const { sendConceptGraphExtractJob } = await import('./boss');
+
+    const jobId = await sendConceptGraphExtractJob({
+      projectId: 'proj-duplicate',
+      userId: 'user-456',
+      materialIds: ['mat-1'],
+    });
+
+    expect(jobId).toBeNull();
+  });
 });

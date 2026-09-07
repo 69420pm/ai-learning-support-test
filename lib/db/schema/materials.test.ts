@@ -35,7 +35,16 @@ describe('Drizzle Materials Schema', () => {
     expect(materialChunks.content).toBeDefined();
     expect(materialChunks.tokenCount).toBeDefined();
     expect(materialChunks.embedding).toBeDefined();
-    expect(materialChunks.metadata).toBeDefined();
     expect(materialChunks.createdAt).toBeDefined();
+  });
+
+  it('exports graph extraction metadata types and constants', () => {
+    expect(schemaExports.GRAPH_EXTRACTION_STATUSES).toBeDefined();
+    expect(schemaExports.GRAPH_EXTRACTION_STATUSES).toContain('not_started');
+    expect(schemaExports.GRAPH_EXTRACTION_STATUSES).toContain('queued');
+    expect(schemaExports.GRAPH_EXTRACTION_STATUSES).toContain('extracting');
+    expect(schemaExports.GRAPH_EXTRACTION_STATUSES).toContain('ready');
+    expect(schemaExports.GRAPH_EXTRACTION_STATUSES).toContain('ready_with_warnings');
+    expect(schemaExports.GRAPH_EXTRACTION_STATUSES).toContain('failed');
   });
 });

@@ -1,6 +1,7 @@
 import { PgBoss } from 'pg-boss';
 
 export const MATERIAL_INGEST_QUEUE = 'material-ingest';
+export const CONCEPT_GRAPH_EXTRACT_QUEUE = 'concept-graph-extract';
 
 export type MaterialIngestJobData = {
   materialId: string;
@@ -8,6 +9,12 @@ export type MaterialIngestJobData = {
   userId: string;
   storagePath: string;
   fileType: string;
+};
+
+export type ConceptGraphExtractJobData = {
+  projectId: string;
+  userId: string;
+  materialIds: string[];
 };
 
 let bossInstance: PgBoss | null = null;
@@ -42,6 +49,7 @@ export async function startQueue(): Promise<PgBoss | null> {
   startPromise = (async () => {
     await boss.start();
     await boss.createQueue(MATERIAL_INGEST_QUEUE);
+    await boss.createQueue(CONCEPT_GRAPH_EXTRACT_QUEUE);
     return boss;
   })().catch((error) => {
     console.error('Failed to start pg-boss queue:', error);
@@ -78,6 +86,27 @@ export async function sendIngestJob(data: MaterialIngestJobData): Promise<string
   } catch (error) {
     console.error('Failed to dispatch material ingest job:', error);
     // In test environments or when pg-boss fails, fallback
+    return null;
+  }
+}
+
+export async function sendConceptGraphExtractJob(
+  data: ConceptGraphExtractJobData,
+): Promise<string | null> {
+  try {
+    const boss = await startQueue();
+    if (!boss) {
+      throw new Error('pg-boss queue is not available');
+    }
+    const jobId = await boss.send(CONCEPT_GRAPH_EXTRACT_QUEUE, data, {
+      singletonKey: `project:${data.projectId}`,
+      retryLimit: 2,
+      retryDelay: 15,
+      retryBackoff: true,
+    });
+    return jobId;
+  } catch (error) {
+    console.error('Failed to dispatch concept graph extract job:', error);
     return null;
   }
 }

@@ -12,7 +12,14 @@ import {
 import { authUsers } from './profiles';
 import { projects } from './projects';
 
+export {
+  GRAPH_EXTRACTION_STATUSES,
+  type GraphExtractionStatus,
+  type MaterialGraphExtractionMetadata,
+} from '@/lib/materials/types';
+
 export const materialStatusEnum = ['pending', 'processing', 'ready', 'failed'] as const;
+
 export type MaterialStatus = (typeof materialStatusEnum)[number];
 
 export const materials = pgTable(

@@ -87,6 +87,9 @@ export function DeleteMaterialDialog({
               and cosine embeddings
             </li>
             <li>
+              Removes associated knowledge components, grounded exercises, and learner progress
+            </li>
+            <li>
               Removes the underlying physical storage blob (
               <span className="font-mono">{material.filename}</span>)
             </li>

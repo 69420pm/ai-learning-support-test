@@ -138,7 +138,7 @@ test.describe('Material Management UI Suite, Ingestion Inspector & Cascade Delet
       },
     ];
 
-    await page.route(`**/api/projects/${mockProjectId}/materials*`, async (route) => {
+    await page.route(new RegExp(`/api/projects/${mockProjectId}/materials`), async (route) => {
       const url = route.request().url();
       if (url.includes(seededMaterial.id)) {
         await route.fulfill({
@@ -209,7 +209,7 @@ test.describe('Material Management UI Suite, Ingestion Inspector & Cascade Delet
       createdAt: '2026-08-20T17:00:00.000Z',
     };
 
-    await page.route(`**/api/projects/${mockProjectId}/materials*`, async (route) => {
+    await page.route(new RegExp(`/api/projects/${mockProjectId}/materials`), async (route) => {
       const method = route.request().method();
       const url = route.request().url();
 
@@ -240,8 +240,9 @@ test.describe('Material Management UI Suite, Ingestion Inspector & Cascade Delet
     // 1. Open delete dialog from material menu
     await chatPage.deleteMaterial(seededMaterial.id);
 
-    // 2. Verify material is removed from sidebar list
-    await expect(page.getByText('Obsolete Notes')).not.toBeVisible();
+    // 2. Verify dialog closes and material is removed from sidebar list
+    await expect(chatPage.getDeleteMaterialDialog()).not.toBeVisible();
+    await expect(chatPage.getMaterialItem(seededMaterial.id)).not.toBeVisible();
     expect(materialDeleted).toBe(true);
   });
 });

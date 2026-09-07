@@ -25,6 +25,14 @@ const mockCreateTools = vi.fn().mockImplementation((_opts) => ({
     description: 'search materials',
     execute: vi.fn().mockResolvedValue({ results: [] }),
   },
+  getGraphNeighborhood: {
+    description: 'graph neighborhood',
+    execute: vi.fn().mockResolvedValue({ summary: '[OK: 0 prerequisites, 0 unlocked]' }),
+  },
+  getPrerequisiteChain: {
+    description: 'prerequisite chain',
+    execute: vi.fn().mockResolvedValue({ summary: '[OK: 0 prerequisite ancestors]' }),
+  },
 }));
 
 vi.mock('@/lib/ai/tools', () => ({

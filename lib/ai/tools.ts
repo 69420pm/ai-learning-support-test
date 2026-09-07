@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { GetEmbeddingModelOptions } from '@/lib/ai/embedding';
 import type { ProviderName } from '@/lib/ai/providers';
+import { createGraphNeighborhoodTool, createPrerequisiteChainTool } from '@/lib/ai/tools/graph';
 import { retrieveMaterials, type SearchMaterialsResult } from '@/lib/materials';
 
 export type ToolStatusData =
@@ -20,6 +21,44 @@ export type ToolStatusData =
       tool: 'searchProjectMaterials';
       status: 'error';
       query: string;
+      error: string;
+    }
+  | {
+      tool: 'getGraphNeighborhood';
+      status: 'searching';
+      kcId: string;
+      depth?: number;
+    }
+  | {
+      tool: 'getGraphNeighborhood';
+      status: 'completed';
+      kcId: string;
+      depth: number;
+      prerequisitesCount: number;
+      unlockedCount: number;
+    }
+  | {
+      tool: 'getGraphNeighborhood';
+      status: 'error';
+      kcId: string;
+      error: string;
+    }
+  | {
+      tool: 'getPrerequisiteChain';
+      status: 'searching';
+      kcId: string;
+      maxDepth?: number;
+    }
+  | {
+      tool: 'getPrerequisiteChain';
+      status: 'completed';
+      kcId: string;
+      ancestorsCount: number;
+    }
+  | {
+      tool: 'getPrerequisiteChain';
+      status: 'error';
+      kcId: string;
       error: string;
     };
 
@@ -52,6 +91,8 @@ export type SearchProjectMaterialsResult =
 
 export type ProjectTools = {
   searchProjectMaterials: ReturnType<typeof createSearchProjectMaterialsTool>;
+  getGraphNeighborhood: ReturnType<typeof createGraphNeighborhoodTool>;
+  getPrerequisiteChain: ReturnType<typeof createPrerequisiteChainTool>;
 };
 
 function resolveEmbeddingOptions(
@@ -150,5 +191,9 @@ function createSearchProjectMaterialsTool({
 export function createTools(options: CreateToolsOptions): ProjectTools {
   return {
     searchProjectMaterials: createSearchProjectMaterialsTool(options),
+    getGraphNeighborhood: createGraphNeighborhoodTool(options),
+    getPrerequisiteChain: createPrerequisiteChainTool(options),
   };
 }
+
+export * from '@/lib/ai/tools/graph';

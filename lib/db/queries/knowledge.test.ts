@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanupMaterialExtractedGraph,
   getActiveProjectConceptNames,
+  getGraphNeighborhood,
   getKnowledgeComponentsByProjectId,
   getKnowledgeDependenciesByProjectId,
+  getPrerequisiteChain,
   insertExercises,
   insertKnowledgeDependencies,
   upsertKnowledgeComponents,
@@ -13,6 +15,7 @@ const mockDbInsert = vi.fn();
 const mockDbSelect = vi.fn();
 const mockDbDelete = vi.fn();
 const mockDbTransaction = vi.fn();
+const mockDbExecute = vi.fn();
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -20,6 +23,7 @@ vi.mock('@/lib/db', () => ({
     select: (...args: unknown[]) => mockDbSelect(...args),
     delete: (...args: unknown[]) => mockDbDelete(...args),
     transaction: (...args: unknown[]) => mockDbTransaction(...args),
+    execute: (...args: unknown[]) => mockDbExecute(...args),
   },
 }));
 
@@ -303,6 +307,314 @@ describe('Knowledge Graph DB Queries', () => {
 
       expect(mockDbTransaction).toHaveBeenCalledTimes(1);
       expect(mockTxDelete).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('getGraphNeighborhood', () => {
+    it('returns null concept and empty lists when concept does not exist in project', async () => {
+      const mockLimit = vi.fn().mockResolvedValueOnce([]);
+      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+      mockDbSelect.mockReturnValue({ from: mockFrom });
+
+      const result = await getGraphNeighborhood('proj-1', '550e8400-e29b-41d4-a716-446655440000');
+
+      expect(result).toEqual({
+        concept: null,
+        prerequisites: [],
+        unlocked: [],
+        depth: 1,
+      });
+    });
+
+    it('retrieves 1-hop prerequisites and unlocked concepts with tenant isolation', async () => {
+      const centralConcept = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        projectId: 'proj-1',
+        slug: 'binary-search',
+        name: 'Binary Search',
+        pacerCategory: 'procedural',
+        bloomLevel: 3,
+        aliases: [],
+      };
+      const prereqConcept = {
+        id: '11111111-1111-1111-1111-111111111111',
+        projectId: 'proj-1',
+        slug: 'sorted-arrays',
+        name: 'Sorted Arrays',
+        pacerCategory: 'conceptual',
+        bloomLevel: 2,
+        aliases: [],
+      };
+      const unlockedConcept = {
+        id: '22222222-2222-2222-2222-222222222222',
+        projectId: 'proj-1',
+        slug: 'binary-search-tree',
+        name: 'Binary Search Tree',
+        pacerCategory: 'conceptual',
+        bloomLevel: 3,
+        aliases: [],
+      };
+
+      // 1st select: find target concept
+      const mockLimit = vi.fn().mockResolvedValueOnce([centralConcept]);
+      const mockWhereTarget = vi.fn().mockReturnValue({ limit: mockLimit });
+      const mockFromTarget = vi.fn().mockReturnValue({ where: mockWhereTarget });
+
+      // 2nd select: prerequisites (targetKcId = centralConcept.id)
+      const mockWherePrereqs = vi.fn().mockResolvedValueOnce([
+        {
+          concept: prereqConcept,
+          dependency: {
+            relationshipType: 'prerequisite',
+            reasoning: 'Need sorted data',
+          },
+        },
+      ]);
+      const mockInnerJoinPrereqs = vi.fn().mockReturnValue({ where: mockWherePrereqs });
+      const mockFromPrereqs = vi.fn().mockReturnValue({ innerJoin: mockInnerJoinPrereqs });
+
+      // 3rd select: unlocked (sourceKcId = centralConcept.id)
+      const mockWhereUnlocked = vi.fn().mockResolvedValueOnce([
+        {
+          concept: unlockedConcept,
+          dependency: {
+            relationshipType: 'prerequisite',
+            reasoning: 'BST builds on binary search principles',
+          },
+        },
+      ]);
+      const mockInnerJoinUnlocked = vi.fn().mockReturnValue({ where: mockWhereUnlocked });
+      const mockFromUnlocked = vi.fn().mockReturnValue({ innerJoin: mockInnerJoinUnlocked });
+
+      mockDbSelect
+        .mockReturnValueOnce({ from: mockFromTarget })
+        .mockReturnValueOnce({ from: mockFromPrereqs })
+        .mockReturnValueOnce({ from: mockFromUnlocked });
+
+      const result = await getGraphNeighborhood('proj-1', centralConcept.id, 1);
+
+      expect(result.concept).toEqual(centralConcept);
+      expect(result.depth).toBe(1);
+      expect(result.prerequisites).toEqual([
+        {
+          ...prereqConcept,
+          depth: 1,
+          relationshipType: 'prerequisite',
+          reasoning: 'Need sorted data',
+        },
+      ]);
+      expect(result.unlocked).toEqual([
+        {
+          ...unlockedConcept,
+          depth: 1,
+          relationshipType: 'prerequisite',
+          reasoning: 'BST builds on binary search principles',
+        },
+      ]);
+    });
+
+    it('expands to 2-hop neighbors recursively when depth = 2 and deduplicates visited nodes', async () => {
+      const centralConcept = {
+        id: 'c-0',
+        projectId: 'proj-1',
+        slug: 'c-0',
+        name: 'Concept 0',
+      };
+      const hop1Prereq = {
+        id: 'p-1',
+        projectId: 'proj-1',
+        slug: 'p-1',
+        name: 'Hop 1 Prereq',
+      };
+      const hop2Prereq = {
+        id: 'p-2',
+        projectId: 'proj-1',
+        slug: 'p-2',
+        name: 'Hop 2 Prereq',
+      };
+      const hop1Unlocked = {
+        id: 'u-1',
+        projectId: 'proj-1',
+        slug: 'u-1',
+        name: 'Hop 1 Unlocked',
+      };
+      const hop2Unlocked = {
+        id: 'u-2',
+        projectId: 'proj-1',
+        slug: 'u-2',
+        name: 'Hop 2 Unlocked',
+      };
+
+      // 1. Concept lookup
+      const mockLimit = vi.fn().mockResolvedValueOnce([centralConcept]);
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ limit: mockLimit }) }),
+      });
+
+      // 2. 1-hop prereqs
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValueOnce([
+              {
+                concept: hop1Prereq,
+                dependency: { relationshipType: 'prerequisite', reasoning: 'p1 reason' },
+              },
+            ]),
+          }),
+        }),
+      });
+
+      // 3. 1-hop unlocked
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValueOnce([
+              {
+                concept: hop1Unlocked,
+                dependency: { relationshipType: 'prerequisite', reasoning: 'u1 reason' },
+              },
+            ]),
+          }),
+        }),
+      });
+
+      // 4. 2-hop prereqs (targetKcId in [p-1])
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValueOnce([
+              {
+                concept: hop2Prereq,
+                dependency: { relationshipType: 'prerequisite', reasoning: 'p2 reason' },
+              },
+            ]),
+          }),
+        }),
+      });
+
+      // 5. 2-hop unlocked (sourceKcId in [u-1])
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValueOnce([
+              {
+                concept: hop2Unlocked,
+                dependency: { relationshipType: 'prerequisite', reasoning: 'u2 reason' },
+              },
+            ]),
+          }),
+        }),
+      });
+
+      const result = await getGraphNeighborhood({
+        projectId: 'proj-1',
+        kcId: 'c-0',
+        depth: 2,
+      });
+
+      expect(result.depth).toBe(2);
+      expect(result.prerequisites).toHaveLength(2);
+      expect(result.prerequisites[0]).toMatchObject({ id: 'p-1', depth: 1 });
+      expect(result.prerequisites[1]).toMatchObject({ id: 'p-2', depth: 2 });
+      expect(result.unlocked).toHaveLength(2);
+      expect(result.unlocked[0]).toMatchObject({ id: 'u-1', depth: 1 });
+      expect(result.unlocked[1]).toMatchObject({ id: 'u-2', depth: 2 });
+    });
+  });
+
+  describe('getPrerequisiteChain', () => {
+    it('returns empty array when concept does not exist in project', async () => {
+      const mockLimit = vi.fn().mockResolvedValueOnce([]);
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ limit: mockLimit }) }),
+      });
+
+      const result = await getPrerequisiteChain('proj-1', 'non-existent');
+      expect(result).toEqual([]);
+      expect(mockDbExecute).not.toHaveBeenCalled();
+    });
+
+    it('executes recursive CTE query with cycle guard and returns ordered ancestors', async () => {
+      const targetConcept = {
+        id: '33333333-3333-3333-3333-333333333333',
+        projectId: 'proj-1',
+        slug: 'dijkstra',
+      };
+
+      const mockLimit = vi.fn().mockResolvedValueOnce([targetConcept]);
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ limit: mockLimit }) }),
+      });
+
+      const ancestorRows = [
+        {
+          id: '22222222-2222-2222-2222-222222222222',
+          projectId: 'proj-1',
+          slug: 'bfs',
+          name: 'Breadth-First Search',
+          pacerCategory: 'procedural',
+          bloomLevel: 3,
+          aliases: [],
+          status: 'active',
+          orderIndex: 2,
+          depth: 1,
+          relationshipType: 'prerequisite',
+          reasoning: 'Graph traversal foundation',
+        },
+        {
+          id: '11111111-1111-1111-1111-111111111111',
+          projectId: 'proj-1',
+          slug: 'graphs',
+          name: 'Graphs',
+          pacerCategory: 'conceptual',
+          bloomLevel: 2,
+          aliases: [],
+          status: 'active',
+          orderIndex: 1,
+          depth: 2,
+          relationshipType: 'prerequisite',
+          reasoning: 'Core graph representation',
+        },
+      ];
+
+      mockDbExecute.mockResolvedValueOnce(ancestorRows);
+
+      const chain = await getPrerequisiteChain('proj-1', targetConcept.id, 10);
+
+      expect(chain).toEqual(ancestorRows);
+      expect(mockDbExecute).toHaveBeenCalledTimes(1);
+
+      // Verify that the SQL query includes recursive CTE and cycle guard
+      const executedSql = mockDbExecute.mock.calls[0][0];
+      const sqlString = getSqlString(executedSql);
+      expect(sqlString.toLowerCase()).toContain('recursive');
+      expect(sqlString.toLowerCase()).toContain('visited_path');
+      expect(sqlString).toContain('ANY');
+    });
+
+    it('supports object options signature { projectId, kcId, maxDepth }', async () => {
+      const targetConcept = {
+        id: '33333333-3333-3333-3333-333333333333',
+        projectId: 'proj-1',
+      };
+
+      const mockLimit = vi.fn().mockResolvedValueOnce([targetConcept]);
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ limit: mockLimit }) }),
+      });
+
+      mockDbExecute.mockResolvedValueOnce([]);
+
+      const chain = await getPrerequisiteChain({
+        projectId: 'proj-1',
+        kcId: targetConcept.id,
+        maxDepth: 5,
+      });
+
+      expect(chain).toEqual([]);
+      expect(mockDbExecute).toHaveBeenCalledTimes(1);
     });
   });
 });

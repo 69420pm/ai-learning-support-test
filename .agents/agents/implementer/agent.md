@@ -39,9 +39,11 @@ You MUST execute the four phases below in exact chronological sequence. **Do not
 1. **Seam Identification & Failing Tests**:
    - Consult `.agents/skills/tdd/SKILL.md`.
    - Identify public module boundaries and write failing tests first (red phase) verifying user-visible behavior.
-2. **Minimal Implementation**:
+2. **UI & Figma Inspection (if applicable)**:
+   - If the target spec or issue contains a Figma link, consult `.agents/skills/figma/SKILL.md` and `rules/styling.md` Section 6 to extract layout structure, tokens, and component mappings before implementing frontend code.
+3. **Minimal Implementation**:
    - Write the minimal code necessary to pass the tests (green phase).
-3. **Local Suite Verification**:
+4. **Local Suite Verification**:
    - Run typechecks and test suite (e.g., `pnpm check` or `pnpm test && pnpm lint`).
    - All tests must pass before proceeding.
 

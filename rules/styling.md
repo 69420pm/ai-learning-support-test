@@ -80,3 +80,60 @@ This document specifies frontend styling patterns, Tailwind CSS v4 design tokens
 - Use Tailwind's responsive prefixes consistently: `className="px-4 md:px-8 lg:px-12"`.
 - Container widths: use `max-w-4xl` for focused content/learning areas, `max-w-7xl` for full dashboard layouts.
 - Test all UI changes across mobile (375px), tablet (768px), and desktop (1280px) viewport widths.
+
+---
+
+## 6. Shared Figma Design System & Token Bridge
+
+When collaborating on Figma mockups or converting Figma designs into code (via [`.agents/skills/figma/SKILL.md`](file:///workspaces/secure-ai-learning-support/.agents/skills/figma/SKILL.md)), adhere strictly to these token and component mappings:
+
+### Design Tokens & Color Variables
+Figma variable names must mirror the semantic theme tokens configured in [`app/globals.css`](file:///workspaces/secure-ai-learning-support/app/globals.css):
+
+| Figma Variable / Style | CSS Variable | Tailwind v4 Class | Usage Context |
+| :--- | :--- | :--- | :--- |
+| `Background / Default` | `var(--background)` | `bg-background` | Page and screen backgrounds |
+| `Foreground / Default` | `var(--foreground)` | `text-foreground` | Base body text |
+| `Card / Default` | `var(--card)` | `bg-card text-card-foreground` | Surface panels and containers |
+| `Primary / Default` | `var(--primary)` | `bg-primary text-primary-foreground` | Primary buttons and key interactive cues |
+| `Muted / Default` | `var(--muted)` | `bg-muted text-muted-foreground` | Secondary surfaces, subtitles, meta text |
+| `Border / Default` | `var(--border)` | `border-border` | Component and divider borders |
+| `Destructive / Default` | `var(--destructive)` | `bg-destructive text-destructive-foreground` | Error states and destructive actions |
+| `Radius / Large` | `var(--radius)` (10px) | `rounded-lg` | Modals, cards, major containers |
+| `Radius / Medium` | `var(--radius-md)` (8px) | `rounded-md` | Buttons, form controls, badges |
+| `Radius / Small` | `var(--radius-sm)` (6px) | `rounded-sm` | Inner chips, tooltips, tags |
+
+### Auto-Layout Spacing Scale (4px / 8px Grid)
+Map Figma auto-layout gap and padding values directly to Tailwind spacing utilities:
+
+| Figma Value | Tailwind Gap | Tailwind Padding |
+| :--- | :--- | :--- |
+| `4px` | `gap-1` | `p-1` (`0.25rem`) |
+| `8px` | `gap-2` | `p-2` (`0.5rem`) |
+| `12px` | `gap-3` | `p-3` (`0.75rem`) |
+| `16px` | `gap-4` | `p-4` (`1rem`) |
+| `24px` | `gap-6` | `p-6` (`1.5rem`) |
+| `32px` | `gap-8` | `p-8` (`2rem`) |
+
+### Auto-Layout to CSS Flexbox & Grid
+- **Direction**:
+  - Horizontal $\rightarrow$ `flex flex-row`
+  - Vertical $\rightarrow$ `flex flex-col`
+- **Alignment**:
+  - Primary Axis Center $\rightarrow$ `justify-center`
+  - Space Between $\rightarrow$ `justify-between`
+  - Counter Axis Center $\rightarrow$ `items-center`
+  - Counter Axis Stretch $\rightarrow$ `items-stretch`
+- **Sizing**:
+  - `HUG` $\rightarrow$ `w-fit`
+  - `FILL` $\rightarrow$ `flex-1` or `w-full`
+  - Fixed dimensions $\rightarrow$ `size-*` (if equal) or `w-[*] h-[*]`
+
+### Component Mapping (shadcn Primitives)
+Never build custom raw HTML wrappers when a shared component exists in `@/components/ui`:
+- **Buttons / Actions**: `<Button>` from `@/components/ui/button`.
+- **Card / Containers**: `<Card>`, `<CardHeader>`, `<CardTitle>`, `<CardDescription>`, `<CardContent>` from `@/components/ui/card`.
+- **Form Controls**: `<FieldGroup>`, `<Field>`, `<FieldLabel>`, `<Input>` from `@/components/ui/*`.
+- **Modal / Overlays**: `<Dialog>`, `<DialogContent>`, `<DialogHeader>`, `<DialogTitle>` from `@/components/ui/dialog`.
+- **Tags & Status**: `<Badge>` from `@/components/ui/badge`.
+- **Icons**: Lucide icons from `lucide-react` with `data-icon` attribute for buttons.

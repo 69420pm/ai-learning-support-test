@@ -2,7 +2,11 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { GetEmbeddingModelOptions } from '@/lib/ai/embedding';
 import type { ProviderName } from '@/lib/ai/providers';
-import { createGraphNeighborhoodTool, createPrerequisiteChainTool } from '@/lib/ai/tools/graph';
+import {
+  createExercisesForKcTool,
+  createGraphNeighborhoodTool,
+  createPrerequisiteChainTool,
+} from '@/lib/ai/tools/graph';
 import { retrieveMaterials, type SearchMaterialsResult } from '@/lib/materials';
 
 export type ToolStatusData =
@@ -60,6 +64,23 @@ export type ToolStatusData =
       status: 'error';
       kcId: string;
       error: string;
+    }
+  | {
+      tool: 'getExercisesForKc';
+      status: 'searching';
+      kcId: string;
+    }
+  | {
+      tool: 'getExercisesForKc';
+      status: 'completed';
+      kcId: string;
+      exerciseCount: number;
+    }
+  | {
+      tool: 'getExercisesForKc';
+      status: 'error';
+      kcId: string;
+      error: string;
     };
 
 export type DataStreamWriter = {
@@ -93,6 +114,7 @@ export type ProjectTools = {
   searchProjectMaterials: ReturnType<typeof createSearchProjectMaterialsTool>;
   getGraphNeighborhood: ReturnType<typeof createGraphNeighborhoodTool>;
   getPrerequisiteChain: ReturnType<typeof createPrerequisiteChainTool>;
+  getExercisesForKc: ReturnType<typeof createExercisesForKcTool>;
 };
 
 function resolveEmbeddingOptions(
@@ -193,6 +215,7 @@ export function createTools(options: CreateToolsOptions): ProjectTools {
     searchProjectMaterials: createSearchProjectMaterialsTool(options),
     getGraphNeighborhood: createGraphNeighborhoodTool(options),
     getPrerequisiteChain: createPrerequisiteChainTool(options),
+    getExercisesForKc: createExercisesForKcTool(options),
   };
 }
 

@@ -287,6 +287,37 @@ async function fetchSecondHopNeighbors(
   return hop2Neighbors;
 }
 
+export async function resolveConcept(
+  projectId: string,
+  kcId: string,
+): Promise<KnowledgeComponent | null> {
+  if (!projectId || !kcId) {
+    return null;
+  }
+
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(kcId);
+    const conceptFilter = isUuid
+      ? or(
+          eq(knowledgeComponents.id, kcId),
+          eq(knowledgeComponents.slug, kcId),
+          eq(knowledgeComponents.name, kcId),
+        )
+      : or(eq(knowledgeComponents.slug, kcId), eq(knowledgeComponents.name, kcId));
+
+    const [concept] = await db
+      .select()
+      .from(knowledgeComponents)
+      .where(and(eq(knowledgeComponents.projectId, projectId), conceptFilter))
+      .limit(1);
+
+    return concept ?? null;
+  } catch (error) {
+    if (error instanceof ChatbotError) throw error;
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
 export function getGraphNeighborhood(
   projectId: string,
   kcId: string,
@@ -315,20 +346,7 @@ export async function getGraphNeighborhood(
   }
 
   try {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(kcId);
-    const conceptFilter = isUuid
-      ? or(
-          eq(knowledgeComponents.id, kcId),
-          eq(knowledgeComponents.slug, kcId),
-          eq(knowledgeComponents.name, kcId),
-        )
-      : or(eq(knowledgeComponents.slug, kcId), eq(knowledgeComponents.name, kcId));
-
-    const [concept] = await db
-      .select()
-      .from(knowledgeComponents)
-      .where(and(eq(knowledgeComponents.projectId, projectId), conceptFilter))
-      .limit(1);
+    const concept = await resolveConcept(projectId, kcId);
 
     if (!concept) {
       return { concept: null, prerequisites: [], unlocked: [], depth: safeDepth };
@@ -365,8 +383,24 @@ export async function getGraphNeighborhood(
       depth: safeDepth,
     };
   } catch (error) {
+    if (error instanceof ChatbotError) throw error;
     throw new ChatbotError('bad_request:database', { cause: error });
   }
+}
+
+function extractExecuteRows<T>(rawRows: unknown): T[] {
+  if (Array.isArray(rawRows)) {
+    return rawRows as T[];
+  }
+  if (
+    rawRows &&
+    typeof rawRows === 'object' &&
+    'rows' in rawRows &&
+    Array.isArray((rawRows as { rows: unknown[] }).rows)
+  ) {
+    return (rawRows as { rows: T[] }).rows;
+  }
+  return [];
 }
 
 export function getPrerequisiteChain(
@@ -397,20 +431,7 @@ export async function getPrerequisiteChain(
   const safeMaxDepth = Math.max(1, Math.min(50, Math.floor(maxDepth)));
 
   try {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(kcId);
-    const conceptFilter = isUuid
-      ? or(
-          eq(knowledgeComponents.id, kcId),
-          eq(knowledgeComponents.slug, kcId),
-          eq(knowledgeComponents.name, kcId),
-        )
-      : or(eq(knowledgeComponents.slug, kcId), eq(knowledgeComponents.name, kcId));
-
-    const [concept] = await db
-      .select({ id: knowledgeComponents.id })
-      .from(knowledgeComponents)
-      .where(and(eq(knowledgeComponents.projectId, projectId), conceptFilter))
-      .limit(1);
+    const concept = await resolveConcept(projectId, kcId);
 
     if (!concept) {
       return [];
@@ -468,13 +489,131 @@ export async function getPrerequisiteChain(
     `;
 
     const rawRows = await db.execute<PrerequisiteChainNode>(query);
-    const rows = Array.isArray(rawRows)
-      ? rawRows
-      : ((rawRows as unknown as { rows?: PrerequisiteChainNode[] })?.rows ??
-        Array.from((rawRows as unknown as Iterable<PrerequisiteChainNode>) ?? []));
-
-    return rows as PrerequisiteChainNode[];
+    return extractExecuteRows<PrerequisiteChainNode>(rawRows);
   } catch (error) {
+    if (error instanceof ChatbotError) throw error;
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export type GetReadyToLearnFrontierOptions = {
+  projectId: string;
+  masteredKcIds?: string[];
+};
+
+export function getReadyToLearnFrontier(
+  projectId: string,
+  masteredKcIds?: string[],
+): Promise<KnowledgeComponent[]>;
+export function getReadyToLearnFrontier(
+  options: GetReadyToLearnFrontierOptions,
+): Promise<KnowledgeComponent[]>;
+export async function getReadyToLearnFrontier(
+  projectIdOrOptions: string | GetReadyToLearnFrontierOptions,
+  masteredKcIdsParam: string[] = [],
+): Promise<KnowledgeComponent[]> {
+  const { projectId, masteredKcIds = [] } =
+    typeof projectIdOrOptions === 'string'
+      ? { projectId: projectIdOrOptions, masteredKcIds: masteredKcIdsParam }
+      : {
+          projectId: projectIdOrOptions.projectId,
+          masteredKcIds: projectIdOrOptions.masteredKcIds ?? [],
+        };
+
+  if (!projectId) {
+    return [];
+  }
+
+  try {
+    const query = sql`
+      WITH unmastered_prereqs AS (
+        SELECT kd.target_kc_id
+        FROM ${knowledgeDependencies} kd
+        WHERE kd.project_id = ${projectId}
+          AND kd.relationship_type = 'prerequisite'
+          ${
+            masteredKcIds.length > 0
+              ? sql`AND NOT (kd.source_kc_id::text = ANY(ARRAY[${sql.join(
+                  masteredKcIds.map((id) => sql`${id}::text`),
+                  sql`, `,
+                )}]))`
+              : sql``
+          }
+      )
+      SELECT
+        kc.id,
+        kc.project_id AS "projectId",
+        kc.user_id AS "userId",
+        kc.slug,
+        kc.name,
+        kc.pacer_category AS "pacerCategory",
+        kc.bloom_level AS "bloomLevel",
+        kc.aliases,
+        kc.status,
+        kc.order_index AS "orderIndex",
+        kc.source_material_id AS "sourceMaterialId",
+        kc.created_at AS "createdAt",
+        kc.updated_at AS "updatedAt"
+      FROM ${knowledgeComponents} kc
+      WHERE kc.project_id = ${projectId}
+        AND kc.status = 'active'
+        ${
+          masteredKcIds.length > 0
+            ? sql`AND NOT (kc.id::text = ANY(ARRAY[${sql.join(
+                masteredKcIds.map((id) => sql`${id}::text`),
+                sql`, `,
+              )}]))`
+            : sql``
+        }
+        AND NOT EXISTS (
+          SELECT 1
+          FROM unmastered_prereqs up
+          WHERE up.target_kc_id = kc.id
+        )
+      ORDER BY kc.order_index ASC, kc.name ASC;
+    `;
+
+    const rawRows = await db.execute<KnowledgeComponent>(query);
+    return extractExecuteRows<KnowledgeComponent>(rawRows);
+  } catch (error) {
+    if (error instanceof ChatbotError) throw error;
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export type GetExercisesForKcOptions = {
+  projectId: string;
+  kcId: string;
+};
+
+export function getExercisesForKc(projectId: string, kcId: string): Promise<Exercise[]>;
+export function getExercisesForKc(options: GetExercisesForKcOptions): Promise<Exercise[]>;
+export async function getExercisesForKc(
+  projectIdOrOptions: string | GetExercisesForKcOptions,
+  kcIdParam?: string,
+): Promise<Exercise[]> {
+  const { projectId, kcId } =
+    typeof projectIdOrOptions === 'string'
+      ? { projectId: projectIdOrOptions, kcId: kcIdParam ?? '' }
+      : projectIdOrOptions;
+
+  if (!projectId || !kcId) {
+    return [];
+  }
+
+  try {
+    const concept = await resolveConcept(projectId, kcId);
+    if (!concept) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(exercises)
+      .where(and(eq(exercises.projectId, projectId), eq(exercises.kcId, concept.id)))
+      .orderBy(asc(exercises.pageNumber), asc(exercises.title));
+  } catch (error) {
+    if (error instanceof ChatbotError) throw error;
     throw new ChatbotError('bad_request:database', { cause: error });
   }
 }

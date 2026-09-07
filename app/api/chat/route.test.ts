@@ -33,6 +33,10 @@ const mockCreateTools = vi.fn().mockImplementation((_opts) => ({
     description: 'prerequisite chain',
     execute: vi.fn().mockResolvedValue({ summary: '[OK: 0 prerequisite ancestors]' }),
   },
+  getExercisesForKc: {
+    description: 'exercises for kc',
+    execute: vi.fn().mockResolvedValue({ summary: '[OK: 0 exercises found for Concept]' }),
+  },
 }));
 
 vi.mock('@/lib/ai/tools', () => ({
@@ -284,6 +288,60 @@ describe('Chat API Handler (/api/chat)', () => {
           apiKey: 'custom-byok-key',
         }),
       );
+    });
+
+    it('provides getExercisesForKc tool in chat stream for exercise discovery', async () => {
+      const testUser = { id: 'user-uuid-123', email: 'test@example.com' };
+      const projectId = '770e8400-e29b-41d4-a716-446655440000';
+      mockRequireAuthUser.mockResolvedValueOnce(testUser);
+      mockGetChatById.mockResolvedValueOnce(null);
+      mockGetProjectById.mockResolvedValueOnce({
+        id: projectId,
+        userId: testUser.id,
+        name: 'Calculus',
+      });
+      mockSaveChat.mockResolvedValueOnce({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        userId: testUser.id,
+        projectId,
+        title: 'New chat',
+      });
+
+      const request = new Request('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          projectId,
+          message: {
+            id: '11111111-2222-4444-8888-999999999999',
+            role: 'user',
+            parts: [{ type: 'text', text: 'Give me practice exercises for derivatives' }],
+          },
+        }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(200);
+
+      const reader = response.body?.getReader();
+      if (reader) {
+        let done = false;
+        while (!done) {
+          const res = await reader.read();
+          done = res.done;
+        }
+      }
+
+      expect(mockCreateTools).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: testUser.id,
+          projectId,
+        }),
+      );
+      const createdTools =
+        mockCreateTools.mock.results[mockCreateTools.mock.results.length - 1]?.value;
+      expect(createdTools).toHaveProperty('getExercisesForKc');
     });
   });
 

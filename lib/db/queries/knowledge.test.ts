@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanupMaterialExtractedGraph,
   getActiveProjectConceptNames,
+  getExercisesForKc,
   getGraphNeighborhood,
   getKnowledgeComponentsByProjectId,
   getKnowledgeDependenciesByProjectId,
   getPrerequisiteChain,
+  getReadyToLearnFrontier,
   insertExercises,
   insertKnowledgeDependencies,
   upsertKnowledgeComponents,
@@ -30,6 +32,9 @@ vi.mock('@/lib/db', () => ({
 function extractChunkText(c: unknown): string {
   if (typeof c === 'string') return c;
   if (!c || typeof c !== 'object') return '';
+  if ('queryChunks' in c && Array.isArray((c as { queryChunks: unknown[] }).queryChunks)) {
+    return (c as { queryChunks: unknown[] }).queryChunks.map(extractChunkText).join(' ');
+  }
   if ('value' in c) {
     const val = (c as { value: unknown }).value;
     return Array.isArray(val) ? val.join(' ') : String(val);
@@ -615,6 +620,177 @@ describe('Knowledge Graph DB Queries', () => {
 
       expect(chain).toEqual([]);
       expect(mockDbExecute).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getReadyToLearnFrontier', () => {
+    it('returns empty array when projectId is empty', async () => {
+      const result = await getReadyToLearnFrontier('', []);
+      expect(result).toEqual([]);
+      expect(mockDbExecute).not.toHaveBeenCalled();
+    });
+
+    it('retrieves root foundational concepts with default masteredKcIds = []', async () => {
+      const rootConcepts = [
+        {
+          id: '11111111-1111-1111-1111-111111111111',
+          projectId: 'proj-1',
+          name: 'Arrays',
+          slug: 'arrays',
+          status: 'active',
+          orderIndex: 0,
+        },
+        {
+          id: '22222222-2222-2222-2222-222222222222',
+          projectId: 'proj-1',
+          name: 'Variables',
+          slug: 'variables',
+          status: 'active',
+          orderIndex: 1,
+        },
+      ];
+
+      mockDbExecute.mockResolvedValueOnce(rootConcepts);
+
+      const result = await getReadyToLearnFrontier('proj-1');
+
+      expect(result).toEqual(rootConcepts);
+      expect(mockDbExecute).toHaveBeenCalledTimes(1);
+
+      const executedSql = mockDbExecute.mock.calls[0][0];
+      const sqlString = getSqlString(executedSql);
+      expect(sqlString).toContain('status');
+      expect(sqlString).toContain('active');
+      expect(sqlString).toContain('NOT EXISTS');
+    });
+
+    it('unblocks concepts when prerequisite concepts are passed in masteredKcIds', async () => {
+      const masteredId = '11111111-1111-1111-1111-111111111111';
+      const unblockedConcepts = [
+        {
+          id: '33333333-3333-3333-3333-333333333333',
+          projectId: 'proj-1',
+          name: 'Binary Search',
+          slug: 'binary-search',
+          status: 'active',
+          orderIndex: 2,
+        },
+      ];
+
+      mockDbExecute.mockResolvedValueOnce(unblockedConcepts);
+
+      const result = await getReadyToLearnFrontier('proj-1', [masteredId]);
+
+      expect(result).toEqual(unblockedConcepts);
+      expect(mockDbExecute).toHaveBeenCalledTimes(1);
+
+      const executedSql = mockDbExecute.mock.calls[0][0];
+      const sqlString = getSqlString(executedSql);
+      expect(sqlString).toContain('ANY');
+    });
+
+    it('excludes concepts that are already in masteredKcIds', async () => {
+      const masteredId = '11111111-1111-1111-1111-111111111111';
+      mockDbExecute.mockResolvedValueOnce([]);
+
+      const result = await getReadyToLearnFrontier({
+        projectId: 'proj-1',
+        masteredKcIds: [masteredId],
+      });
+
+      expect(result).toEqual([]);
+      expect(mockDbExecute).toHaveBeenCalledTimes(1);
+
+      const executedSql = mockDbExecute.mock.calls[0][0];
+      const sqlString = getSqlString(executedSql);
+      // The SQL query should filter out mastered concepts: NOT (kc.id ... = ANY(...))
+      expect(sqlString).toContain('NOT');
+      expect(sqlString).toContain('ANY');
+    });
+  });
+
+  describe('getExercisesForKc', () => {
+    it('returns empty array when projectId or kcId is empty', async () => {
+      expect(await getExercisesForKc('', 'kc-1')).toEqual([]);
+      expect(await getExercisesForKc('proj-1', '')).toEqual([]);
+      expect(mockDbSelect).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array when concept does not exist in project (tenant isolation)', async () => {
+      const mockLimit = vi.fn().mockResolvedValueOnce([]);
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ limit: mockLimit }) }),
+      });
+
+      const result = await getExercisesForKc('proj-1', 'non-existent-slug');
+      expect(result).toEqual([]);
+    });
+
+    it('returns exercises directly via WHERE project_id = $1 AND kc_id = $2 without join overhead', async () => {
+      const resolvedConcept = {
+        id: '11111111-1111-1111-1111-111111111111',
+        projectId: 'proj-1',
+        slug: 'binary-search',
+        name: 'Binary Search',
+      };
+      const expectedExercises = [
+        {
+          id: 'ex-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          materialId: 'mat-1',
+          kcId: resolvedConcept.id,
+          pageNumber: 42,
+          title: 'Problem 4.2: Peak Element',
+          prompt: 'Find a peak element in an array in O(log n) time.',
+          solution: 'Apply binary search on middle elements.',
+          questionType: 'code',
+          difficulty: 3,
+        },
+      ];
+
+      // 1st select: resolveConcept
+      const mockLimit = vi.fn().mockResolvedValueOnce([resolvedConcept]);
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ limit: mockLimit }) }),
+      });
+
+      // 2nd select: getExercisesForKc directly from exercises
+      const mockOrderBy = vi.fn().mockResolvedValueOnce(expectedExercises);
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+      mockDbSelect.mockReturnValueOnce({ from: mockFrom });
+
+      const result = await getExercisesForKc('proj-1', resolvedConcept.id);
+
+      expect(result).toEqual(expectedExercises);
+      expect(mockDbSelect).toHaveBeenCalledTimes(2);
+      expect(mockFrom).toHaveBeenCalledTimes(1);
+    });
+
+    it('supports object options signature { projectId, kcId }', async () => {
+      const resolvedConcept = {
+        id: '11111111-1111-1111-1111-111111111111',
+        projectId: 'proj-1',
+        slug: 'recursion',
+      };
+      mockDbSelect
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi
+              .fn()
+              .mockReturnValue({ limit: vi.fn().mockResolvedValueOnce([resolvedConcept]) }),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({ orderBy: vi.fn().mockResolvedValueOnce([]) }),
+          }),
+        });
+
+      const result = await getExercisesForKc({ projectId: 'proj-1', kcId: 'recursion' });
+      expect(result).toEqual([]);
+      expect(mockDbSelect).toHaveBeenCalledTimes(2);
     });
   });
 });

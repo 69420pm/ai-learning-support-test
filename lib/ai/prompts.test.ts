@@ -9,6 +9,7 @@ import {
 describe('AI Prompts', () => {
   it('systemPrompt includes grounded tool instruction, citation format, and gap disclosure', () => {
     expect(systemPrompt).toContain('searchProjectMaterials');
+    expect(systemPrompt).toContain('getExercisesForKc');
     expect(systemPrompt).toContain('**[Material Title, Page X]**');
     expect(systemPrompt.toLowerCase()).toContain('missing');
   });

@@ -170,7 +170,7 @@ describe('AI Tools Registry (createTools)', () => {
     expect(output.results).toEqual([]);
   });
 
-  it('creates getGraphNeighborhood and getPrerequisiteChain tools with proper schemas', () => {
+  it('creates getGraphNeighborhood, getPrerequisiteChain, and getExercisesForKc tools with proper schemas', () => {
     const tools = createTools({
       projectId: 'proj-1',
       userId: 'user-1',
@@ -178,7 +178,9 @@ describe('AI Tools Registry (createTools)', () => {
 
     expect(tools).toHaveProperty('getGraphNeighborhood');
     expect(tools).toHaveProperty('getPrerequisiteChain');
+    expect(tools).toHaveProperty('getExercisesForKc');
     expect(tools.getGraphNeighborhood.description).toMatch(/neighborhood|prerequisites/i);
     expect(tools.getPrerequisiteChain.description).toMatch(/prerequisite|ancestor|chain/i);
+    expect(tools.getExercisesForKc.description).toMatch(/exercise|problem|practice/i);
   });
 });

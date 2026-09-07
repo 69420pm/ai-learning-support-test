@@ -3,11 +3,12 @@ import { z } from 'zod';
 import type { CreateToolsOptions } from '@/lib/ai/tools';
 import {
   type GraphNeighborKC,
+  getExercisesForKc,
   getGraphNeighborhood,
   getPrerequisiteChain,
   type PrerequisiteChainNode,
 } from '@/lib/db/queries/knowledge';
-import type { KnowledgeComponent } from '@/lib/db/schema';
+import type { Exercise, KnowledgeComponent } from '@/lib/db/schema';
 
 export type GraphNeighborhoodToolResult = {
   summary: string;
@@ -46,6 +47,21 @@ export type PrerequisiteChainToolResult = {
   toString: () => string;
 };
 
+export type ExercisesForKcToolResult = {
+  summary: string;
+  text: string;
+  content: string;
+  kcId: string;
+  exercises: Exercise[];
+  payload: {
+    kcId: string;
+    exercises: Exercise[];
+    count: number;
+  };
+  error?: string;
+  toString: () => string;
+};
+
 function formatNeighborhoodSummary(prereqsCount: number, unlockedCount: number): string {
   const pWord = prereqsCount === 1 ? 'prerequisite' : 'prerequisites';
   return `[OK: ${prereqsCount} ${pWord}, ${unlockedCount} unlocked]`;
@@ -54,6 +70,19 @@ function formatNeighborhoodSummary(prereqsCount: number, unlockedCount: number):
 function formatChainSummary(chainCount: number): string {
   const aWord = chainCount === 1 ? 'prerequisite ancestor' : 'prerequisite ancestors';
   return `[OK: ${chainCount} ${aWord}]`;
+}
+
+function formatExercisesSummary(count: number, kcId: string): string {
+  const eWord = count === 1 ? 'exercise' : 'exercises';
+  const cleanId = kcId.trim().replace(/\s+/g, ' ');
+  const truncatedId = cleanId.length > 25 ? `${cleanId.slice(0, 22)}...` : cleanId;
+  return `[OK: ${count} ${eWord} found for ${truncatedId}]`;
+}
+
+function formatErrorSummary(errorMessage: string): string {
+  const clean = errorMessage.trim().replace(/\s+/g, ' ');
+  const truncated = clean.length > 30 ? `${clean.slice(0, 27)}...` : clean;
+  return `[Error: ${truncated}]`;
 }
 
 export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToolsOptions) {
@@ -386,5 +415,130 @@ export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToo
 
 export const getPrerequisiteChainTool = createPrerequisiteChainTool;
 
+export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsOptions) {
+  const exercisesTool = tool({
+    description:
+      'Retrieve grounded practice exercises and problems for a knowledge component or concept, including page numbers, prompts, and solutions.',
+    inputSchema: z.object({
+      kcId: z
+        .string()
+        .min(1)
+        .describe('The concept ID, slug, or name to find practice exercises for'),
+    }),
+    toModelOutput: ({ output }) => ({
+      type: 'text' as const,
+      value: output.summary,
+    }),
+    execute: async ({ kcId }: { kcId: string }): Promise<ExercisesForKcToolResult> => {
+      try {
+        dataStream?.write({
+          type: 'data-tool-status',
+          data: {
+            tool: 'getExercisesForKc',
+            status: 'searching',
+            kcId,
+          },
+        });
+
+        if (!projectId) {
+          const errorSummary = '[Error: No project context]';
+          return {
+            summary: errorSummary,
+            text: errorSummary,
+            content: errorSummary,
+            kcId,
+            exercises: [],
+            payload: {
+              kcId,
+              exercises: [],
+              count: 0,
+            },
+            error: 'No project context available for exercises query.',
+            toString() {
+              return errorSummary;
+            },
+          };
+        }
+
+        const exercises = await getExercisesForKc({
+          projectId,
+          kcId,
+        });
+
+        const summary = formatExercisesSummary(exercises.length, kcId);
+
+        dataStream?.write({
+          type: 'data-tool-status',
+          data: {
+            tool: 'getExercisesForKc',
+            status: 'completed',
+            kcId,
+            exerciseCount: exercises.length,
+          },
+        });
+
+        return {
+          summary,
+          text: summary,
+          content: summary,
+          kcId,
+          exercises,
+          payload: {
+            kcId,
+            exercises,
+            count: exercises.length,
+          },
+          toString() {
+            return summary;
+          },
+        };
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown exercises query error';
+        const errorSummary = formatErrorSummary(errorMessage);
+
+        dataStream?.write({
+          type: 'data-tool-status',
+          data: {
+            tool: 'getExercisesForKc',
+            status: 'error',
+            kcId,
+            error: errorMessage,
+          },
+        });
+
+        return {
+          summary: errorSummary,
+          text: errorSummary,
+          content: errorSummary,
+          kcId,
+          exercises: [],
+          payload: {
+            kcId,
+            exercises: [],
+            count: 0,
+          },
+          error: errorMessage,
+          toString() {
+            return errorSummary;
+          },
+        };
+      }
+    },
+  });
+
+  return Object.assign(exercisesTool, {
+    // biome-ignore lint/style/useNamingConvention: legacy AI SDK compatibility
+    experimental_toToolResultContent: (result: ExercisesForKcToolResult) => [
+      {
+        type: 'text' as const,
+        text: result.summary,
+      },
+    ],
+  });
+}
+
+export const getExercisesForKcTool = createExercisesForKcTool;
+
 export type GraphNeighborhoodTool = ReturnType<typeof createGraphNeighborhoodTool>;
 export type PrerequisiteChainTool = ReturnType<typeof createPrerequisiteChainTool>;
+export type ExercisesForKcTool = ReturnType<typeof createExercisesForKcTool>;

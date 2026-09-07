@@ -35,7 +35,7 @@ export default async function ProjectChatLayout({
     if (isMock) {
       const navUser = { email: user.email, fullName: user.fullName };
       return (
-        <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden bg-background">
+        <div className="flex h-full w-full overflow-hidden bg-background">
           <ChatSidebar user={navUser} projectId={projectId} projectName="Test Project" />
           <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
         </div>
@@ -47,7 +47,7 @@ export default async function ProjectChatLayout({
   const navUser = { email: user.email, fullName: user.fullName };
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden bg-background">
+    <div className="flex h-full w-full overflow-hidden bg-background">
       <ChatSidebar user={navUser} projectId={projectId} projectName={project.name} />
       <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
     </div>

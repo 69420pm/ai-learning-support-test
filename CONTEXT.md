@@ -81,6 +81,26 @@ _Avoid_: Snippet, passage, fragment
 A structured graph of entities, relationships, and concepts extracted across ingested materials to support multi-hop reasoning.
 _Avoid_: Concept map, mindmap, ontology
 
+**Knowledge Component (KC)**:
+The atomic, learnable unit of knowledge (concept, principle, procedural method, or factual relation) extracted from materials, categorized by PACER classification and indexed by Bloom cognitive level.
+_Avoid_: Concept node, topic item, skill node, entity, node
+
+**Knowledge Dependency**:
+A directed pedagogical prerequisite or structural relationship connecting two Knowledge Components, enriched with reasoning justifying why one concept precedes or supports another.
+_Avoid_: Edge, relation, link, connection, dependency link
+
+**PACER Category**:
+The pedagogical classification system categorizing Knowledge Components into Procedural, Analogous, Conceptual, Evidence, or Reference types.
+_Avoid_: Concept type, node category, KC type
+
+**Bloom Level**:
+The cognitive complexity rating (1 to 6: Remember, Understand, Apply, Analyze, Evaluate, Create) indicating the mastery depth required for a Knowledge Component.
+_Avoid_: Difficulty score, complexity level, cognitive stage
+
+**Grounded Exercise**:
+A practice assessment problem (multiple-choice, calculation, conceptual query, or code task) synthesized during concept extraction and strictly linked to a Knowledge Component and source material page attribution.
+_Avoid_: Quiz item, test question, drill, homework problem
+
 **GraphRAG**:
 Retrieval-Augmented Generation that queries both vector similarity and knowledge graph relationships to ground model responses in materials.
 _Avoid_: RAG, vector search, semantic search

@@ -10,7 +10,7 @@ import {
 } from '@/lib/db/schema/knowledge';
 import { ChatbotError } from '@/lib/errors';
 import { sendConceptGraphExtractJob } from '@/lib/queue/boss';
-import type { MaterialGraphExtractionMetadata, MaterialMetadata } from './types';
+import type { MaterialGraphExtractionMetadata } from './types';
 
 export function slugifyConceptName(name: string): string {
   return name
@@ -374,23 +374,10 @@ export function updateMaterialGraphExtractionMetadata(
   };
 }
 
-export type MaterialWithMetadata = {
-  metadata?: MaterialMetadata | Record<string, unknown> | null;
-};
-
-export function isMaterialExtractingGraph(
-  materialOrMetadata?: MaterialWithMetadata | MaterialMetadata | Record<string, unknown> | null,
-): boolean {
-  if (!materialOrMetadata) return false;
-  const metadata =
-    'metadata' in materialOrMetadata &&
-    materialOrMetadata.metadata !== null &&
-    typeof materialOrMetadata.metadata === 'object'
-      ? (materialOrMetadata.metadata as MaterialMetadata)
-      : (materialOrMetadata as MaterialMetadata);
-  const status = metadata?.graphExtraction?.status;
-  return status === 'queued' || status === 'extracting';
-}
+export {
+  isMaterialExtractingGraph,
+  type MaterialWithMetadata,
+} from './types';
 
 export type QueueGraphExtractionParams = {
   projectId: string;

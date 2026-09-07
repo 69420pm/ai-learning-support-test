@@ -40,3 +40,21 @@ export type MaterialMetadata = {
   processedAt?: string;
   [key: string]: unknown;
 };
+
+export type MaterialWithMetadata = {
+  metadata?: MaterialMetadata | Record<string, unknown> | null;
+};
+
+export function isMaterialExtractingGraph(
+  materialOrMetadata?: MaterialWithMetadata | MaterialMetadata | Record<string, unknown> | null,
+): boolean {
+  if (!materialOrMetadata) return false;
+  const metadata =
+    'metadata' in materialOrMetadata &&
+    materialOrMetadata.metadata !== null &&
+    typeof materialOrMetadata.metadata === 'object'
+      ? (materialOrMetadata.metadata as MaterialMetadata)
+      : (materialOrMetadata as MaterialMetadata);
+  const status = metadata?.graphExtraction?.status;
+  return status === 'queued' || status === 'extracting';
+}

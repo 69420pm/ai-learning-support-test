@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { type MaterialItem, type MaterialStatus, useMaterials } from '@/lib/hooks/use-materials';
-import { isMaterialExtractingGraph } from '@/lib/materials';
+import { isMaterialExtractingGraph } from '@/lib/materials/types';
 import { ACCEPTED_FILE_TYPES_STRING, getFileIconType } from '@/lib/materials/validation';
 import { cn } from '@/lib/utils';
 

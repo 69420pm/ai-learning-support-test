@@ -12,6 +12,26 @@ export type GraphDiagnostics = {
   bloomDistribution: Record<number, number>;
 };
 
+export function createEmptyDiagnostics(): GraphDiagnostics {
+  return {
+    totalComponents: 0,
+    nodeCount: 0,
+    totalDependencies: 0,
+    edgeCount: 0,
+    orphanCount: 0,
+    hasCycles: false,
+    cyclePaths: [],
+    pacerDistribution: {
+      procedural: 0,
+      conceptual: 0,
+      analogous: 0,
+      evidence: 0,
+      reference: 0,
+    },
+    bloomDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
+  };
+}
+
 export function calculatePacerDistribution(
   components: Array<{ pacerCategory?: PacerCategory | string }>,
 ): Record<PacerCategory, number> {

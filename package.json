@@ -47,6 +47,7 @@
     "ai": "^7.0.58",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "d3-force": "^3.0.0",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.30.0",
     "next": "^16.3.0",
@@ -71,6 +72,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
     "@playwright/test": "^1.62.1",
+    "@types/d3-force": "^3.0.10",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.21.0",
     "@types/react": "^19.2.18",

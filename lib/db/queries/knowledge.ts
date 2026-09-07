@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { getMaterialsByProjectId } from '@/lib/db/queries/material';
 import {
   type Exercise,
   exercises,
@@ -7,11 +8,15 @@ import {
   type KnowledgeDependency,
   knowledgeComponents,
   knowledgeDependencies,
+  type Material,
+  type MaterialChunk,
+  materialChunks,
   type NewExercise,
   type NewKnowledgeComponent,
   type NewKnowledgeDependency,
 } from '@/lib/db/schema';
 import { ChatbotError } from '@/lib/errors';
+import { computeGraphDiagnostics, type GraphDiagnostics } from '@/lib/learning/graph-diagnostics';
 
 export type GraphNeighborKC = KnowledgeComponent & {
   depth: number;
@@ -612,6 +617,90 @@ export async function getExercisesForKc(
       .from(exercises)
       .where(and(eq(exercises.projectId, projectId), eq(exercises.kcId, concept.id)))
       .orderBy(asc(exercises.pageNumber), asc(exercises.title));
+  } catch (error) {
+    if (error instanceof ChatbotError) throw error;
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export { computeGraphDiagnostics, type GraphDiagnostics };
+
+export type ProjectGraphData = {
+  components: KnowledgeComponent[];
+  dependencies: KnowledgeDependency[];
+  materials: Material[];
+  diagnostics: GraphDiagnostics;
+};
+
+export async function getProjectGraphData({
+  projectId,
+  userId,
+}: {
+  projectId: string;
+  userId?: string;
+}): Promise<ProjectGraphData> {
+  try {
+    const [components, dependencies, materials] = await Promise.all([
+      getKnowledgeComponentsByProjectId({ projectId }),
+      getKnowledgeDependenciesByProjectId({ projectId }),
+      getMaterialsByProjectId({ projectId, userId }),
+    ]);
+
+    const diagnostics = computeGraphDiagnostics(components, dependencies);
+
+    return {
+      components,
+      dependencies,
+      materials,
+      diagnostics,
+    };
+  } catch (error) {
+    if (error instanceof ChatbotError) throw error;
+    throw new ChatbotError('bad_request:database', { cause: error });
+  }
+}
+
+export type KnowledgeComponentDeepInspection = {
+  component: KnowledgeComponent;
+  exercises: Exercise[];
+  chunks: MaterialChunk[];
+};
+
+export async function getKnowledgeComponentDeepInspection({
+  projectId,
+  kcId,
+}: {
+  projectId: string;
+  kcId: string;
+}): Promise<KnowledgeComponentDeepInspection | null> {
+  try {
+    const concept = await resolveConcept(projectId, kcId);
+    if (!concept) {
+      return null;
+    }
+
+    const exercisesList = await getExercisesForKc({ projectId, kcId: concept.id });
+
+    let chunksList: MaterialChunk[] = [];
+    if (concept.sourceMaterialId) {
+      chunksList = await db
+        .select()
+        .from(materialChunks)
+        .where(
+          and(
+            eq(materialChunks.materialId, concept.sourceMaterialId),
+            eq(materialChunks.projectId, projectId),
+          ),
+        )
+        .orderBy(asc(materialChunks.chunkIndex))
+        .limit(50);
+    }
+
+    return {
+      component: concept,
+      exercises: exercisesList,
+      chunks: chunksList,
+    };
   } catch (error) {
     if (error instanceof ChatbotError) throw error;
     throw new ChatbotError('bad_request:database', { cause: error });

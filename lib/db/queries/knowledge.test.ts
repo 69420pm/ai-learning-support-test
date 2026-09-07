@@ -4,9 +4,11 @@ import {
   getActiveProjectConceptNames,
   getExercisesForKc,
   getGraphNeighborhood,
+  getKnowledgeComponentDeepInspection,
   getKnowledgeComponentsByProjectId,
   getKnowledgeDependenciesByProjectId,
   getPrerequisiteChain,
+  getProjectGraphData,
   getReadyToLearnFrontier,
   insertExercises,
   insertKnowledgeDependencies,
@@ -791,6 +793,233 @@ describe('Knowledge Graph DB Queries', () => {
       const result = await getExercisesForKc({ projectId: 'proj-1', kcId: 'recursion' });
       expect(result).toEqual([]);
       expect(mockDbSelect).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('getProjectGraphData', () => {
+    it('queries components, dependencies, and materials with tenant scoping and computes diagnostics', async () => {
+      const mockComponents = [
+        {
+          id: 'kc-1',
+          projectId: 'proj-1',
+          name: 'Concept 1',
+          slug: 'concept-1',
+          pacerCategory: 'conceptual',
+          bloomLevel: 2,
+        },
+        {
+          id: 'kc-2',
+          projectId: 'proj-1',
+          name: 'Concept 2',
+          slug: 'concept-2',
+          pacerCategory: 'procedural',
+          bloomLevel: 3,
+        },
+      ];
+
+      const mockDependencies = [
+        {
+          id: 'dep-1',
+          projectId: 'proj-1',
+          sourceKcId: 'kc-1',
+          targetKcId: 'kc-2',
+          relationshipType: 'prerequisite',
+        },
+      ];
+
+      const mockMaterials = [
+        {
+          id: 'mat-1',
+          projectId: 'proj-1',
+          userId: 'user-1',
+          title: 'Textbook',
+        },
+      ];
+
+      // 1st select: knowledgeComponents
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValueOnce(mockComponents),
+          }),
+        }),
+      });
+
+      // 2nd select: knowledgeDependencies
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValueOnce(mockDependencies),
+        }),
+      });
+
+      // 3rd select: materials
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValueOnce(mockMaterials),
+          }),
+        }),
+      });
+
+      const result = await getProjectGraphData({ projectId: 'proj-1', userId: 'user-1' });
+
+      expect(result.components).toEqual(mockComponents);
+      expect(result.dependencies).toEqual(mockDependencies);
+      expect(result.materials).toEqual(mockMaterials);
+      expect(result.diagnostics.totalComponents).toBe(2);
+      expect(result.diagnostics.nodeCount).toBe(2);
+      expect(result.diagnostics.totalDependencies).toBe(1);
+      expect(result.diagnostics.edgeCount).toBe(1);
+      expect(result.diagnostics.orphanCount).toBe(0);
+      expect(result.diagnostics.hasCycles).toBe(false);
+    });
+  });
+
+  describe('getKnowledgeComponentDeepInspection', () => {
+    it('returns null when concept does not exist in project', async () => {
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValueOnce([]),
+          }),
+        }),
+      });
+
+      const result = await getKnowledgeComponentDeepInspection({
+        projectId: 'proj-1',
+        kcId: 'non-existent',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns concept, exercises, and scoped originating chunks with limit when concept exists', async () => {
+      const mockConcept = {
+        id: 'kc-1',
+        projectId: 'proj-1',
+        name: 'Graph Traversal',
+        slug: 'graph-traversal',
+        sourceMaterialId: 'mat-1',
+        pacerCategory: 'procedural',
+        bloomLevel: 3,
+      };
+
+      const mockExercises = [
+        {
+          id: 'ex-1',
+          projectId: 'proj-1',
+          kcId: 'kc-1',
+          materialId: 'mat-1',
+          title: 'BFS Exercise',
+          pageNumber: 15,
+        },
+      ];
+
+      const mockChunks = [
+        {
+          id: 'chunk-1',
+          projectId: 'proj-1',
+          materialId: 'mat-1',
+          chunkIndex: 1,
+          content: 'Excerpts describing graph traversal algorithms...',
+          metadata: { pageNumber: 15 },
+        },
+      ];
+
+      // 1. resolveConcept: select from knowledgeComponents
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValueOnce([mockConcept]),
+          }),
+        }),
+      });
+
+      // 2. resolveConcept inside getExercisesForKc: select from knowledgeComponents
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValueOnce([mockConcept]),
+          }),
+        }),
+      });
+
+      // 3. getExercisesForKc: select from exercises
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValueOnce(mockExercises),
+          }),
+        }),
+      });
+
+      // 4. chunks: select from materialChunks with limit
+      const mockLimit = vi.fn().mockResolvedValueOnce(mockChunks);
+      const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({ where: mockWhere }),
+      });
+
+      const result = await getKnowledgeComponentDeepInspection({
+        projectId: 'proj-1',
+        kcId: 'graph-traversal',
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?.component).toEqual(mockConcept);
+      expect(result?.exercises).toEqual(mockExercises);
+      expect(result?.chunks).toEqual(mockChunks);
+      expect(mockLimit).toHaveBeenCalledWith(50);
+    });
+
+    it('returns empty chunks array if concept has no sourceMaterialId', async () => {
+      const mockConcept = {
+        id: 'kc-2',
+        projectId: 'proj-1',
+        name: 'Manual Concept',
+        slug: 'manual-concept',
+        sourceMaterialId: null,
+        pacerCategory: 'conceptual',
+        bloomLevel: 2,
+      };
+
+      // 1. resolveConcept
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValueOnce([mockConcept]),
+          }),
+        }),
+      });
+
+      // 2. resolveConcept inside getExercisesForKc
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValueOnce([mockConcept]),
+          }),
+        }),
+      });
+
+      // 3. exercises
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValueOnce([]),
+          }),
+        }),
+      });
+
+      const result = await getKnowledgeComponentDeepInspection({
+        projectId: 'proj-1',
+        kcId: 'manual-concept',
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?.component).toEqual(mockConcept);
+      expect(result?.exercises).toEqual([]);
+      expect(result?.chunks).toEqual([]);
     });
   });
 });

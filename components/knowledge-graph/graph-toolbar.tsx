@@ -258,11 +258,11 @@ export function GraphToolbar({
               </Badge>
             ) : (
               <Badge
-                variant="outline"
-                className="font-normal text-[11px] h-6 text-emerald-600 border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 gap-1"
+                variant="secondary"
+                className="font-normal text-[11px] h-6 gap-1"
                 data-testid="diagnostics-cycle-status"
               >
-                <CheckCircle2 className="size-3 text-emerald-600" />
+                <CheckCircle2 className="size-3 text-primary" />
                 <span>Valid DAG</span>
               </Badge>
             )}

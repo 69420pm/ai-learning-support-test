@@ -22,7 +22,21 @@ export function getConceptInspectionKey(
   return `/api/projects/${projectId}/graph/components/${kcId}`;
 }
 
-export function useConceptInspection(projectId?: string | null, kcId?: string | null) {
+export type UseConceptInspectionReturn = {
+  data: ConceptInspectionData | undefined;
+  component: KnowledgeComponent | null;
+  exercises: Exercise[];
+  chunks: MaterialChunk[];
+  isLoading: boolean;
+  isValidating: boolean;
+  error: unknown;
+  mutate: ReturnType<typeof useSWR<ConceptInspectionData>>['mutate'];
+};
+
+export function useConceptInspection(
+  projectId?: string | null,
+  kcId?: string | null,
+): UseConceptInspectionReturn {
   const key = getConceptInspectionKey(projectId, kcId);
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<ConceptInspectionData>(

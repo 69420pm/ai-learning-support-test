@@ -114,7 +114,12 @@ function OverviewTabContent({
             Level {concept.bloomLevel} &bull; {bloomInfo.name}
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{bloomInfo.description}</p>
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-foreground" data-testid="bloom-cognitive-stage">
+            Cognitive Stage: {bloomInfo.stage}
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">{bloomInfo.description}</p>
+        </div>
 
         {/* 6-step hierarchy visual */}
         <div className="grid grid-cols-6 gap-1 pt-1">
@@ -167,6 +172,57 @@ function OverviewTabContent({
   );
 }
 
+function DependencyConceptCard({
+  targetId,
+  component,
+  reasoning,
+  pacerColor,
+  testId,
+  onSelect,
+}: {
+  targetId: string;
+  component?: KnowledgeComponent;
+  reasoning?: string | null;
+  pacerColor: string;
+  testId: string;
+  onSelect?: (id: string) => void;
+}) {
+  return (
+    <div
+      className="group rounded-lg border border-border bg-background p-3 shadow-xs space-y-2"
+      data-testid={testId}
+    >
+      <div className="flex items-center justify-between">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => onSelect?.(targetId)}
+          className="flex h-auto items-center gap-2 p-0 text-sm font-medium text-foreground hover:bg-transparent hover:text-primary transition-colors text-left"
+        >
+          <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: pacerColor }} />
+          <span>{component?.name ?? targetId}</span>
+          <ChevronRight className="size-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5" />
+        </Button>
+        {component && (
+          <Badge variant="outline" className="text-[10px] h-5 shrink-0">
+            L{component.bloomLevel} &bull; {component.pacerCategory}
+          </Badge>
+        )}
+      </div>
+
+      {reasoning && (
+        <div
+          className="flex items-start gap-1.5 rounded-md bg-muted/40 p-2 text-xs text-muted-foreground"
+          data-testid="dependency-reasoning"
+        >
+          <Sparkles className="size-3.5 text-primary shrink-0 mt-0.5" />
+          <p className="leading-relaxed">{reasoning}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DependenciesTabContent({
   directPrerequisites,
   unlockedConcepts,
@@ -179,7 +235,7 @@ function DependenciesTabContent({
   return (
     <TabsContent
       value="dependencies"
-      className="m-0 space-y-5"
+      className="m-0 space-y-4"
       data-testid="tab-content-dependencies"
     >
       {/* Direct Prerequisites */}
@@ -198,46 +254,17 @@ function DependenciesTabContent({
           </div>
         ) : (
           <div className="flex flex-col gap-2" data-testid="direct-prerequisites-list">
-            {directPrerequisites.map(({ dep, component }) => {
-              const prereqPacerColor = getPacerColor(component?.pacerCategory);
-              return (
-                <div
-                  key={dep.id}
-                  className="group rounded-lg border border-border bg-background p-3 shadow-xs space-y-2"
-                  data-testid={`prerequisite-item-${dep.sourceKcId}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => onSelectConcept?.(dep.sourceKcId)}
-                      className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors text-left"
-                    >
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: prereqPacerColor }}
-                      />
-                      <span>{component?.name ?? dep.sourceKcId}</span>
-                      <ChevronRight className="size-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5" />
-                    </button>
-                    {component && (
-                      <Badge variant="outline" className="text-[10px] h-5">
-                        L{component.bloomLevel} &bull; {component.pacerCategory}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {dep.reasoning && (
-                    <div
-                      className="flex items-start gap-1.5 rounded-md bg-muted/40 p-2 text-xs text-muted-foreground"
-                      data-testid="dependency-reasoning"
-                    >
-                      <Sparkles className="size-3.5 text-primary shrink-0 mt-0.5" />
-                      <p className="leading-relaxed">{dep.reasoning}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {directPrerequisites.map(({ dep, component }) => (
+              <DependencyConceptCard
+                key={dep.id}
+                targetId={dep.sourceKcId}
+                component={component}
+                reasoning={dep.reasoning}
+                pacerColor={getPacerColor(component?.pacerCategory)}
+                testId={`prerequisite-item-${dep.sourceKcId}`}
+                onSelect={onSelectConcept}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -258,46 +285,17 @@ function DependenciesTabContent({
           </div>
         ) : (
           <div className="flex flex-col gap-2" data-testid="unlocked-concepts-list">
-            {unlockedConcepts.map(({ dep, component }) => {
-              const unlockedPacerColor = getPacerColor(component?.pacerCategory);
-              return (
-                <div
-                  key={dep.id}
-                  className="group rounded-lg border border-border bg-background p-3 shadow-xs space-y-2"
-                  data-testid={`unlocked-item-${dep.targetKcId}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => onSelectConcept?.(dep.targetKcId)}
-                      className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors text-left"
-                    >
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: unlockedPacerColor }}
-                      />
-                      <span>{component?.name ?? dep.targetKcId}</span>
-                      <ChevronRight className="size-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5" />
-                    </button>
-                    {component && (
-                      <Badge variant="outline" className="text-[10px] h-5">
-                        L{component.bloomLevel} &bull; {component.pacerCategory}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {dep.reasoning && (
-                    <div
-                      className="flex items-start gap-1.5 rounded-md bg-muted/40 p-2 text-xs text-muted-foreground"
-                      data-testid="dependency-reasoning"
-                    >
-                      <Sparkles className="size-3.5 text-primary shrink-0 mt-0.5" />
-                      <p className="leading-relaxed">{dep.reasoning}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {unlockedConcepts.map(({ dep, component }) => (
+              <DependencyConceptCard
+                key={dep.id}
+                targetId={dep.targetKcId}
+                component={component}
+                reasoning={dep.reasoning}
+                pacerColor={getPacerColor(component?.pacerCategory)}
+                testId={`unlocked-item-${dep.targetKcId}`}
+                onSelect={onSelectConcept}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -537,7 +535,9 @@ function DebugTabContent({
         <div className="text-xs text-muted-foreground space-y-1">
           <div>
             <span className="font-medium text-foreground">Model &amp; Dimensions: </span>
-            <span data-testid="embedding-dimensions">768 dimensions (text-embedding-004)</span>
+            <span data-testid="embedding-dimensions">
+              {hasEmbedding ? '768 dimensions (text-embedding-004)' : 'None (no embedding indexed)'}
+            </span>
           </div>
           <div>
             <span className="font-medium text-foreground">Storage Column: </span>
@@ -589,8 +589,8 @@ function DebugTabContent({
           >
             {copied ? (
               <>
-                <Check className="size-3 text-emerald-600" />
-                <span className="text-emerald-600 font-medium" data-testid="copy-json-success">
+                <Check className="size-3 text-primary" />
+                <span className="text-primary font-medium" data-testid="copy-json-success">
                   Copied!
                 </span>
               </>

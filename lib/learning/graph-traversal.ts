@@ -1,9 +1,10 @@
 import type { PacerCategory } from '@/lib/db/schema';
-import { PACER_CATEGORY_CONFIG, type PacerConfig } from './graph-layout';
+import { PACER_CATEGORY_CONFIG, type PacerConfig } from '@/lib/learning/graph-layout';
 
 export type BloomStageInfo = {
   level: number;
   name: string;
+  stage: string;
   description: string;
 };
 
@@ -11,31 +12,37 @@ export const BLOOM_TAXONOMY_CONFIG: Record<number, BloomStageInfo> = {
   1: {
     level: 1,
     name: 'Remember',
+    stage: 'Foundational Recall',
     description: 'Recall facts, definitions, and foundational concepts',
   },
   2: {
     level: 2,
     name: 'Understand',
+    stage: 'Conceptual Comprehension',
     description: 'Explain concepts, interpret principles, and summarize meaning',
   },
   3: {
     level: 3,
     name: 'Apply',
+    stage: 'Procedural Execution',
     description: 'Execute procedures, solve problems, and implement techniques',
   },
   4: {
     level: 4,
     name: 'Analyze',
+    stage: 'Structural Deconstruction',
     description: 'Deconstruct structures, examine relationships, and distinguish components',
   },
   5: {
     level: 5,
     name: 'Evaluate',
+    stage: 'Critical Assessment',
     description: 'Critique solutions, assess trade-offs, and defend judgments',
   },
   6: {
     level: 6,
     name: 'Create',
+    stage: 'Generative Synthesis',
     description: 'Synthesize ideas, design architectures, and formulate novel solutions',
   },
 };

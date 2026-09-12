@@ -46,6 +46,14 @@ _Avoid_: Ingestion service, queue handler, ingest helper, ingestion worker
 A thin queue adapter (`lib/queue/worker.ts`) that dequeues background jobs (e.g. via `pg-boss`) and delegates execution to `ingestMaterial`, suppressing retries on domain failures to prevent API quota exhaustion.
 _Avoid_: Heavy worker, ingestion manager, backend daemon
 
+**Deep Lifecycle Seam (`deleteProjectLifecycle`, `deleteMaterialLifecycle`)**:
+The single domain service (`lib/materials/lifecycle.ts`) that orchestrates cascading atomic cleanup across storage drivers, chunk embeddings, knowledge components, and dependencies.
+_Avoid_: Shallow deletion, raw delete queries, dangling file cleanup, DB cascade reliance
+
+**Project Context Seam (`requireProjectContext`)**:
+The unified authorization boundary (`lib/auth/project-context.ts`) that validates project IDs, verifies the authenticated user session, and enforces ownership before executing any project-scoped operations.
+_Avoid_: Ad-hoc session checks, manual project queries, loose route param validation
+
 ### Ingestion Progress & Metadata Schema
 
 **Ingestion Progress Metadata (`MaterialProgress`)**:
@@ -104,6 +112,14 @@ _Avoid_: Quiz item, test question, drill, homework problem
 **GraphRAG**:
 Retrieval-Augmented Generation that queries both vector similarity and knowledge graph relationships to ground model responses in materials.
 _Avoid_: RAG, vector search, semantic search
+
+**Graph Topology Diagnostics**:
+Structural analysis and health verification of a project's knowledge graph, evaluating cycle absence, orphan count (components lacking dependencies), PACER category balance, and Bloom cognitive distribution.
+_Avoid_: Graph stats, node metrics, graph health check
+
+**Knowledge Frontier**:
+The computed set of actionable Knowledge Components whose prerequisite dependencies have been fully satisfied, representing the learner's optimal next concepts for guided acquisition.
+_Avoid_: Next concepts, unlocked nodes, learning boundary
 
 ### Pedagogical Science & Study
 

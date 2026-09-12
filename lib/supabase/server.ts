@@ -1,13 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { ChatbotError } from '@/lib/errors';
 
 export async function createClient(): Promise<SupabaseClient> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new ChatbotError('bad_request:auth', 'Missing Supabase environment variables');
   }
 
   const cookieStore = await cookies();

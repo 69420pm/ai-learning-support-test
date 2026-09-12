@@ -38,6 +38,14 @@ Canonical 5-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `r
 
 Single-context layout (`CONTEXT.md` at root, `docs/adr/`). See `docs/agents/domain.md`.
 
+## Key Architectural Seams & Quality Gates
+
+The codebase enforces clean module boundaries verified automatically via `pnpm check`:
+- **Project Context Seam (`lib/auth/project-context.ts`)**: All project-scoped API route controllers and Server Actions MUST call `requireProjectContext({ id: projectId })`. This provides a consolidated seam that extracts the authenticated user session, validates UUID params, and asserts project ownership.
+- **Deep Lifecycle Seam (`lib/materials/lifecycle.ts`)**: Presentation layers must never invoke low-level deletion queries directly. Use `deleteProjectLifecycle` and `deleteMaterialLifecycle` to atomically orchestrate cascading cleanup across storage drivers, chunk records, vector embeddings, knowledge components, and dependencies.
+- **Knowledge Graph Extraction Seam (`lib/learning/knowledge-graph.ts`)**: Pure pedagogical algorithms (PACER and Bloom categorization, graph topology validation, topological sorting, cycle detection, orphan detection, and frontier exploration) reside in `@/lib/learning` decoupled from database connections.
+- **Architectural Boundary Gate (`pnpm scan:arch`)**: Baked into `pnpm check` (`scripts/check-architecture.ts`), enforcing zero violations on presentation-layer lifecycle bypasses, raw DB driver imports in APIs, query-to-learning leaks, and relative backtracking imports.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

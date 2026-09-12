@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChatbotError } from '@/lib/errors';
 import {
   getStorageDriver,
   LocalStorageDriver,
@@ -119,6 +120,8 @@ describe('Storage Drivers', () => {
       await expect(driver.upload('test.md', 'Content')).rejects.toThrow(
         'Supabase Storage upload failed: Bucket not found',
       );
+      mockUpload.mockResolvedValueOnce({ data: null, error: { message: 'Bucket not found' } });
+      await expect(driver.upload('test.md', 'Content')).rejects.toThrow(ChatbotError);
     });
 
     it('downloads from Supabase Storage', async () => {

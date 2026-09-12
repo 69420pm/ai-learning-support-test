@@ -45,26 +45,27 @@ Next.js API route handlers (`app/api/*`) and Server Actions (`"use server"`) are
 
 * **Controller Responsibility:**
   1. Parse & validate request payload with Zod.
-  2. Perform authentication and authorization checks.
-  3. Call domain modules in `@/lib/*`.
-  4. Return a structured JSON response or error.
+  2. For project-scoped endpoints, call `requireProjectContext({ id: projectId })` to authenticate and verify ownership in a single seam.
+  3. Call domain modules in `@/lib/*` (e.g. `deleteProjectLifecycle` for deletions, `ingestMaterial` for materials).
+  4. Return a structured JSON response or typed `AppError.toResponse()`.
 
   ```typescript
-  // app/api/chat/route.ts
-  import { createClient } from '@/lib/supabase/server';
-  import { AppError } from '@/lib/errors';
-  import { chatRequestSchema } from '@/lib/ai/schemas';
-  import { processChatMessage } from '@/lib/ai/chat';
+  // app/api/projects/[id]/route.ts
+  import { requireProjectContext } from '@/lib/auth/project-context';
+  import { deleteProjectLifecycle } from '@/lib/materials/lifecycle';
+  import { ChatbotError } from '@/lib/errors';
 
-  export async function POST(request: Request) {
-    const json = await request.json();
-    const body = chatRequestSchema.parse(json);
-
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return new AppError("unauthorized:chat").toResponse();
-
-    return processChatMessage(body, user);
+  export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
+    try {
+      const { project, user } = await requireProjectContext(props.params);
+      await deleteProjectLifecycle({ projectId: project.id, userId: user.id });
+      return Response.json({ success: true });
+    } catch (error) {
+      if (error instanceof ChatbotError) {
+        return error.toResponse();
+      }
+      return new ChatbotError('bad_request:api').toResponse();
+    }
   }
   ```
 
@@ -72,21 +73,38 @@ Next.js API route handlers (`app/api/*`) and Server Actions (`"use server"`) are
 
 ## 4. Structured Error Handling
 
-* **Domain Error Class:** Standardize error handling using `AppError` (or `ChatbotError`) subclassing `Error`. Error utilities are defined in and imported from `@/lib/errors`.
-* **Typed Error Codes:** Formulate error codes as `${ErrorType}:${Surface}` (e.g., `bad_request:api`, `unauthorized:chat`, `not_found:document`, `bad_request:learning`).
-* **Response Normalization:** Use `error.toResponse()` to return uniform HTTP responses without exposing sensitive internal stack traces to clients.
+* **Domain Error Class:** Standardize error handling using `AppError` (aliased as `ChatbotError`) subclassing `Error`. Error utilities are defined in and imported from `@/lib/errors`.
+* **Typed Error Codes:** Formulate error codes as `${ErrorType}:${Surface}` (e.g., `bad_request:api`, `unauthorized:chat`, `not_found:document`, `bad_request:database`).
+* **Response Normalization:** Use `error.toResponse()` to return uniform HTTP responses (`{ type, surface, statusCode, message, code, cause }`) without exposing sensitive internal stack traces to clients.
+* **UI Error Boundaries:** Implement Next.js App Router error boundaries (`app/error.tsx`, `app/global-error.tsx`, `app/projects/[projectId]/error.tsx`) with retry CTAs (`reset()`) and fallback navigations.
 
 ```typescript
-export type ErrorType = "bad_request" | "unauthorized" | "forbidden" | "not_found" | "rate_limit" | "offline";
-export type Surface = "chat" | "auth" | "api" | "stream" | "database" | "document" | "learning" | "history" | "vote" | "suggestions" | "activate_gateway";
+export type ErrorType = 'bad_request' | 'unauthorized' | 'forbidden' | 'not_found' | 'rate_limit' | 'offline';
+export type Surface = 'chat' | 'auth' | 'api' | 'stream' | 'database' | 'document' | 'learning' | 'history' | 'vote' | 'suggestions' | 'activate_gateway';
 export type ErrorCode = `${ErrorType}:${Surface}`;
 
+export type ErrorResponseBody = {
+  type: ErrorType;
+  surface: Surface;
+  statusCode: number;
+  message: string;
+  code?: string;
+  cause?: string;
+};
+
 export class AppError extends Error {
-  constructor(public code: ErrorCode, cause?: string) {
-    super(getMessageByErrorCode(code));
+  type: ErrorType;
+  surface: Surface;
+  statusCode: number;
+
+  constructor(errorCode: ErrorCode, cause?: string | ErrorOptions) {
+    const defaultMessage = getMessageByErrorCode(errorCode);
+    const message = typeof cause === 'string' ? cause : defaultMessage;
+    super(message, typeof cause === 'string' ? undefined : cause);
+    // ...
   }
-  toResponse() {
-    return Response.json({ code: this.code, message: this.message }, { status: getStatusCode(this.code) });
+  toResponse(): Response {
+    // Returns { type, surface, statusCode, message, code, cause }
   }
 }
 export { AppError as ChatbotError };

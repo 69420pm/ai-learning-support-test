@@ -1,3 +1,4 @@
+import { ChatbotError } from '@/lib/errors';
 import { createClient } from '@/lib/supabase/server';
 import type { StorageDriver } from './types';
 import { toBuffer } from './utils';
@@ -23,7 +24,10 @@ export class SupabaseStorageDriver implements StorageDriver {
     });
 
     if (error) {
-      throw new Error(`Supabase Storage upload failed: ${error.message}`);
+      throw new ChatbotError(
+        'bad_request:document',
+        `Supabase Storage upload failed: ${error.message}`,
+      );
     }
 
     return { path: filePath, size: buffer.length };
@@ -33,7 +37,10 @@ export class SupabaseStorageDriver implements StorageDriver {
     const supabase = await createClient();
     const { data, error } = await supabase.storage.from(this.bucket).download(filePath);
     if (error || !data) {
-      throw new Error(`Supabase Storage download failed: ${error?.message || 'Unknown error'}`);
+      throw new ChatbotError(
+        'not_found:document',
+        `Supabase Storage download failed: ${error?.message || 'Unknown error'}`,
+      );
     }
     const arrayBuf = await data.arrayBuffer();
     return Buffer.from(arrayBuf);
@@ -43,7 +50,10 @@ export class SupabaseStorageDriver implements StorageDriver {
     const supabase = await createClient();
     const { error } = await supabase.storage.from(this.bucket).remove([filePath]);
     if (error) {
-      throw new Error(`Supabase Storage delete failed: ${error.message}`);
+      throw new ChatbotError(
+        'bad_request:document',
+        `Supabase Storage delete failed: ${error.message}`,
+      );
     }
   }
 

@@ -70,7 +70,7 @@ export async function extractMarkdownFromPage(
       throw error;
     }
     const message = error instanceof Error ? error.message : 'Vision extraction failed';
-    throw new Error(`Vision extraction failed: ${message}`);
+    throw new ChatbotError('bad_request:document', `Vision extraction failed: ${message}`);
   }
 }
 

@@ -2,6 +2,7 @@ import type { UIMessage } from 'ai';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { DBMessage } from '@/lib/db/schema';
+import { ChatbotError, type ErrorCode } from '@/lib/errors';
 import type { ChatMessage } from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]): string {
@@ -39,7 +40,24 @@ export function getTextFromMessage(message: ChatMessage | UIMessage): string {
 export async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error('An error occurred while fetching data.');
+    let message = 'An error occurred while fetching data.';
+    let errorCode: ErrorCode = 'bad_request:api';
+
+    try {
+      const errorJson = await res.json();
+      if (errorJson?.code) {
+        errorCode = errorJson.code;
+      }
+      if (errorJson?.cause) {
+        message = String(errorJson.cause);
+      } else if (errorJson?.message) {
+        message = String(errorJson.message);
+      }
+    } catch {
+      // response body was not JSON
+    }
+
+    throw new ChatbotError(errorCode, message);
   }
   return res.json();
 }

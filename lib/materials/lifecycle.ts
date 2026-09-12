@@ -47,6 +47,57 @@ export type DeleteProjectLifecycleResult = {
   project: Project | null;
 };
 
+function assertMaterialOwnership(
+  material: Pick<Material, 'userId' | 'projectId'>,
+  userId?: string,
+  projectId?: string,
+): void {
+  if (userId && material.userId !== userId) {
+    throw new ChatbotError('forbidden:document', 'This document belongs to another user.');
+  }
+
+  if (projectId && material.projectId !== projectId) {
+    throw new ChatbotError(
+      'not_found:document',
+      'Material does not belong to the specified project.',
+    );
+  }
+}
+
+async function purgeStorageBlob(
+  storagePath: string | null | undefined,
+  materialId: string,
+  driver?: StorageDriver,
+): Promise<void> {
+  if (!storagePath || storagePath.trim().length === 0) {
+    return;
+  }
+  const storageDriver = driver ?? getStorageDriver();
+  try {
+    await storageDriver.delete(storagePath);
+  } catch (storageError) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `Failed to delete physical storage blob at "${storagePath}" for material "${materialId}":`,
+        storageError,
+      );
+    }
+  }
+}
+
+async function safeCleanupMaterialGraph(materialId: string, projectId: string): Promise<void> {
+  try {
+    await cleanupMaterialExtractedGraph({ materialId, projectId });
+  } catch (graphError) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `Failed to clean up extracted graph entities for material "${materialId}":`,
+        graphError,
+      );
+    }
+  }
+}
+
 /**
  * Consolidated Material Lifecycle domain function.
  * Verifies material existence and ownership scoping, reconciles the extracted knowledge graph,
@@ -75,46 +126,13 @@ export async function deleteMaterialLifecycle(
   }
 
   // 2. Validate ownership scoping if userId or projectId are provided
-  if (userId && material.userId !== userId) {
-    throw new ChatbotError('forbidden:document', 'This document belongs to another user.');
-  }
-
-  if (projectId && material.projectId !== projectId) {
-    throw new ChatbotError(
-      'not_found:document',
-      'Material does not belong to the specified project.',
-    );
-  }
+  assertMaterialOwnership(material, userId, projectId);
 
   // 3. Purge physical storage blob via storage driver seam first to prevent orphaned storage leaks
-  if (material.storagePath && material.storagePath.trim().length > 0) {
-    const storageDriver = options?.storageDriver ?? getStorageDriver();
-    try {
-      await storageDriver.delete(material.storagePath);
-    } catch (storageError) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(
-          `Failed to delete physical storage blob at "${material.storagePath}" for material "${materialId}":`,
-          storageError,
-        );
-      }
-    }
-  }
+  await purgeStorageBlob(material.storagePath, materialId, options?.storageDriver);
 
   // 4. Reconcile extracted knowledge graph (clean up exercises and dependencies linked to this material)
-  try {
-    await cleanupMaterialExtractedGraph({
-      materialId,
-      projectId: material.projectId,
-    });
-  } catch (graphError) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        `Failed to clean up extracted graph entities for material "${materialId}":`,
-        graphError,
-      );
-    }
-  }
+  await safeCleanupMaterialGraph(materialId, material.projectId);
 
   // 5. Delete database record (chunks cascade automatically via DB foreign key)
   await deleteMaterialById({
@@ -159,7 +177,7 @@ export async function deleteProjectLifecycle(
   });
 
   if (!project) {
-    throw new ChatbotError('not_found:chat', 'Project not found');
+    throw new ChatbotError('not_found:api', 'Project not found');
   }
 
   // 2. Retrieve all materials belonging to the project (and optionally user)

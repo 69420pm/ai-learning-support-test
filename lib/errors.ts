@@ -93,13 +93,23 @@ export function getStatusCode(errorCode: ErrorCode): number {
   }
 }
 
-export class ChatbotError extends Error {
+export type ErrorResponseBody = {
+  type: ErrorType;
+  surface: Surface;
+  statusCode: number;
+  message: string;
+  code?: string;
+  cause?: string;
+};
+
+export class AppError extends Error {
   type: ErrorType;
   surface: Surface;
   statusCode: number;
 
   constructor(errorCode: ErrorCode, cause?: string | ErrorOptions) {
-    const message = getMessageByErrorCode(errorCode);
+    const defaultMessage = getMessageByErrorCode(errorCode);
+    const message = typeof cause === 'string' ? cause : defaultMessage;
     const options = typeof cause === 'string' ? undefined : cause;
 
     super(message, options);
@@ -114,27 +124,45 @@ export class ChatbotError extends Error {
     this.statusCode = getStatusCode(errorCode);
   }
 
-  toResponse() {
+  toResponse(): Response {
     const code: ErrorCode = `${this.type}:${this.surface}`;
     const visibility = visibilityBySurface[this.surface];
-    const { message, cause, statusCode } = this;
+    const defaultMessage = getMessageByErrorCode(code);
+    const { statusCode, type, surface } = this;
+    const cause = typeof this.cause === 'string' ? this.cause : undefined;
 
     if (visibility === 'log') {
       console.error({
-        cause,
+        cause: this.cause,
         code,
-        message,
+        message: this.message,
       });
 
       return Response.json(
-        { code: '', message: 'Something went wrong. Please try again later.' },
+        {
+          type,
+          surface,
+          statusCode,
+          message: 'Something went wrong. Please try again later.',
+          code: '',
+        },
         { status: statusCode },
       );
     }
 
-    return Response.json({ cause, code, message }, { status: statusCode });
+    return Response.json(
+      {
+        type,
+        surface,
+        statusCode,
+        message: defaultMessage,
+        code,
+        ...(cause === undefined ? {} : { cause }),
+      },
+      { status: statusCode },
+    );
   }
 }
 
 /** @public */
-export { ChatbotError as AppError };
+export { AppError as ChatbotError };

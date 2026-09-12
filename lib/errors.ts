@@ -93,6 +93,7 @@ export function getStatusCode(errorCode: ErrorCode): number {
   }
 }
 
+/** @public */
 export type ErrorResponseBody = {
   type: ErrorType;
   surface: Surface;

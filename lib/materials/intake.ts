@@ -3,6 +3,7 @@ import type { Material } from '@/lib/db/schema';
 import { ChatbotError } from '@/lib/errors';
 import { type MaterialIngestJobData, sendIngestJob } from '@/lib/queue';
 import { getStorageDriver, type StorageDriver } from '@/lib/storage';
+import { generateUUID } from '@/lib/utils';
 import { getFileExtension, inferMaterialFileType, validateMaterialFile } from './validation';
 
 export type MaterialBufferPayload = {
@@ -176,7 +177,7 @@ export async function intakeMaterial(
 
   // 2. Upload to storage with unique path prefix and sanitized filename
   const sanitized = sanitizeFilename(normalized.name);
-  const uniqueId = crypto.randomUUID();
+  const uniqueId = generateUUID();
   const storagePath = `${projectId}/${uniqueId}-${sanitized}`;
   const storageDriver = options?.storageDriver ?? getStorageDriver();
 

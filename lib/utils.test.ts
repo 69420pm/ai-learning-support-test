@@ -14,6 +14,53 @@ describe('lib/utils', () => {
       const uuid = generateUUID();
       expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     });
+
+    it('falls back to crypto.getRandomValues when crypto.randomUUID is not a function', () => {
+      const originalCrypto = globalThis.crypto;
+      try {
+        const mockCrypto = {
+          getRandomValues: (arr: Uint8Array) => originalCrypto.getRandomValues(arr),
+        } as unknown as Crypto;
+        Object.defineProperty(globalThis, 'crypto', {
+          value: mockCrypto,
+          configurable: true,
+          writable: true,
+        });
+
+        const uuid = generateUUID();
+        expect(uuid).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        );
+      } finally {
+        Object.defineProperty(globalThis, 'crypto', {
+          value: originalCrypto,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+
+    it('falls back to Math.random when crypto is completely unavailable', () => {
+      const originalCrypto = globalThis.crypto;
+      try {
+        Object.defineProperty(globalThis, 'crypto', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+
+        const uuid = generateUUID();
+        expect(uuid).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        );
+      } finally {
+        Object.defineProperty(globalThis, 'crypto', {
+          value: originalCrypto,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
   });
 
   describe('getInitials', () => {

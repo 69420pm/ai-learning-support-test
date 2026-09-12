@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { requireAuthUser } from '@/lib/auth/session';
-import { getProjectById } from '@/lib/db/queries/project';
+import { requireProjectContext } from '@/lib/auth/project-context';
 import { ChatbotError } from '@/lib/errors';
 import { queueGraphExtraction } from '@/lib/materials/concept-extraction';
 
@@ -17,13 +16,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   try {
-    const { id: projectId } = await params;
-    const user = await requireAuthUser();
-
-    const project = await getProjectById({ id: projectId, userId: user.id });
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
-    }
+    const { project, user } = await requireProjectContext(params);
 
     const rawJson = await request.json().catch(() => ({}));
     const parseResult = extractGraphRequestSchema.safeParse(rawJson);
@@ -38,7 +31,7 @@ export async function POST(
     const targetMaterialIds = materialIds ?? (materialId ? [materialId] : undefined);
 
     const result = await queueGraphExtraction({
-      projectId,
+      projectId: project.id,
       userId: user.id,
       materialIds: targetMaterialIds,
     });

@@ -97,31 +97,21 @@ function normalizeWebFile(file: File): NormalizedPayload {
   };
 }
 
-function resolvePayloadSize(
-  rawData: unknown,
-  explicitSize?: number,
-  fallbackSize?: number,
-): number {
+function resolvePayloadSize(data: unknown, explicitSize?: number): number {
   if (typeof explicitSize === 'number') {
     return explicitSize;
   }
-  if (typeof fallbackSize === 'number') {
-    return fallbackSize;
+  if (Buffer.isBuffer(data)) {
+    return data.length;
   }
-  if (Buffer.isBuffer(rawData)) {
-    return rawData.length;
+  if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
+    return data.byteLength;
   }
-  if (rawData instanceof Uint8Array) {
-    return rawData.byteLength;
+  if (typeof data === 'string') {
+    return Buffer.byteLength(data, 'utf-8');
   }
-  if (typeof rawData === 'string') {
-    return Buffer.byteLength(rawData, 'utf-8');
-  }
-  if (rawData && typeof (rawData as Blob).size === 'number') {
-    return (rawData as Blob).size;
-  }
-  if (rawData && typeof (rawData as ArrayBuffer).byteLength === 'number') {
-    return (rawData as ArrayBuffer).byteLength;
+  if (data && typeof (data as Blob).size === 'number') {
+    return (data as Blob).size;
   }
   return 0;
 }
@@ -133,22 +123,15 @@ function normalizeDescriptor(descriptor: MaterialBufferPayload): NormalizedPaylo
   }
 
   const rawData = descriptor.data ?? descriptor.buffer;
-  if (rawData === undefined || rawData === null) {
+  if (rawData == null) {
     throw new ChatbotError('bad_request:document', 'A valid file payload data is required.');
   }
 
-  const size = resolvePayloadSize(rawData, descriptor.size, descriptor.fileSize);
-  const providedType = descriptor.type || descriptor.fileType;
-  const fileType = inferMaterialFileType(name, providedType);
-
-  const normalizedData: Buffer | Uint8Array | Blob | string =
-    rawData instanceof ArrayBuffer ? Buffer.from(rawData) : rawData;
-
   return {
     name,
-    size,
-    fileType,
-    data: normalizedData,
+    size: resolvePayloadSize(rawData, descriptor.size ?? descriptor.fileSize),
+    fileType: inferMaterialFileType(name, descriptor.type || descriptor.fileType),
+    data: rawData instanceof ArrayBuffer ? Buffer.from(rawData) : rawData,
   };
 }
 

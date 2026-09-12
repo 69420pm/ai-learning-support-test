@@ -156,7 +156,7 @@ export async function rasterizeImage(
     const meta = await sharpInstance.metadata();
 
     if (!meta.width || !meta.height) {
-      throw new Error('Invalid image dimensions');
+      throw new ChatbotError('bad_request:document', 'Invalid image dimensions');
     }
 
     if (meta.width > maxDimension || meta.height > maxDimension) {

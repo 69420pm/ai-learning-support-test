@@ -1,5 +1,7 @@
+import { ChatbotError } from '@/lib/errors';
 import { createClient } from '@/lib/supabase/server';
 import type { StorageDriver } from './types';
+import { toBuffer } from './utils';
 
 export class SupabaseStorageDriver implements StorageDriver {
   private bucket: string;
@@ -14,19 +16,7 @@ export class SupabaseStorageDriver implements StorageDriver {
     contentType?: string,
   ): Promise<{ path: string; size: number }> {
     const supabase = await createClient();
-    let buffer: Buffer;
-    if (Buffer.isBuffer(data)) {
-      buffer = data;
-    } else if (data instanceof Uint8Array) {
-      buffer = Buffer.from(data);
-    } else if (typeof data === 'string') {
-      buffer = Buffer.from(data, 'utf-8');
-    } else if (typeof (data as Blob).arrayBuffer === 'function') {
-      const arrayBuf = await (data as Blob).arrayBuffer();
-      buffer = Buffer.from(arrayBuf);
-    } else {
-      buffer = Buffer.from(String(data));
-    }
+    const buffer = await toBuffer(data);
 
     const { error } = await supabase.storage.from(this.bucket).upload(filePath, buffer, {
       contentType: contentType || 'application/octet-stream',
@@ -34,7 +24,10 @@ export class SupabaseStorageDriver implements StorageDriver {
     });
 
     if (error) {
-      throw new Error(`Supabase Storage upload failed: ${error.message}`);
+      throw new ChatbotError(
+        'bad_request:document',
+        `Supabase Storage upload failed: ${error.message}`,
+      );
     }
 
     return { path: filePath, size: buffer.length };
@@ -44,7 +37,10 @@ export class SupabaseStorageDriver implements StorageDriver {
     const supabase = await createClient();
     const { data, error } = await supabase.storage.from(this.bucket).download(filePath);
     if (error || !data) {
-      throw new Error(`Supabase Storage download failed: ${error?.message || 'Unknown error'}`);
+      throw new ChatbotError(
+        'not_found:document',
+        `Supabase Storage download failed: ${error?.message || 'Unknown error'}`,
+      );
     }
     const arrayBuf = await data.arrayBuffer();
     return Buffer.from(arrayBuf);
@@ -54,7 +50,10 @@ export class SupabaseStorageDriver implements StorageDriver {
     const supabase = await createClient();
     const { error } = await supabase.storage.from(this.bucket).remove([filePath]);
     if (error) {
-      throw new Error(`Supabase Storage delete failed: ${error.message}`);
+      throw new ChatbotError(
+        'bad_request:document',
+        `Supabase Storage delete failed: ${error.message}`,
+      );
     }
   }
 

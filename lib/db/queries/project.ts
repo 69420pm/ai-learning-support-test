@@ -43,13 +43,17 @@ export async function getProjectById({
   userId,
 }: {
   id: string;
-  userId: string;
+  userId?: string;
 }): Promise<Project | null> {
   try {
+    const conditions = [eq(projects.id, id)];
+    if (userId) {
+      conditions.push(eq(projects.userId, userId));
+    }
     const [project] = await db
       .select()
       .from(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+      .where(and(...conditions));
     return project ?? null;
   } catch (error) {
     throw new ChatbotError('bad_request:database', { cause: error });
@@ -91,12 +95,16 @@ export async function deleteProjectById({
   userId,
 }: {
   id: string;
-  userId: string;
+  userId?: string;
 }): Promise<Project | null> {
   try {
+    const conditions = [eq(projects.id, id)];
+    if (userId) {
+      conditions.push(eq(projects.userId, userId));
+    }
     const [deleted] = await db
       .delete(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+      .where(and(...conditions))
       .returning();
 
     return deleted ?? null;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { updateThemePreference } from '@/app/actions/theme';
-import * as authSession from '@/lib/auth/session';
+import { getCurrentUser } from '@/lib/auth/session';
 import * as profileQueries from '@/lib/db/queries/profile';
 import { themeSchema, updateThemeSchema } from '@/lib/theme/schema';
 
@@ -70,7 +70,7 @@ describe('Theme Server Action (updateThemePreference)', () => {
   });
 
   it('fails gracefully for unauthenticated guest without throwing', async () => {
-    vi.mocked(authSession.getCurrentUser).mockResolvedValueOnce(null);
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
 
     const result = await updateThemePreference('dark');
     expect(result.success).toBe(false);
@@ -84,7 +84,7 @@ describe('Theme Server Action (updateThemePreference)', () => {
       email: 'learner@example.com',
       fullName: 'Learner One',
     };
-    vi.mocked(authSession.getCurrentUser).mockResolvedValueOnce(mockUser);
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(mockUser);
     vi.mocked(profileQueries.updateProfileTheme).mockResolvedValueOnce({
       id: mockUser.id,
       email: mockUser.email,
@@ -109,7 +109,7 @@ describe('Theme Server Action (updateThemePreference)', () => {
       id: 'mock-user-uuid',
       email: 'learner@example.com',
     };
-    vi.mocked(authSession.getCurrentUser).mockResolvedValueOnce(mockUser);
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(mockUser);
     vi.mocked(profileQueries.updateProfileTheme).mockResolvedValueOnce({
       id: mockUser.id,
       email: mockUser.email,
@@ -134,7 +134,7 @@ describe('Theme Server Action (updateThemePreference)', () => {
       id: 'mock-user-uuid',
       email: 'learner@example.com',
     };
-    vi.mocked(authSession.getCurrentUser).mockResolvedValueOnce(mockUser);
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(mockUser);
     vi.mocked(profileQueries.updateProfileTheme).mockRejectedValueOnce(
       new Error('Connection terminated unexpectedly'),
     );

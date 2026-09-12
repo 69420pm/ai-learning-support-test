@@ -8,8 +8,6 @@ import {
   Check,
   CheckCircle2,
   Clock,
-  FileCode,
-  FileImage,
   FileText,
   Layers,
   Loader2,
@@ -24,6 +22,7 @@ import {
 import type React from 'react';
 import { type ChangeEvent, type DragEvent, useMemo, useRef, useState } from 'react';
 import { DeleteMaterialDialog } from '@/components/document/delete-material-dialog';
+import { MaterialFileIcon } from '@/components/document/material-icon';
 import { MaterialPreviewDialog } from '@/components/document/material-preview-dialog';
 import { MaterialUploadDialog } from '@/components/document/material-upload-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +34,6 @@ import { isMaterialExtractingGraph } from '@/lib/materials/types';
 import {
   ACCEPTED_FILE_TYPES_STRING,
   formatFileSize,
-  getFileIconType,
   validateMaterialFile,
 } from '@/lib/materials/validation';
 import { cn } from '@/lib/utils';
@@ -64,18 +62,14 @@ type UploadQueueItem = {
   errorMessage?: string;
 };
 
-const FILE_ICON_CONFIG: Record<string, { icon: typeof FileText; colorClass: string }> = {
-  pdf: { icon: FileText, colorClass: 'text-red-500' },
-  image: { icon: FileImage, colorClass: 'text-blue-500' },
-  markdown: { icon: FileCode, colorClass: 'text-emerald-500' },
-  default: { icon: FileText, colorClass: 'text-muted-foreground' },
-};
-
 function renderFileIcon(material: MaterialItem): React.JSX.Element {
-  const iconType = getFileIconType(material.fileType, material.filename);
-  const config = FILE_ICON_CONFIG[iconType] ?? FILE_ICON_CONFIG.default;
-  const IconComponent = config.icon;
-  return <IconComponent className={cn('size-4 shrink-0', config.colorClass)} />;
+  return (
+    <MaterialFileIcon
+      fileType={material.fileType}
+      filename={material.filename}
+      className="size-4"
+    />
+  );
 }
 
 function getIngestionStageLabel(stage?: string): string {

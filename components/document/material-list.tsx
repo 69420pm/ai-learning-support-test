@@ -2,8 +2,6 @@
 
 import {
   ExternalLink,
-  FileCode,
-  FileImage,
   FileText,
   FolderKanban,
   Loader2,
@@ -17,6 +15,7 @@ import Link from 'next/link';
 
 import { type ChangeEvent, useRef, useState } from 'react';
 import { DeleteMaterialDialog } from '@/components/document/delete-material-dialog';
+import { MaterialFileIcon } from '@/components/document/material-icon';
 import { MaterialPreviewDialog } from '@/components/document/material-preview-dialog';
 import { MaterialUploadDialog } from '@/components/document/material-upload-dialog';
 import { Button } from '@/components/ui/button';
@@ -29,7 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { type MaterialItem, type MaterialStatus, useMaterials } from '@/lib/hooks/use-materials';
 import { isMaterialExtractingGraph } from '@/lib/materials/types';
-import { ACCEPTED_FILE_TYPES_STRING, getFileIconType } from '@/lib/materials/validation';
+import { ACCEPTED_FILE_TYPES_STRING } from '@/lib/materials/validation';
 import { cn } from '@/lib/utils';
 
 export type { MaterialItem, MaterialStatus } from '@/lib/hooks/use-materials';
@@ -89,18 +88,14 @@ function getStatusDot(status: MaterialStatus, stage?: string) {
   }
 }
 
-const FILE_ICON_CONFIG: Record<string, { icon: typeof FileText; colorClass: string }> = {
-  pdf: { icon: FileText, colorClass: 'text-red-500' },
-  image: { icon: FileImage, colorClass: 'text-blue-500' },
-  markdown: { icon: FileCode, colorClass: 'text-emerald-500' },
-  default: { icon: FileText, colorClass: 'text-muted-foreground' },
-};
-
 function renderItemIcon(material: MaterialItem) {
-  const iconType = getFileIconType(material.fileType, material.filename);
-  const config = FILE_ICON_CONFIG[iconType] ?? FILE_ICON_CONFIG.default;
-  const IconComponent = config.icon;
-  return <IconComponent className={cn('size-3.5 shrink-0', config.colorClass)} />;
+  return (
+    <MaterialFileIcon
+      fileType={material.fileType}
+      filename={material.filename}
+      className="size-3.5"
+    />
+  );
 }
 
 export function MaterialList({

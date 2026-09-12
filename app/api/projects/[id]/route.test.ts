@@ -17,9 +17,9 @@ vi.mock('@/lib/db/queries/project', () => ({
   deleteProjectById: (...args: unknown[]) => mockDeleteProjectById(...args),
 }));
 
-const mockPurgeProjectMaterialsStorage = vi.fn();
+const mockDeleteProjectLifecycle = vi.fn();
 vi.mock('@/lib/materials', () => ({
-  purgeProjectMaterialsStorage: (...args: unknown[]) => mockPurgeProjectMaterialsStorage(...args),
+  deleteProjectLifecycle: (...args: unknown[]) => mockDeleteProjectLifecycle(...args),
 }));
 
 describe('Project Item API Route (/api/projects/[id])', () => {
@@ -28,6 +28,7 @@ describe('Project Item API Route (/api/projects/[id])', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetProjectById.mockResolvedValue(defaultProject);
   });
 
   describe('GET /api/projects/[id]', () => {
@@ -145,22 +146,19 @@ describe('Project Item API Route (/api/projects/[id])', () => {
         id: 'p1',
         userId: 'user-1',
       });
-      expect(mockPurgeProjectMaterialsStorage).not.toHaveBeenCalled();
+      expect(mockDeleteProjectLifecycle).not.toHaveBeenCalled();
       expect(mockDeleteProjectById).not.toHaveBeenCalled();
     });
 
-    it('purges storage blobs and deletes project database record in order, returning 200', async () => {
+    it('delegates complete atomic project deletion to lifecycle seam, returning 200', async () => {
       mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(defaultProject);
-
-      const callOrder: string[] = [];
-      mockPurgeProjectMaterialsStorage.mockImplementationOnce(() => {
-        callOrder.push('purgeStorage');
-        return Promise.resolve({ purgedCount: 2, totalMaterials: 2 });
-      });
-      mockDeleteProjectById.mockImplementationOnce(() => {
-        callOrder.push('deleteDb');
-        return Promise.resolve(defaultProject);
+      mockDeleteProjectLifecycle.mockResolvedValueOnce({
+        success: true,
+        projectId: 'p1',
+        purgedCount: 2,
+        totalMaterials: 2,
+        project: defaultProject,
       });
 
       const request = new Request('http://localhost:3000/api/projects/p1', { method: 'DELETE' });
@@ -174,23 +172,18 @@ describe('Project Item API Route (/api/projects/[id])', () => {
         id: 'p1',
         userId: 'user-1',
       });
-      expect(mockPurgeProjectMaterialsStorage).toHaveBeenCalledWith({
+      expect(mockDeleteProjectLifecycle).toHaveBeenCalledWith({
         projectId: 'p1',
         userId: 'user-1',
       });
-      expect(mockDeleteProjectById).toHaveBeenCalledWith({
-        id: 'p1',
-        userId: 'user-1',
-      });
-
-      // Storage purge must occur BEFORE project db deletion to preserve material references
-      expect(callOrder).toEqual(['purgeStorage', 'deleteDb']);
+      // Verification of single seam: controller does not call raw DB delete
+      expect(mockDeleteProjectById).not.toHaveBeenCalled();
     });
 
     it('maps domain ChatbotError from storage purge to error response', async () => {
       mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(defaultProject);
-      mockPurgeProjectMaterialsStorage.mockRejectedValueOnce(
+      mockDeleteProjectLifecycle.mockRejectedValueOnce(
         new ChatbotError('bad_request:document', 'A valid project ID is required.'),
       );
 
@@ -207,7 +200,7 @@ describe('Project Item API Route (/api/projects/[id])', () => {
     it('returns 400 bad_request:api when an unexpected error occurs during deletion', async () => {
       mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(defaultProject);
-      mockPurgeProjectMaterialsStorage.mockRejectedValueOnce(new Error('Unexpected network crash'));
+      mockDeleteProjectLifecycle.mockRejectedValueOnce(new Error('Unexpected network crash'));
 
       const request = new Request('http://localhost:3000/api/projects/p1', { method: 'DELETE' });
       const response = await DELETE(request, { params: Promise.resolve({ id: 'p1' }) });

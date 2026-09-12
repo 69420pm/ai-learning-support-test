@@ -1,4 +1,5 @@
 import { PgBoss } from 'pg-boss';
+import { ChatbotError } from '@/lib/errors';
 
 export const MATERIAL_INGEST_QUEUE = 'material-ingest';
 export const CONCEPT_GRAPH_EXTRACT_QUEUE = 'concept-graph-extract';
@@ -77,7 +78,7 @@ export async function sendIngestJob(data: MaterialIngestJobData): Promise<string
   try {
     const boss = await startQueue();
     if (!boss) {
-      throw new Error('pg-boss queue is not available');
+      throw new ChatbotError('offline:database', 'pg-boss queue is not available');
     }
     const jobId = await boss.send(MATERIAL_INGEST_QUEUE, data, {
       retryLimit: 0,
@@ -96,7 +97,7 @@ export async function sendConceptGraphExtractJob(
   try {
     const boss = await startQueue();
     if (!boss) {
-      throw new Error('pg-boss queue is not available');
+      throw new ChatbotError('offline:database', 'pg-boss queue is not available');
     }
     const jobId = await boss.send(CONCEPT_GRAPH_EXTRACT_QUEUE, data, {
       singletonKey: `project:${data.projectId}`,

@@ -4,6 +4,7 @@ import {
   CANONICAL_LOCAL_USER_ID,
   getCurrentUser,
   requireAuthUser,
+  requireProjectContext,
 } from '@/lib/auth/session';
 import { ChatbotError } from '@/lib/errors';
 
@@ -291,6 +292,12 @@ describe('auth session module', () => {
         expect(chatbotErr.type).toBe('unauthorized');
         expect(chatbotErr.surface).toBe('api');
       }
+    });
+  });
+
+  describe('requireProjectContext export', () => {
+    it('re-exports requireProjectContext from auth session module', () => {
+      expect(typeof requireProjectContext).toBe('function');
     });
   });
 });

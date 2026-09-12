@@ -12,54 +12,26 @@ import type { Exercise, KnowledgeComponent } from '@/lib/db/schema';
 
 export type GraphNeighborhoodToolResult = {
   summary: string;
-  text: string;
-  content: string;
   concept: KnowledgeComponent | null;
   prerequisites: GraphNeighborKC[];
   unlocked: GraphNeighborKC[];
   depth: number;
-  payload: {
-    concept: KnowledgeComponent | null;
-    prerequisites: GraphNeighborKC[];
-    unlocked: GraphNeighborKC[];
-    depth: number;
-  };
   error?: string;
-  toString: () => string;
 };
 
 export type PrerequisiteChainToolResult = {
   summary: string;
-  text: string;
-  content: string;
-  concept: KnowledgeComponent | null;
   chain: PrerequisiteChainNode[];
   ancestors: PrerequisiteChainNode[];
   depth: number;
-  payload: {
-    kcId: string;
-    chain: PrerequisiteChainNode[];
-    ancestors: PrerequisiteChainNode[];
-    depth: number;
-    count: number;
-  };
   error?: string;
-  toString: () => string;
 };
 
 export type ExercisesForKcToolResult = {
   summary: string;
-  text: string;
-  content: string;
   kcId: string;
   exercises: Exercise[];
-  payload: {
-    kcId: string;
-    exercises: Exercise[];
-    count: number;
-  };
   error?: string;
-  toString: () => string;
 };
 
 function formatNeighborhoodSummary(prereqsCount: number, unlockedCount: number): string {
@@ -83,6 +55,26 @@ function formatErrorSummary(errorMessage: string): string {
   const clean = errorMessage.trim().replace(/\s+/g, ' ');
   const truncated = clean.length > 30 ? `${clean.slice(0, 27)}...` : clean;
   return `[Error: ${truncated}]`;
+}
+
+function createEmptyNeighborhood(
+  summary: string,
+  error: string,
+  depth = 1,
+): GraphNeighborhoodToolResult {
+  return { summary, concept: null, prerequisites: [], unlocked: [], depth, error };
+}
+
+function createEmptyChain(summary: string, error: string): PrerequisiteChainToolResult {
+  return { summary, chain: [], ancestors: [], depth: 0, error };
+}
+
+function createEmptyExercises(
+  summary: string,
+  error: string,
+  kcId: string,
+): ExercisesForKcToolResult {
+  return { summary, kcId, exercises: [], error };
 }
 
 export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToolsOptions) {
@@ -115,40 +107,25 @@ export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToo
       kcId: string;
       depth?: number;
     }): Promise<GraphNeighborhoodToolResult> => {
+      dataStream?.write({
+        type: 'data-tool-status',
+        data: {
+          tool: 'getGraphNeighborhood',
+          status: 'searching',
+          kcId,
+          depth,
+        },
+      });
+
+      if (!projectId) {
+        return createEmptyNeighborhood(
+          '[Error: No project context]',
+          'No project context available for graph neighborhood.',
+          depth,
+        );
+      }
+
       try {
-        dataStream?.write({
-          type: 'data-tool-status',
-          data: {
-            tool: 'getGraphNeighborhood',
-            status: 'searching',
-            kcId,
-            depth,
-          },
-        });
-
-        if (!projectId) {
-          const errorSummary = '[Error: No project context]';
-          return {
-            summary: errorSummary,
-            text: errorSummary,
-            content: errorSummary,
-            concept: null,
-            prerequisites: [],
-            unlocked: [],
-            depth,
-            payload: {
-              concept: null,
-              prerequisites: [],
-              unlocked: [],
-              depth,
-            },
-            error: 'No project context available for graph neighborhood.',
-            toString() {
-              return errorSummary;
-            },
-          };
-        }
-
         const neighborhood = await getGraphNeighborhood({
           projectId,
           kcId,
@@ -156,26 +133,11 @@ export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToo
         });
 
         if (!neighborhood.concept) {
-          const notFoundSummary = '[Error: Concept not found]';
-          return {
-            summary: notFoundSummary,
-            text: notFoundSummary,
-            content: notFoundSummary,
-            concept: null,
-            prerequisites: [],
-            unlocked: [],
+          return createEmptyNeighborhood(
+            '[Error: Concept not found]',
+            `Concept "${kcId}" was not found in the project concept graph.`,
             depth,
-            payload: {
-              concept: null,
-              prerequisites: [],
-              unlocked: [],
-              depth,
-            },
-            error: `Concept "${kcId}" was not found in the project concept graph.`,
-            toString() {
-              return notFoundSummary;
-            },
-          };
+          );
         }
 
         const summary = formatNeighborhoodSummary(
@@ -197,25 +159,13 @@ export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToo
 
         return {
           summary,
-          text: summary,
-          content: summary,
           concept: neighborhood.concept,
           prerequisites: neighborhood.prerequisites,
           unlocked: neighborhood.unlocked,
           depth: neighborhood.depth,
-          payload: {
-            concept: neighborhood.concept,
-            prerequisites: neighborhood.prerequisites,
-            unlocked: neighborhood.unlocked,
-            depth: neighborhood.depth,
-          },
-          toString() {
-            return summary;
-          },
         };
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown graph query error';
-        const errorSummary = `[Error: ${errorMessage}]`;
 
         dataStream?.write({
           type: 'data-tool-status',
@@ -227,25 +177,7 @@ export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToo
           },
         });
 
-        return {
-          summary: errorSummary,
-          text: errorSummary,
-          content: errorSummary,
-          concept: null,
-          prerequisites: [],
-          unlocked: [],
-          depth,
-          payload: {
-            concept: null,
-            prerequisites: [],
-            unlocked: [],
-            depth,
-          },
-          error: errorMessage,
-          toString() {
-            return errorSummary;
-          },
-        };
+        return createEmptyNeighborhood(formatErrorSummary(errorMessage), errorMessage, depth);
       }
     },
   });
@@ -260,8 +192,6 @@ export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToo
     ],
   });
 }
-
-export const getGraphNeighborhoodTool = createGraphNeighborhoodTool;
 
 export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToolsOptions) {
   const chainTool = tool({
@@ -291,41 +221,24 @@ export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToo
       kcId: string;
       maxDepth?: number;
     }): Promise<PrerequisiteChainToolResult> => {
+      dataStream?.write({
+        type: 'data-tool-status',
+        data: {
+          tool: 'getPrerequisiteChain',
+          status: 'searching',
+          kcId,
+          maxDepth,
+        },
+      });
+
+      if (!projectId) {
+        return createEmptyChain(
+          '[Error: No project context]',
+          'No project context available for prerequisite chain.',
+        );
+      }
+
       try {
-        dataStream?.write({
-          type: 'data-tool-status',
-          data: {
-            tool: 'getPrerequisiteChain',
-            status: 'searching',
-            kcId,
-            maxDepth,
-          },
-        });
-
-        if (!projectId) {
-          const errorSummary = '[Error: No project context]';
-          return {
-            summary: errorSummary,
-            text: errorSummary,
-            content: errorSummary,
-            concept: null,
-            chain: [],
-            ancestors: [],
-            depth: 0,
-            payload: {
-              kcId,
-              chain: [],
-              ancestors: [],
-              depth: 0,
-              count: 0,
-            },
-            error: 'No project context available for prerequisite chain.',
-            toString() {
-              return errorSummary;
-            },
-          };
-        }
-
         const chain = await getPrerequisiteChain({
           projectId,
           kcId,
@@ -347,26 +260,12 @@ export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToo
 
         return {
           summary,
-          text: summary,
-          content: summary,
-          concept: null,
           chain,
           ancestors: chain,
           depth: maxObservedDepth,
-          payload: {
-            kcId,
-            chain,
-            ancestors: chain,
-            depth: maxObservedDepth,
-            count: chain.length,
-          },
-          toString() {
-            return summary;
-          },
         };
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown chain query error';
-        const errorSummary = `[Error: ${errorMessage}]`;
 
         dataStream?.write({
           type: 'data-tool-status',
@@ -378,26 +277,7 @@ export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToo
           },
         });
 
-        return {
-          summary: errorSummary,
-          text: errorSummary,
-          content: errorSummary,
-          concept: null,
-          chain: [],
-          ancestors: [],
-          depth: 0,
-          payload: {
-            kcId,
-            chain: [],
-            ancestors: [],
-            depth: 0,
-            count: 0,
-          },
-          error: errorMessage,
-          toString() {
-            return errorSummary;
-          },
-        };
+        return createEmptyChain(formatErrorSummary(errorMessage), errorMessage);
       }
     },
   });
@@ -412,8 +292,6 @@ export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToo
     ],
   });
 }
-
-export const getPrerequisiteChainTool = createPrerequisiteChainTool;
 
 export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsOptions) {
   const exercisesTool = tool({
@@ -430,36 +308,24 @@ export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsO
       value: output.summary,
     }),
     execute: async ({ kcId }: { kcId: string }): Promise<ExercisesForKcToolResult> => {
+      dataStream?.write({
+        type: 'data-tool-status',
+        data: {
+          tool: 'getExercisesForKc',
+          status: 'searching',
+          kcId,
+        },
+      });
+
+      if (!projectId) {
+        return createEmptyExercises(
+          '[Error: No project context]',
+          'No project context available for exercises query.',
+          kcId,
+        );
+      }
+
       try {
-        dataStream?.write({
-          type: 'data-tool-status',
-          data: {
-            tool: 'getExercisesForKc',
-            status: 'searching',
-            kcId,
-          },
-        });
-
-        if (!projectId) {
-          const errorSummary = '[Error: No project context]';
-          return {
-            summary: errorSummary,
-            text: errorSummary,
-            content: errorSummary,
-            kcId,
-            exercises: [],
-            payload: {
-              kcId,
-              exercises: [],
-              count: 0,
-            },
-            error: 'No project context available for exercises query.',
-            toString() {
-              return errorSummary;
-            },
-          };
-        }
-
         const exercises = await getExercisesForKc({
           projectId,
           kcId,
@@ -479,22 +345,11 @@ export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsO
 
         return {
           summary,
-          text: summary,
-          content: summary,
           kcId,
           exercises,
-          payload: {
-            kcId,
-            exercises,
-            count: exercises.length,
-          },
-          toString() {
-            return summary;
-          },
         };
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown exercises query error';
-        const errorSummary = formatErrorSummary(errorMessage);
 
         dataStream?.write({
           type: 'data-tool-status',
@@ -506,22 +361,7 @@ export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsO
           },
         });
 
-        return {
-          summary: errorSummary,
-          text: errorSummary,
-          content: errorSummary,
-          kcId,
-          exercises: [],
-          payload: {
-            kcId,
-            exercises: [],
-            count: 0,
-          },
-          error: errorMessage,
-          toString() {
-            return errorSummary;
-          },
-        };
+        return createEmptyExercises(formatErrorSummary(errorMessage), errorMessage, kcId);
       }
     },
   });
@@ -536,9 +376,3 @@ export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsO
     ],
   });
 }
-
-export const getExercisesForKcTool = createExercisesForKcTool;
-
-export type GraphNeighborhoodTool = ReturnType<typeof createGraphNeighborhoodTool>;
-export type PrerequisiteChainTool = ReturnType<typeof createPrerequisiteChainTool>;
-export type ExercisesForKcTool = ReturnType<typeof createExercisesForKcTool>;

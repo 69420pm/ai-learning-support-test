@@ -12,10 +12,10 @@ vi.mock('@/lib/db/queries/project', () => ({
   getProjectById: (...args: unknown[]) => mockGetProjectById(...args),
 }));
 
-const mockGetProjectGraphData = vi.fn();
+const mockGetProjectGraphTopology = vi.fn();
 
-vi.mock('@/lib/db/queries/knowledge', () => ({
-  getProjectGraphData: (...args: unknown[]) => mockGetProjectGraphData(...args),
+vi.mock('@/lib/learning/knowledge-graph', () => ({
+  getProjectGraphTopology: (...args: unknown[]) => mockGetProjectGraphTopology(...args),
 }));
 
 describe('GET /api/projects/[id]/graph', () => {
@@ -98,7 +98,7 @@ describe('GET /api/projects/[id]/graph', () => {
       },
     };
 
-    mockGetProjectGraphData.mockResolvedValueOnce(emptyGraphData);
+    mockGetProjectGraphTopology.mockResolvedValueOnce(emptyGraphData);
 
     const request = new Request('http://localhost:3000/api/projects/proj-1/graph');
     const response = await GET(request, { params: Promise.resolve({ id: 'proj-1' }) });
@@ -107,7 +107,7 @@ describe('GET /api/projects/[id]/graph', () => {
     const json = await response.json();
     expect(json).toEqual(emptyGraphData);
     expect(() => projectGraphResponseSchema.parse(json)).not.toThrow();
-    expect(mockGetProjectGraphData).toHaveBeenCalledWith({
+    expect(mockGetProjectGraphTopology).toHaveBeenCalledWith({
       projectId: 'proj-1',
       userId: 'user-1',
     });
@@ -199,7 +199,7 @@ describe('GET /api/projects/[id]/graph', () => {
       },
     };
 
-    mockGetProjectGraphData.mockResolvedValueOnce(mockGraphData);
+    mockGetProjectGraphTopology.mockResolvedValueOnce(mockGraphData);
 
     const request = new Request('http://localhost:3000/api/projects/proj-1/graph');
     const response = await GET(request, { params: Promise.resolve({ id: 'proj-1' }) });

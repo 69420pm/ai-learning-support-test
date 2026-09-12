@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { requireAuthUser } from '@/lib/auth/session';
+import { requireProjectContext } from '@/lib/auth/project-context';
 import { getKnowledgeComponentDeepInspection } from '@/lib/db/queries/knowledge';
-import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
 
 export const maxDuration = 60;
@@ -36,16 +35,11 @@ export async function GET(
       ).toResponse();
     }
 
-    const { id: projectId, kcId } = parseResult.data;
-    const user = await requireAuthUser();
-
-    const project = await getProjectById({ id: projectId, userId: user.id });
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
-    }
+    const { project } = await requireProjectContext(params);
+    const { kcId } = parseResult.data;
 
     const inspection = await getKnowledgeComponentDeepInspection({
-      projectId,
+      projectId: project.id,
       kcId,
     });
     if (!inspection) {

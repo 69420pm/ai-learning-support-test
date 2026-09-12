@@ -54,4 +54,26 @@ describe('AI Providers Registry', () => {
     const model = getTitleModel();
     expect(model).toBeDefined();
   });
+
+  it('supports structured object generation and streaming via mock boundary in test environment', async () => {
+    const { generateObject } = await import('ai');
+    const { z } = await import('zod');
+
+    const model = getLanguageModel();
+    const result = await generateObject({
+      model,
+      schema: z.object({
+        concepts: z.array(
+          z.object({
+            name: z.string(),
+            slug: z.string(),
+          }),
+        ),
+      }),
+      prompt: 'Extract concepts',
+    });
+
+    expect(result.object).toBeDefined();
+    expect(Array.isArray(result.object.concepts)).toBe(true);
+  });
 });

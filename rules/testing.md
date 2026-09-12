@@ -197,3 +197,66 @@ vi.mock('@/lib/db', () => ({
 - Use `expect().toBe()` for primitives, `expect().toEqual()` for objects.
 - Use `expect().toThrow()` or `expect().rejects.toThrow()` for error cases.
 - Avoid snapshot tests for domain logic — prefer explicit assertions.
+
+---
+
+## 7. Refactor Safety Net & Verification Harness
+
+Established in **Issue #134**, this automated verification harness provides an immutable safety net enabling human developers and autonomous AI agents to refactor code fearlessly across subsequent engineering phases (e.g. #135 modularization, #136 state architecture, #137 component deepening).
+
+### 7.1 Regression Test Suites
+
+The regression harness validates core end-to-end user journeys and primary error boundaries at public module boundaries:
+
+| Suite | File | Framework | Scope Covered |
+| :--- | :--- | :--- | :--- |
+| **High-Level Integration** | `tests/integration/regression-harness.test.ts` | Vitest | **Workflow A:** Material ingestion pipeline (binary download -> semantic chunking -> 768-dim embeddings -> persistence) & error boundaries (empty docs, storage timeouts, embedding quota exhaustion).<br>**Workflow B:** Concept graph extraction & prerequisite DAG synthesis (batch chunk extraction -> PACER classification & Bloom levels -> prerequisite DAG cycle diagnostics -> ready-to-learn frontier calculation) & error boundaries (0 chunks, extraction model failure recovery).<br>**Workflow C:** Question answering & retrieval chat workflow (query -> pgvector semantic retrieval -> character budget ranking -> tool status streaming -> LLM synthesis) & error boundaries (empty query, missing context, vector index failures). |
+| **E2E User Journey** | `tests/e2e/regression-safety-net.spec.ts` | Playwright | Complete cross-feature user journey: Dashboard project navigation -> Materials Workbench ingestion & chunk inspector -> Knowledge Graph canvas & dual layout toggles -> Grounded Chat streaming with citations and code syntax highlighting -> Graceful 500 error boundary handling. |
+
+### 7.2 Deterministic Mock Boundaries
+
+All external, non-deterministic, or costly subsystems are isolated behind deterministic mock boundaries so tests run fast, locally, and offline without API keys or network dependencies:
+
+1. **AI Language Models (`lib/ai/models.mock.ts` & `lib/ai/providers.ts`):**
+   - Implements `createMockLanguageModel` using AI SDK `MockLanguageModelV4`.
+   - Supports deterministic text completions, simulated streams, structured object generation (`generateObject`), and tool-calling invocations.
+   - Automatically engaged when no API keys are present, in `process.env.PLAYWRIGHT_TEST === 'true'`, or in `process.env.NODE_ENV === 'test'`.
+   - Supports explicit model injection via `setMockLanguageModel(model)`.
+
+2. **Dense Vector Embeddings (`lib/ai/embedding.ts`):**
+   - Implements `createMockEmbeddingModel` using `MockEmbeddingModelV4`.
+   - Generates repeatable 768-dimensional float vectors derived from deterministic string hashing (`EMBEDDING_DIMENSIONS = 768`).
+   - Automatically engaged in test environments with optional override via `setMockEmbeddingModel(model)`.
+
+3. **Standard Test Helpers & Presets (`tests/helpers/mock-ai.ts`):**
+   - `createConceptExtractionMockAI()`: Pre-configured mock returning valid PACER concepts, prerequisite DAG edges, and grounded exercises.
+   - `createChatQuestionAnsweringMockAI()`: Mock generating grounded answers and `searchProjectMaterials` tool calls.
+   - `createErrorMockAI(type)`: Simulates transient rate limits (`429`), timeouts (`504`), and capacity overloads (`503`).
+   - `resetMockAIOverrides()`: Restores pristine provider state in test hooks (`beforeEach` / `afterEach`).
+
+4. **Network & Auth Interceptions in Playwright:**
+   - E2E tests intercept all REST and SSE endpoints via `page.route()` to avoid external backend flakiness.
+   - Authentication is seeded instantly via `setupMockAuth` in `tests/fixtures.ts` using the `sb-mock-auth` session cookie bypass.
+
+### 7.3 Single Verification Commands
+
+Run verification before opening a pull request or declaring refactoring milestones complete:
+
+```bash
+# 1. Run targeted regression integration tests (Inner Loop)
+pnpm vitest run tests/integration/regression-harness.test.ts
+
+# 2. Run targeted Playwright regression suite (Inner Loop / E2E verification)
+pnpm test:e2e tests/e2e/regression-safety-net.spec.ts
+
+# 3. Outer Gate Verification (Ticket Completion)
+pnpm check      # Biome lint + TypeScript typecheck + full Vitest suite
+pnpm test:e2e   # Complete Playwright E2E suite
+```
+
+### 7.4 Rules for Subsequent Refactoring Phases (#135, #136, #137)
+
+1. **Protected Safety Gates:** `tests/integration/regression-harness.test.ts` and `tests/e2e/regression-safety-net.spec.ts` MUST remain green throughout all refactoring tickets.
+2. **Never Weaken Assertions:** If a refactoring causes a regression test to fail, fix the implementation to honor the contract; NEVER weaken or delete assertions in the regression harness to fit broken code.
+3. **Preserve Public Seams:** Tests assert against public module interfaces (`ingestMaterial`, `processGraphExtraction`, `retrieveMaterials`, `createTools`, Page Object Models) rather than internal helper functions.
+

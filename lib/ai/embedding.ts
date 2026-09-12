@@ -1,10 +1,21 @@
 import { createGoogle, google } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 import { type EmbeddingModel, embedMany } from 'ai';
-import { MockEmbeddingModelV4 } from 'ai/test';
+import { ChatbotError } from '@/lib/errors';
+import { createMockEmbeddingModel, isTestOrMockEnvironment } from './models.mock';
 
 export const EMBEDDING_DIMENSIONS = 768;
 export const DEFAULT_EMBEDDING_MODEL_ID = 'gemini-embedding-001';
+
+let mockEmbeddingModelOverride: EmbeddingModel | null = null;
+
+export function setMockEmbeddingModel(model: EmbeddingModel | null): void {
+  mockEmbeddingModelOverride = model;
+}
+
+export function getMockEmbeddingModel(): EmbeddingModel | null {
+  return mockEmbeddingModelOverride;
+}
 
 export type GetEmbeddingModelOptions = {
   provider?: 'google' | 'openai';
@@ -13,27 +24,21 @@ export type GetEmbeddingModelOptions = {
 };
 
 export function getEmbeddingModel(options: GetEmbeddingModelOptions = {}): EmbeddingModel {
+  if (mockEmbeddingModelOverride) {
+    return mockEmbeddingModelOverride;
+  }
+
   const { provider = 'google', modelId = DEFAULT_EMBEDDING_MODEL_ID, apiKey } = options;
 
-  const hasKey = apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.OPENAI_API_KEY;
+  const hasKey = Boolean(
+    apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.OPENAI_API_KEY,
+  );
 
-  if (!hasKey || process.env.PLAYWRIGHT_TEST === 'true' || process.env.NODE_ENV === 'test') {
-    return new MockEmbeddingModelV4({
-      doEmbed: async ({ values }) => ({
-        embeddings: values.map((val) => {
-          const vec = new Array(EMBEDDING_DIMENSIONS).fill(0);
-          let hash = 0;
-          for (let i = 0; i < val.length; i++) {
-            hash = (hash << 5) - hash + val.charCodeAt(i);
-            hash |= 0;
-          }
-          for (let i = 0; i < EMBEDDING_DIMENSIONS; i++) {
-            vec[i] = Number((Math.sin(hash + i) * 0.05).toFixed(6));
-          }
-          return vec;
-        }),
-        warnings: [],
-      }),
+  if (isTestOrMockEnvironment(hasKey)) {
+    return createMockEmbeddingModel({
+      modelId,
+      provider,
+      dimensions: EMBEDDING_DIMENSIONS,
     });
   }
 
@@ -51,7 +56,7 @@ export function getEmbeddingModel(options: GetEmbeddingModelOptions = {}): Embed
     return openai.embedding(modelId);
   }
 
-  throw new Error(`Unsupported embedding provider: ${provider}`);
+  throw new ChatbotError('bad_request:chat', `Unsupported embedding provider: ${provider}`);
 }
 
 export async function generateEmbeddings(

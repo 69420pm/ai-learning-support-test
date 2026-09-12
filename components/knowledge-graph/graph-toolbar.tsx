@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  CheckCircle2,
   GitFork,
   Maximize2,
   RefreshCw,
@@ -221,17 +222,48 @@ export function GraphToolbar({
 
         {/* Diagnostics badges */}
         {diagnostics && (
-          <div className="hidden lg:flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
-            <Badge variant="secondary" className="font-normal text-[11px] h-6">
-              {diagnostics.totalComponents} concepts
+          <div
+            className="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground"
+            data-testid="graph-diagnostics-bar"
+          >
+            <Badge
+              variant="secondary"
+              className="font-normal text-[11px] h-6"
+              data-testid="diagnostics-nodes"
+            >
+              {diagnostics.totalComponents} nodes
             </Badge>
-            <Badge variant="secondary" className="font-normal text-[11px] h-6">
-              {diagnostics.totalDependencies} links
+            <Badge
+              variant="secondary"
+              className="font-normal text-[11px] h-6"
+              data-testid="diagnostics-edges"
+            >
+              {diagnostics.totalDependencies} edges
             </Badge>
-            {diagnostics.hasCycles && (
-              <Badge variant="destructive" className="font-normal text-[11px] h-6 gap-1">
+            <Badge
+              variant="secondary"
+              className="font-normal text-[11px] h-6"
+              data-testid="diagnostics-orphans"
+            >
+              {diagnostics.orphanCount} orphans
+            </Badge>
+            {diagnostics.hasCycles ? (
+              <Badge
+                variant="destructive"
+                className="font-normal text-[11px] h-6 gap-1"
+                data-testid="diagnostics-cycle-status"
+              >
                 <AlertTriangle className="size-3" />
                 <span>Cycles detected</span>
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="font-normal text-[11px] h-6 text-emerald-600 border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 gap-1"
+                data-testid="diagnostics-cycle-status"
+              >
+                <CheckCircle2 className="size-3 text-emerald-600" />
+                <span>Valid DAG</span>
               </Badge>
             )}
           </div>

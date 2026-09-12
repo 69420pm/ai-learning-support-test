@@ -13,6 +13,10 @@ import {
   type LayoutEdge,
   type LayoutNode,
 } from '@/lib/learning/graph-layout';
+import {
+  computeGraphPathHighlightState,
+  type GraphPathHighlightState,
+} from '@/lib/learning/graph-traversal';
 import { cn } from '@/lib/utils';
 import type { GraphFilterState, LayoutMode } from './graph-toolbar';
 
@@ -34,20 +38,40 @@ type GraphEdgeProps = {
   sourceNode?: LayoutNode;
   targetNode?: LayoutNode;
   searchMatchSet: Set<string> | null;
+  pathHighlightState: GraphPathHighlightState;
 };
 
-function GraphEdge({ dep, sourceNode, targetNode, searchMatchSet }: GraphEdgeProps) {
+function getEdgeDisplayState(
+  dep: KnowledgeDependency,
+  pathHighlightState: GraphPathHighlightState,
+  searchMatchSet: Set<string> | null,
+): { isHighlighted: boolean; isDimmed: boolean } {
+  if (pathHighlightState.hasSelection) {
+    const isPathHighlighted = pathHighlightState.highlightedEdgeIds.has(dep.id);
+    return { isHighlighted: isPathHighlighted, isDimmed: !isPathHighlighted };
+  }
+
+  if (searchMatchSet !== null) {
+    const isSearchMatch = searchMatchSet.has(dep.sourceKcId) && searchMatchSet.has(dep.targetKcId);
+    return { isHighlighted: isSearchMatch, isDimmed: !isSearchMatch };
+  }
+
+  return { isHighlighted: false, isDimmed: false };
+}
+
+function GraphEdge({
+  dep,
+  sourceNode,
+  targetNode,
+  searchMatchSet,
+  pathHighlightState,
+}: GraphEdgeProps) {
   if (!sourceNode || !targetNode) return null;
 
   const coords = calculateEdgeEndpoints(sourceNode, targetNode);
   if (!coords) return null;
 
-  const isHighlighted =
-    Boolean(searchMatchSet?.has(dep.sourceKcId)) && Boolean(searchMatchSet?.has(dep.targetKcId));
-
-  const isDimmed =
-    searchMatchSet !== null &&
-    (!searchMatchSet.has(dep.sourceKcId) || !searchMatchSet.has(dep.targetKcId));
+  const { isHighlighted, isDimmed } = getEdgeDisplayState(dep, pathHighlightState, searchMatchSet);
 
   return (
     <line
@@ -61,11 +85,97 @@ function GraphEdge({ dep, sourceNode, targetNode, searchMatchSet }: GraphEdgePro
       className={cn(
         'transition-opacity duration-200',
         isHighlighted ? 'text-primary' : 'text-muted-foreground/40',
-        isDimmed ? 'opacity-20' : 'opacity-100',
+        isDimmed ? 'opacity-15' : 'opacity-100',
       )}
       markerEnd={isHighlighted ? 'url(#graph-arrow-highlight)' : 'url(#graph-arrow)'}
       data-testid={`graph-edge-${dep.id}`}
+      data-highlighted={isHighlighted ? 'true' : 'false'}
     />
+  );
+}
+
+function getNodeRoleAndDimState(
+  componentId: string,
+  isSelected: boolean,
+  pathHighlightState: GraphPathHighlightState,
+  searchMatchSet: Set<string> | null,
+): { pathRole: 'selected' | 'prerequisite' | 'unlocked' | 'none'; isDimmed: boolean } {
+  if (pathHighlightState.hasSelection) {
+    if (isSelected) return { pathRole: 'selected', isDimmed: false };
+    if (pathHighlightState.ancestorIds.has(componentId)) {
+      return { pathRole: 'prerequisite', isDimmed: false };
+    }
+    if (pathHighlightState.descendantIds.has(componentId)) {
+      return { pathRole: 'unlocked', isDimmed: false };
+    }
+    return { pathRole: 'none', isDimmed: true };
+  }
+
+  if (searchMatchSet !== null) {
+    const isSearchMatch = searchMatchSet.has(componentId);
+    return { pathRole: 'none', isDimmed: !isSearchMatch };
+  }
+
+  return { pathRole: 'none', isDimmed: false };
+}
+
+function NodeHighlightRings({
+  radius,
+  pathRole,
+  searchHighlight,
+  isSelected,
+  isPinned,
+  pacerColor,
+}: {
+  radius: number;
+  pathRole: string;
+  searchHighlight: boolean;
+  isSelected: boolean;
+  isPinned: boolean;
+  pacerColor: string;
+}) {
+  return (
+    <>
+      {searchHighlight && (
+        <circle
+          r={radius + 6}
+          fill="none"
+          stroke="var(--primary)"
+          strokeWidth="2.5"
+          strokeDasharray="4 2"
+          className="animate-spin-slow"
+        />
+      )}
+      {pathRole === 'prerequisite' && (
+        <circle
+          r={radius + 5}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth="2.5"
+          strokeDasharray="4 2"
+        />
+      )}
+      {pathRole === 'unlocked' && (
+        <circle
+          r={radius + 5}
+          fill="none"
+          stroke="#10b981"
+          strokeWidth="2.5"
+          strokeDasharray="4 2"
+        />
+      )}
+      {isSelected && <circle r={radius + 6} fill="none" stroke="var(--primary)" strokeWidth="3" />}
+      {isPinned && (
+        <circle
+          r={radius + 3}
+          fill="none"
+          stroke={pacerColor}
+          strokeWidth="1"
+          strokeDasharray="2 2"
+          opacity="0.6"
+        />
+      )}
+    </>
   );
 }
 
@@ -74,6 +184,7 @@ type GraphNodeProps = {
   node?: LayoutNode;
   isSelected: boolean;
   searchMatchSet: Set<string> | null;
+  pathHighlightState: GraphPathHighlightState;
   onPointerDown: (nodeId: string, e: React.PointerEvent) => void;
   onDoubleClick: (nodeId: string, e: React.MouseEvent) => void;
   onSelect: (nodeId: string) => void;
@@ -84,6 +195,7 @@ function GraphNode({
   node,
   isSelected,
   searchMatchSet,
+  pathHighlightState,
   onPointerDown,
   onDoubleClick,
   onSelect,
@@ -95,8 +207,16 @@ function GraphNode({
   const radius = node.radius ?? getBloomRadius(component.bloomLevel);
   const pacerColor = getPacerColor(component.pacerCategory);
 
-  const isSearchMatch = searchMatchSet === null || searchMatchSet.has(component.id);
-  const isDimmed = searchMatchSet !== null && !isSearchMatch;
+  const { pathRole, isDimmed } = getNodeRoleAndDimState(
+    component.id,
+    isSelected,
+    pathHighlightState,
+    searchMatchSet,
+  );
+
+  const searchHighlight =
+    !pathHighlightState.hasSelection && searchMatchSet !== null && searchMatchSet.has(component.id);
+  const isPinned = node.fx !== null && node.fx !== undefined;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by HTML <button>
@@ -124,33 +244,16 @@ function GraphNode({
       data-node-id={component.id}
       data-bloom={component.bloomLevel}
       data-pacer={component.pacerCategory}
+      data-path-role={pathRole}
     >
-      {/* Search highlight ring */}
-      {searchMatchSet !== null && isSearchMatch && (
-        <circle
-          r={radius + 6}
-          fill="none"
-          stroke="var(--primary)"
-          strokeWidth="2.5"
-          strokeDasharray="4 2"
-          className="animate-spin-slow"
-        />
-      )}
-
-      {/* Selection ring */}
-      {isSelected && <circle r={radius + 5} fill="none" stroke="var(--primary)" strokeWidth="2" />}
-
-      {/* Pinned indicator ring */}
-      {node.fx !== null && node.fx !== undefined && (
-        <circle
-          r={radius + 3}
-          fill="none"
-          stroke={pacerColor}
-          strokeWidth="1"
-          strokeDasharray="2 2"
-          opacity="0.6"
-        />
-      )}
+      <NodeHighlightRings
+        radius={radius}
+        pathRole={pathRole}
+        searchHighlight={searchHighlight}
+        isSelected={isSelected}
+        isPinned={isPinned}
+        pacerColor={pacerColor}
+      />
 
       {/* Main Node Circle */}
       <circle
@@ -158,7 +261,7 @@ function GraphNode({
         fill={pacerColor}
         fillOpacity="0.18"
         stroke={pacerColor}
-        strokeWidth={isSelected ? 3 : 2}
+        strokeWidth={pathRole === 'none' ? 2 : 3}
         className="transition-transform hover:scale-105"
       />
 
@@ -265,6 +368,11 @@ export function GraphCanvas({
     }
     return matches;
   }, [filteredComponents, filters.searchTerm]);
+
+  // Path highlighting state for prerequisite ancestors & downstream unlocked concepts
+  const pathHighlightState = useMemo(() => {
+    return computeGraphPathHighlightState(selectedNodeId ?? null, filteredDependencies);
+  }, [selectedNodeId, filteredDependencies]);
 
   // Dragging and Panning state
   const isPanningRef = useRef(false);
@@ -534,6 +642,7 @@ export function GraphCanvas({
                 sourceNode={nodeMapRef.current.get(dep.sourceKcId)}
                 targetNode={nodeMapRef.current.get(dep.targetKcId)}
                 searchMatchSet={searchMatchSet}
+                pathHighlightState={pathHighlightState}
               />
             ))}
           </g>
@@ -547,6 +656,7 @@ export function GraphCanvas({
                 node={nodeMapRef.current.get(component.id)}
                 isSelected={selectedNodeId === component.id}
                 searchMatchSet={searchMatchSet}
+                pathHighlightState={pathHighlightState}
                 onPointerDown={handleNodePointerDown}
                 onDoubleClick={handleNodeDoubleClick}
                 onSelect={(id) => onSelectNode?.(selectedNodeId === id ? null : id)}

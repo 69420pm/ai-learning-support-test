@@ -1,11 +1,13 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useConceptInspection } from '@/lib/hooks/use-concept-inspection';
 import { useProjectGraph } from '@/lib/hooks/use-project-graph';
 import type { CanvasTransform } from '@/lib/learning/graph-layout';
 import { isMaterialExtractingGraph } from '@/lib/materials/types';
 import { cn } from '@/lib/utils';
+import { ConceptInspectorDrawer } from './concept-inspector-drawer';
 import { GraphCanvas } from './graph-canvas';
 import {
   GraphEmptyState,
@@ -32,6 +34,17 @@ export function KnowledgeGraphWorkbench({ projectId, className }: KnowledgeGraph
   });
   const [transform, setTransform] = useState<CanvasTransform>({ x: 100, y: 80, scale: 1 });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  // Resolve active selected component and deep inspection data
+  const selectedComponent = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return components.find((c) => c.id === selectedNodeId) ?? null;
+  }, [selectedNodeId, components]);
+
+  const { exercises: inspectedExercises, chunks: inspectedChunks } = useConceptInspection(
+    projectId,
+    selectedNodeId,
+  );
 
   const [isExtractingLocal, setIsExtractingLocal] = useState(false);
   const [isSubmittingExtract, setIsSubmittingExtract] = useState(false);
@@ -170,18 +183,34 @@ export function KnowledgeGraphWorkbench({ projectId, className }: KnowledgeGraph
         </div>
       )}
 
-      <div className="relative flex-1 overflow-hidden">
-        <GraphCanvas
-          components={components}
-          dependencies={dependencies}
-          layoutMode={layoutMode}
-          filters={filters}
-          transform={transform}
-          setTransform={setTransform}
-          onRegisterFitView={handleRegisterFitView}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={setSelectedNodeId}
-        />
+      <div className="relative flex flex-1 overflow-hidden">
+        <div className="relative flex-1 overflow-hidden">
+          <GraphCanvas
+            components={components}
+            dependencies={dependencies}
+            layoutMode={layoutMode}
+            filters={filters}
+            transform={transform}
+            setTransform={setTransform}
+            onRegisterFitView={handleRegisterFitView}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={setSelectedNodeId}
+          />
+        </div>
+
+        {selectedComponent && (
+          <ConceptInspectorDrawer
+            concept={selectedComponent}
+            allComponents={components}
+            dependencies={dependencies}
+            materials={materials}
+            exercises={inspectedExercises}
+            chunks={inspectedChunks}
+            projectId={projectId}
+            onClose={() => setSelectedNodeId(null)}
+            onSelectConcept={setSelectedNodeId}
+          />
+        )}
       </div>
     </div>
   );

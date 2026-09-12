@@ -157,6 +157,12 @@ describe('KnowledgeGraphWorkbench Component', () => {
     expect(html).toContain('data-testid="graph-zoom-out"');
     expect(html).toContain('data-testid="graph-fit-view"');
     expect(html).toContain('data-testid="graph-resync-button"');
+    expect(html).toContain('data-testid="graph-diagnostics-bar"');
+    expect(html).toContain('data-testid="diagnostics-nodes"');
+    expect(html).toContain('data-testid="diagnostics-edges"');
+    expect(html).toContain('data-testid="diagnostics-orphans"');
+    expect(html).toContain('data-testid="diagnostics-cycle-status"');
+    expect(html).toContain('Valid DAG');
     expect(html).toContain('Limits and Continuity');
     expect(html).toContain('Derivative Definition');
   });

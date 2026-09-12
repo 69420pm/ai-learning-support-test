@@ -1,19 +1,9 @@
 import type { LanguageModel } from 'ai';
 import { setMockEmbeddingModel } from '@/lib/ai/embedding';
-import {
-  createMockEmbeddingModel,
-  createMockLanguageModel,
-  type MockEmbeddingModelOptions,
-  type MockLanguageModelOptions,
-} from '@/lib/ai/models.mock';
+import { createMockEmbeddingModel, createMockLanguageModel } from '@/lib/ai/models.mock';
 import { setMockLanguageModel } from '@/lib/ai/providers';
 
-export {
-  createMockEmbeddingModel,
-  createMockLanguageModel,
-  type MockEmbeddingModelOptions,
-  type MockLanguageModelOptions,
-};
+export { createMockEmbeddingModel, createMockLanguageModel };
 
 export const STANDARD_MOCK_CONCEPTS = [
   {

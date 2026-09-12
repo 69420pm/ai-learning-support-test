@@ -16,7 +16,7 @@ const mockInspectMaterialContent = vi.fn();
 const mockDeleteMaterial = vi.fn();
 vi.mock('@/lib/materials', () => ({
   inspectMaterialContent: (...args: unknown[]) => mockInspectMaterialContent(...args),
-  deleteMaterial: (...args: unknown[]) => mockDeleteMaterial(...args),
+  deleteMaterialLifecycle: (...args: unknown[]) => mockDeleteMaterial(...args),
 }));
 
 describe('Project Single Material API Route (/api/projects/[id]/materials/[materialId])', () => {

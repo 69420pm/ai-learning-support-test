@@ -1,7 +1,7 @@
 import { requireAuthUser } from '@/lib/auth/session';
 import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
-import { deleteMaterial, inspectMaterialContent } from '@/lib/materials';
+import { deleteMaterialLifecycle, inspectMaterialContent } from '@/lib/materials';
 
 export const maxDuration = 60;
 
@@ -48,7 +48,7 @@ export async function DELETE(
       return new ChatbotError('not_found:chat', 'Project not found').toResponse();
     }
 
-    const result = await deleteMaterial({
+    const result = await deleteMaterialLifecycle({
       materialId,
       projectId,
       userId: user.id,

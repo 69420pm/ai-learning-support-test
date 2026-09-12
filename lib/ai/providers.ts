@@ -10,10 +10,6 @@ export function setMockLanguageModel(model: LanguageModel | null): void {
   mockLanguageModelOverride = model;
 }
 
-export function getMockLanguageModel(): LanguageModel | null {
-  return mockLanguageModelOverride;
-}
-
 export type ProviderName = 'google' | 'openai' | 'openrouter' | 'ollama';
 
 export type ModelOption = {

@@ -13,10 +13,6 @@ export function setMockEmbeddingModel(model: EmbeddingModel | null): void {
   mockEmbeddingModelOverride = model;
 }
 
-export function getMockEmbeddingModel(): EmbeddingModel | null {
-  return mockEmbeddingModelOverride;
-}
-
 export type GetEmbeddingModelOptions = {
   provider?: 'google' | 'openai';
   modelId?: string;

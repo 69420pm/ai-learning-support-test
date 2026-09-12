@@ -75,9 +75,6 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
 
       // 1. Dual-Output Projection: Terse text summary <= 15 tokens
       expect(result.summary).toBe('[OK: 2 prerequisites, 1 unlocked]');
-      expect(result.text).toBe('[OK: 2 prerequisites, 1 unlocked]');
-      expect(result.content).toBe('[OK: 2 prerequisites, 1 unlocked]');
-      expect(result.toString()).toBe('[OK: 2 prerequisites, 1 unlocked]');
       expect(countApproximateTokens(result.summary)).toBeLessThanOrEqual(15);
       expect(
         toolInstance.toModelOutput?.({
@@ -93,16 +90,11 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
         { type: 'text', text: '[OK: 2 prerequisites, 1 unlocked]' },
       ]);
 
-      // 2. Dual-Output Projection: Rich structured JSON payload for client consumers
-      expect(result.payload).toEqual({
-        concept: centralConcept,
-        prerequisites: prereqs,
-        unlocked,
-        depth: 1,
-      });
+      // 2. Flattened structured data fields
       expect(result.prerequisites).toEqual(prereqs);
       expect(result.unlocked).toEqual(unlocked);
       expect(result.concept).toEqual(centralConcept);
+      expect(result.depth).toBe(1);
 
       // 3. Streaming status events
       expect(mockDataStream.write).toHaveBeenCalledWith({
@@ -240,9 +232,6 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
 
       // 1. Dual-Output Projection: Terse text summary <= 15 tokens
       expect(result.summary).toBe('[OK: 2 prerequisite ancestors]');
-      expect(result.text).toBe('[OK: 2 prerequisite ancestors]');
-      expect(result.content).toBe('[OK: 2 prerequisite ancestors]');
-      expect(result.toString()).toBe('[OK: 2 prerequisite ancestors]');
       expect(countApproximateTokens(result.summary)).toBeLessThanOrEqual(15);
       expect(
         toolInstance.toModelOutput?.({
@@ -258,16 +247,10 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
         { type: 'text', text: '[OK: 2 prerequisite ancestors]' },
       ]);
 
-      // 2. Dual-Output Projection: Rich structured JSON payload for client consumers
-      expect(result.payload).toEqual({
-        kcId: 'kc-dijkstra',
-        chain: chainNodes,
-        ancestors: chainNodes,
-        depth: 2,
-        count: 2,
-      });
+      // 2. Flattened structured data fields
       expect(result.chain).toEqual(chainNodes);
       expect(result.ancestors).toEqual(chainNodes);
+      expect(result.depth).toBe(2);
 
       // 3. Streaming status events
       expect(mockDataStream.write).toHaveBeenCalledWith({
@@ -407,9 +390,6 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
 
       // 1. Dual-Output: Terse text summary bounded to <= 15 tokens
       expect(result.summary).toBe('[OK: 2 exercises found for Algebra]');
-      expect(result.text).toBe('[OK: 2 exercises found for Algebra]');
-      expect(result.content).toBe('[OK: 2 exercises found for Algebra]');
-      expect(result.toString()).toBe('[OK: 2 exercises found for Algebra]');
       expect(countApproximateTokens(result.summary)).toBeLessThanOrEqual(15);
       expect(
         toolInstance.toModelOutput?.({
@@ -425,15 +405,11 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
         { type: 'text', text: '[OK: 2 exercises found for Algebra]' },
       ]);
 
-      // 2. Dual-Output: Rich client payload with pageNumber and fields
+      // 2. Flattened structured data fields
       expect(result.exercises).toEqual(sampleExercises);
       expect(result.exercises[0].pageNumber).toBe(12);
       expect(result.exercises[1].pageNumber).toBe(15);
-      expect(result.payload).toEqual({
-        kcId: 'Algebra',
-        exercises: sampleExercises,
-        count: 2,
-      });
+      expect(result.kcId).toBe('Algebra');
 
       // 3. Streaming status events
       expect(mockDataStream.write).toHaveBeenCalledWith({
@@ -470,7 +446,7 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
       expect(result.summary).toBe('[OK: 0 exercises found for Calculus]');
       expect(countApproximateTokens(result.summary)).toBeLessThanOrEqual(15);
       expect(result.exercises).toEqual([]);
-      expect(result.payload.count).toBe(0);
+      expect(result.exercises.length).toBe(0);
     });
 
     it('handles missing projectId gracefully without calling DB query', async () => {

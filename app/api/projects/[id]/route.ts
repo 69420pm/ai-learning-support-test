@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { requireAuthUser } from '@/lib/auth/session';
 import { deleteProjectById, getProjectById, updateProjectName } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
-import { purgeProjectMaterialsStorage } from '@/lib/materials';
+import { deleteProjectLifecycle } from '@/lib/materials';
 
 export const maxDuration = 60;
 
@@ -77,7 +77,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return new ChatbotError('not_found:chat', 'Project not found').toResponse();
     }
 
-    await purgeProjectMaterialsStorage({
+    await deleteProjectLifecycle({
       projectId: id,
       userId: user.id,
     });

@@ -6,9 +6,6 @@ import {
   createPrerequisiteChainTool,
   type ExercisesForKcToolResult,
   type GraphNeighborhoodToolResult,
-  getExercisesForKcTool,
-  getGraphNeighborhoodTool,
-  getPrerequisiteChainTool,
   type PrerequisiteChainToolResult,
 } from './graph';
 
@@ -31,11 +28,7 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
     vi.clearAllMocks();
   });
 
-  describe('createGraphNeighborhoodTool / getGraphNeighborhoodTool', () => {
-    it('aliases getGraphNeighborhoodTool to createGraphNeighborhoodTool', () => {
-      expect(getGraphNeighborhoodTool).toBe(createGraphNeighborhoodTool);
-    });
-
+  describe('createGraphNeighborhoodTool', () => {
     it('creates tool with appropriate description and input schema', () => {
       const toolInstance = createGraphNeighborhoodTool({
         projectId: 'proj-1',
@@ -202,11 +195,7 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
     });
   });
 
-  describe('createPrerequisiteChainTool / getPrerequisiteChainTool', () => {
-    it('aliases getPrerequisiteChainTool to createPrerequisiteChainTool', () => {
-      expect(getPrerequisiteChainTool).toBe(createPrerequisiteChainTool);
-    });
-
+  describe('createPrerequisiteChainTool', () => {
     it('creates tool with appropriate description and input schema', () => {
       const toolInstance = createPrerequisiteChainTool({
         projectId: 'proj-1',
@@ -359,11 +348,7 @@ describe('Dual-Output Graph AI Tools (lib/ai/tools/graph.ts)', () => {
     });
   });
 
-  describe('createExercisesForKcTool / getExercisesForKcTool', () => {
-    it('aliases getExercisesForKcTool to createExercisesForKcTool', () => {
-      expect(getExercisesForKcTool).toBe(createExercisesForKcTool);
-    });
-
+  describe('createExercisesForKcTool', () => {
     it('creates tool with appropriate description and input schema', () => {
       const toolInstance = createExercisesForKcTool({
         projectId: 'proj-1',

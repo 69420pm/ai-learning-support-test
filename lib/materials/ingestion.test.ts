@@ -1,4 +1,3 @@
-import sharp from 'sharp';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateEmbeddings } from '@/lib/ai/embedding';
 import type { StorageDriver } from '@/lib/storage';
@@ -12,6 +11,7 @@ import {
   type MaterialProgress,
   rasterizeDocument,
 } from './index';
+import { createMinimalPdfBuffer, createTestImageBuffer } from './test-fixtures';
 
 // Mocks for DB and default storage
 const mockUpdateMaterialStatus = vi.fn();
@@ -78,43 +78,6 @@ vi.mock('@/lib/materials/vision', async (importOriginal) => {
     },
   };
 });
-
-function createMinimalPdfBuffer(pageCount = 2): Buffer {
-  let pdf =
-    '%PDF-1.4\n1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n2 0 obj <</Type /Pages /Kids [';
-  const pageObjNums: number[] = [];
-  let currentObj = 3;
-
-  for (let i = 0; i < pageCount; i++) {
-    pageObjNums.push(currentObj);
-    currentObj += 2;
-  }
-
-  pdf += `${pageObjNums.map((n) => `${n} 0 R`).join(' ')}] /Count ${pageCount}>> endobj\n`;
-
-  for (let i = 0; i < pageCount; i++) {
-    const pageNum = pageObjNums[i];
-    const contentsNum = pageNum + 1;
-    pdf += `${pageNum} 0 obj <</Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources <<>> /Contents ${contentsNum} 0 R>> endobj\n`;
-    pdf += `${contentsNum} 0 obj <</Length 24>> stream\n0 0 200 200 re f\nendstream\nendobj\n`;
-  }
-
-  pdf += 'xref\n0 1\n0000000000 65535 f \ntrailer <</Size 10 /Root 1 0 R>>\nstartxref\n100\n%%EOF';
-  return Buffer.from(pdf);
-}
-
-async function createTestImageBuffer(width = 300, height = 200): Promise<Buffer> {
-  return await sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: { r: 64, g: 128, b: 192, alpha: 1 },
-    },
-  })
-    .png()
-    .toBuffer();
-}
 
 describe('ingestMaterial Core Domain Function', () => {
   beforeEach(() => {

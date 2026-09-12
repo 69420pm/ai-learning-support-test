@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "project": [
-    "app/**/*.{ts,tsx}",
+    "app/**/*.{ts,tsx,css}",
     "components/**/*.{ts,tsx}",
     "lib/**/*.{ts,tsx}",
     "tests/**/*.{ts,tsx}",
@@ -9,12 +9,5 @@
   ],
   "ignore": ["components/ui/**"],
   "ignoreExportsUsedInFile": true,
-  "ignoreDependencies": [
-    "@ai-sdk/anthropic",
-    "@tailwindcss/typography",
-    "pg-boss",
-    "tailwindcss",
-    "tailwindcss-animate",
-    "agent-browser"
-  ]
+  "ignoreDependencies": ["@ai-sdk/anthropic", "@tailwindcss/typography", "agent-browser"]
 }

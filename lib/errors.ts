@@ -136,4 +136,5 @@ export class ChatbotError extends Error {
   }
 }
 
+/** @public */
 export { ChatbotError as AppError };

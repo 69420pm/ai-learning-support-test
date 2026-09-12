@@ -261,8 +261,6 @@ export function createGraphNeighborhoodTool({ projectId, dataStream }: CreateToo
   });
 }
 
-export const getGraphNeighborhoodTool = createGraphNeighborhoodTool;
-
 export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToolsOptions) {
   const chainTool = tool({
     description:
@@ -413,8 +411,6 @@ export function createPrerequisiteChainTool({ projectId, dataStream }: CreateToo
   });
 }
 
-export const getPrerequisiteChainTool = createPrerequisiteChainTool;
-
 export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsOptions) {
   const exercisesTool = tool({
     description:
@@ -536,9 +532,3 @@ export function createExercisesForKcTool({ projectId, dataStream }: CreateToolsO
     ],
   });
 }
-
-export const getExercisesForKcTool = createExercisesForKcTool;
-
-export type GraphNeighborhoodTool = ReturnType<typeof createGraphNeighborhoodTool>;
-export type PrerequisiteChainTool = ReturnType<typeof createPrerequisiteChainTool>;
-export type ExercisesForKcTool = ReturnType<typeof createExercisesForKcTool>;

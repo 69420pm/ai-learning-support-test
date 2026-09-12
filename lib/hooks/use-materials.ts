@@ -1,10 +1,9 @@
 'use client';
 
 import useSWR from 'swr';
-import type { GraphExtractionStatus, MaterialGraphExtractionMetadata } from '@/lib/materials/types';
+import type { MaterialGraphExtractionMetadata } from '@/lib/materials/types';
 import { fetcher } from '@/lib/utils';
 
-export type { GraphExtractionStatus, MaterialGraphExtractionMetadata };
 export type MaterialStatus = 'pending' | 'processing' | 'ready' | 'failed';
 
 export type MaterialProgress = {

@@ -24,8 +24,6 @@ export type GraphNeighborKC = KnowledgeComponent & {
   reasoning?: string | null;
 };
 
-export type GraphNeighborConcept = GraphNeighborKC;
-
 export type GraphNeighborhoodResult = {
   concept: KnowledgeComponent | null;
   prerequisites: GraphNeighborKC[];

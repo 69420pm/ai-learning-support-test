@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { StorageDriver } from './types';
+import { toBuffer } from './utils';
 
 export class LocalStorageDriver implements StorageDriver {
   private baseDir: string;
@@ -23,20 +24,7 @@ export class LocalStorageDriver implements StorageDriver {
     const fullPath = this.resolveSafePath(filePath);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
 
-    let buffer: Buffer;
-    if (Buffer.isBuffer(data)) {
-      buffer = data;
-    } else if (data instanceof Uint8Array) {
-      buffer = Buffer.from(data);
-    } else if (typeof data === 'string') {
-      buffer = Buffer.from(data, 'utf-8');
-    } else if (typeof (data as Blob).arrayBuffer === 'function') {
-      const arrayBuf = await (data as Blob).arrayBuffer();
-      buffer = Buffer.from(arrayBuf);
-    } else {
-      buffer = Buffer.from(String(data));
-    }
-
+    const buffer = await toBuffer(data);
     await fs.writeFile(fullPath, buffer);
     return { path: filePath, size: buffer.length };
   }

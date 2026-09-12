@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { StorageDriver } from './types';
+import { toBuffer } from './utils';
 
 export class SupabaseStorageDriver implements StorageDriver {
   private bucket: string;
@@ -14,19 +15,7 @@ export class SupabaseStorageDriver implements StorageDriver {
     contentType?: string,
   ): Promise<{ path: string; size: number }> {
     const supabase = await createClient();
-    let buffer: Buffer;
-    if (Buffer.isBuffer(data)) {
-      buffer = data;
-    } else if (data instanceof Uint8Array) {
-      buffer = Buffer.from(data);
-    } else if (typeof data === 'string') {
-      buffer = Buffer.from(data, 'utf-8');
-    } else if (typeof (data as Blob).arrayBuffer === 'function') {
-      const arrayBuf = await (data as Blob).arrayBuffer();
-      buffer = Buffer.from(arrayBuf);
-    } else {
-      buffer = Buffer.from(String(data));
-    }
+    const buffer = await toBuffer(data);
 
     const { error } = await supabase.storage.from(this.bucket).upload(filePath, buffer, {
       contentType: contentType || 'application/octet-stream',

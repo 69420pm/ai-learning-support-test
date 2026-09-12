@@ -69,7 +69,6 @@ export const conceptExtractionSchema = z.object({
 export type RawConcept = z.infer<typeof conceptExtractionSchema>['concepts'][number];
 export type RawPrerequisite = z.infer<typeof conceptExtractionSchema>['prerequisites'][number];
 export type RawExercise = z.infer<typeof conceptExtractionSchema>['exercises'][number];
-export type RawExtractionResult = z.infer<typeof conceptExtractionSchema>;
 
 export type SanitizedConcept = {
   name: string;
@@ -374,10 +373,7 @@ export function updateMaterialGraphExtractionMetadata(
   };
 }
 
-export {
-  isMaterialExtractingGraph,
-  type MaterialWithMetadata,
-} from './types';
+export { isMaterialExtractingGraph } from './types';
 
 export type QueueGraphExtractionParams = {
   projectId: string;

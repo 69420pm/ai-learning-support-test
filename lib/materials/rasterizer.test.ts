@@ -8,50 +8,7 @@ import {
   rasterizeImage,
   rasterizePdf,
 } from './rasterizer';
-
-function createMinimalPdfBuffer(pageCount = 1): Buffer {
-  let pdf =
-    '%PDF-1.4\n1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n2 0 obj <</Type /Pages /Kids [';
-  const pageObjNums: number[] = [];
-  let currentObj = 3;
-
-  for (let i = 0; i < pageCount; i++) {
-    pageObjNums.push(currentObj);
-    currentObj += 2; // page obj and contents obj
-  }
-
-  pdf += `${pageObjNums.map((n) => `${n} 0 R`).join(' ')}] /Count ${pageCount}>> endobj\n`;
-
-  for (let i = 0; i < pageCount; i++) {
-    const pageNum = pageObjNums[i];
-    const contentsNum = pageNum + 1;
-    pdf += `${pageNum} 0 obj <</Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources <<>> /Contents ${contentsNum} 0 R>> endobj\n`;
-    pdf += `${contentsNum} 0 obj <</Length 24>> stream\n0 0 200 200 re f\nendstream\nendobj\n`;
-  }
-
-  pdf += 'xref\n0 1\n0000000000 65535 f \ntrailer <</Size 10 /Root 1 0 R>>\nstartxref\n100\n%%EOF';
-  return Buffer.from(pdf);
-}
-
-async function createTestImageBuffer(
-  width = 200,
-  height = 200,
-  format: 'png' | 'jpeg' = 'png',
-): Promise<Buffer> {
-  const image = sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: { r: 50, g: 100, b: 150, alpha: 1 },
-    },
-  });
-
-  if (format === 'jpeg') {
-    return await image.jpeg().toBuffer();
-  }
-  return await image.png().toBuffer();
-}
+import { createMinimalPdfBuffer, createTestImageBuffer } from './test-fixtures';
 
 describe('Material Rasterization Pipeline', () => {
   describe('File type detection', () => {

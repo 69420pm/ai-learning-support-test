@@ -7,6 +7,7 @@ import {
   resetStorageDriver,
   SupabaseStorageDriver,
 } from './index';
+import { toBuffer } from './utils';
 
 const mockUpload = vi.fn();
 const mockDownload = vi.fn();
@@ -186,6 +187,35 @@ describe('Storage Drivers', () => {
 
       const driver = getStorageDriver();
       expect(driver).toBeInstanceOf(LocalStorageDriver);
+    });
+  });
+
+  describe('toBuffer', () => {
+    it('returns the same buffer if already a Buffer', async () => {
+      const buf = Buffer.from('test');
+      const result = await toBuffer(buf);
+      expect(result).toBe(buf);
+    });
+
+    it('converts Uint8Array to Buffer', async () => {
+      const arr = new Uint8Array([1, 2, 3]);
+      const result = await toBuffer(arr);
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect([...result]).toEqual([1, 2, 3]);
+    });
+
+    it('converts string to Buffer with utf-8', async () => {
+      const str = 'hello world';
+      const result = await toBuffer(str);
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result.toString('utf-8')).toBe(str);
+    });
+
+    it('converts Blob to Buffer', async () => {
+      const blob = new Blob(['blob content'], { type: 'text/plain' });
+      const result = await toBuffer(blob);
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result.toString('utf-8')).toBe('blob content');
     });
   });
 });

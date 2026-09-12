@@ -28,6 +28,7 @@ describe('Project Item API Route (/api/projects/[id])', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetProjectById.mockResolvedValue(defaultProject);
   });
 
   describe('GET /api/projects/[id]', () => {
@@ -149,18 +150,15 @@ describe('Project Item API Route (/api/projects/[id])', () => {
       expect(mockDeleteProjectById).not.toHaveBeenCalled();
     });
 
-    it('purges storage blobs and deletes project database record in order, returning 200', async () => {
+    it('delegates complete atomic project deletion to lifecycle seam, returning 200', async () => {
       mockRequireAuthUser.mockResolvedValueOnce(defaultUser);
       mockGetProjectById.mockResolvedValueOnce(defaultProject);
-
-      const callOrder: string[] = [];
-      mockDeleteProjectLifecycle.mockImplementationOnce(() => {
-        callOrder.push('purgeStorage');
-        return Promise.resolve({ purgedCount: 2, totalMaterials: 2 });
-      });
-      mockDeleteProjectById.mockImplementationOnce(() => {
-        callOrder.push('deleteDb');
-        return Promise.resolve(defaultProject);
+      mockDeleteProjectLifecycle.mockResolvedValueOnce({
+        success: true,
+        projectId: 'p1',
+        purgedCount: 2,
+        totalMaterials: 2,
+        project: defaultProject,
       });
 
       const request = new Request('http://localhost:3000/api/projects/p1', { method: 'DELETE' });
@@ -178,13 +176,8 @@ describe('Project Item API Route (/api/projects/[id])', () => {
         projectId: 'p1',
         userId: 'user-1',
       });
-      expect(mockDeleteProjectById).toHaveBeenCalledWith({
-        id: 'p1',
-        userId: 'user-1',
-      });
-
-      // Storage purge must occur BEFORE project db deletion to preserve material references
-      expect(callOrder).toEqual(['purgeStorage', 'deleteDb']);
+      // Verification of single seam: controller does not call raw DB delete
+      expect(mockDeleteProjectById).not.toHaveBeenCalled();
     });
 
     it('maps domain ChatbotError from storage purge to error response', async () => {

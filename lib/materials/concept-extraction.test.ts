@@ -1,13 +1,51 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MaterialChunk } from '@/lib/db/schema';
 import {
   conceptExtractionSchema,
+  extractConceptGraph,
   isMaterialExtractingGraph,
   linkExercisesToKcs,
   sanitizeExtractedGraph,
   sliceMaterialChunksIntoBatches,
   slugifyConceptName,
 } from './concept-extraction';
+
+const mockGetMaterialById = vi.fn();
+const mockGetMaterialChunks = vi.fn();
+const mockUpdateMaterialStatus = vi.fn();
+
+vi.mock('@/lib/db/queries/material', () => ({
+  getMaterialById: (...args: unknown[]) => mockGetMaterialById(...args),
+  getMaterialChunksByMaterialId: (...args: unknown[]) => mockGetMaterialChunks(...args),
+  updateMaterialStatus: (...args: unknown[]) => mockUpdateMaterialStatus(...args),
+  getMaterialsByProjectId: vi.fn(),
+}));
+
+const mockUpsertKnowledgeComponents = vi.fn();
+const mockInsertKnowledgeDependencies = vi.fn();
+const mockInsertExercises = vi.fn();
+const mockGetKnowledgeComponentsByProjectId = vi.fn();
+const mockGetActiveProjectConceptNames = vi.fn();
+const mockCleanupMaterialExtractedGraph = vi.fn();
+
+vi.mock('@/lib/db/queries/knowledge', () => ({
+  upsertKnowledgeComponents: (...args: unknown[]) => mockUpsertKnowledgeComponents(...args),
+  insertKnowledgeDependencies: (...args: unknown[]) => mockInsertKnowledgeDependencies(...args),
+  insertExercises: (...args: unknown[]) => mockInsertExercises(...args),
+  getKnowledgeComponentsByProjectId: (...args: unknown[]) =>
+    mockGetKnowledgeComponentsByProjectId(...args),
+  getActiveProjectConceptNames: (...args: unknown[]) => mockGetActiveProjectConceptNames(...args),
+  cleanupMaterialExtractedGraph: (...args: unknown[]) => mockCleanupMaterialExtractedGraph(...args),
+}));
+
+const mockGenerateObject = vi.fn();
+vi.mock('ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('ai')>();
+  return {
+    ...actual,
+    generateObject: (...args: unknown[]) => mockGenerateObject(...args),
+  };
+});
 
 describe('Concept Extraction Domain Logic', () => {
   describe('slugifyConceptName', () => {
@@ -602,6 +640,167 @@ describe('Concept Extraction Domain Logic', () => {
           metadata: { graphExtraction: { status: 'ready' } },
         }),
       ).toBe(false);
+    });
+  });
+
+  describe('extractConceptGraph (Standalone Deep Engine Seam)', () => {
+    const defaultProjectId = '11111111-1111-1111-1111-111111111111';
+    const defaultUserId = '22222222-2222-2222-2222-222222222222';
+    const defaultMaterialId = '33333333-3333-3333-3333-333333333333';
+
+    const sampleMaterial = {
+      id: defaultMaterialId,
+      projectId: defaultProjectId,
+      userId: defaultUserId,
+      title: 'Graph Theory 101',
+      filename: 'graph-theory.pdf',
+      fileType: 'application/pdf',
+      fileSize: 1024,
+      storagePath: `${defaultProjectId}/graph-theory.pdf`,
+      status: 'ready' as const,
+      errorMessage: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const sampleChunks: MaterialChunk[] = [
+      {
+        id: 'chunk-1',
+        materialId: defaultMaterialId,
+        projectId: defaultProjectId,
+        userId: defaultUserId,
+        chunkIndex: 0,
+        content: '# Graphs\nA graph consists of vertices and edges.',
+        tokenCount: 15,
+        metadata: { pageNumber: 1 },
+        embedding: null,
+        createdAt: new Date(),
+      },
+    ];
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockGetMaterialById.mockResolvedValue({ ...sampleMaterial });
+      mockGetMaterialChunks.mockResolvedValue([...sampleChunks]);
+      mockGetActiveProjectConceptNames.mockResolvedValue(['Existing Concept']);
+      mockUpsertKnowledgeComponents.mockResolvedValue([
+        {
+          id: 'kc-1',
+          projectId: defaultProjectId,
+          userId: defaultUserId,
+          slug: 'graphs',
+          name: 'Graphs',
+          pacerCategory: 'conceptual',
+          bloomLevel: 2,
+          aliases: [],
+          status: 'active',
+          orderIndex: 0,
+          sourceMaterialId: defaultMaterialId,
+        },
+      ]);
+      mockInsertKnowledgeDependencies.mockResolvedValue([]);
+      mockGetKnowledgeComponentsByProjectId.mockResolvedValue([]);
+      mockInsertExercises.mockResolvedValue([
+        {
+          id: 'ex-1',
+          projectId: defaultProjectId,
+          userId: defaultUserId,
+          materialId: defaultMaterialId,
+          kcId: 'kc-1',
+          questionType: 'multiple_choice',
+          difficulty: 1,
+        },
+      ]);
+      mockGenerateObject.mockResolvedValue({
+        object: {
+          concepts: [
+            {
+              name: 'Graphs',
+              pacerCategory: 'conceptual',
+              bloomLevel: 2,
+              aliases: [],
+            },
+          ],
+          prerequisites: [],
+          exercises: [
+            {
+              pageNumber: 1,
+              title: 'Exercise 1',
+              prompt: 'What is a graph?',
+              solution: 'A set of vertices and edges',
+              questionType: 'multiple_choice',
+              difficulty: 1,
+              targetConceptName: 'Graphs',
+            },
+          ],
+        },
+      });
+    });
+
+    it('extracts concept graph standalone without requiring pg-boss job envelope', async () => {
+      const result = await extractConceptGraph(defaultMaterialId);
+
+      expect(result).toEqual({
+        materialId: defaultMaterialId,
+        kcCount: 1,
+        exerciseCount: 1,
+      });
+
+      expect(mockGetMaterialById).toHaveBeenCalledWith({
+        id: defaultMaterialId,
+        projectId: undefined,
+        userId: undefined,
+      });
+      expect(mockCleanupMaterialExtractedGraph).toHaveBeenCalledWith({
+        materialId: defaultMaterialId,
+        projectId: defaultProjectId,
+      });
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: defaultMaterialId,
+          metadata: expect.objectContaining({
+            graphExtraction: expect.objectContaining({
+              status: 'ready',
+              kcCount: 1,
+              exerciseCount: 1,
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('handles material with empty chunks gracefully by returning 0/0', async () => {
+      mockGetMaterialChunks.mockResolvedValueOnce([]);
+
+      const result = await extractConceptGraph(defaultMaterialId);
+
+      expect(result).toEqual({
+        materialId: defaultMaterialId,
+        kcCount: 0,
+        exerciseCount: 0,
+      });
+      expect(mockGenerateObject).not.toHaveBeenCalled();
+    });
+
+    it('records failed status on material when extraction fails during final attempt', async () => {
+      mockGenerateObject.mockRejectedValueOnce(new Error('LLM rate limit reached'));
+
+      await expect(extractConceptGraph(defaultMaterialId)).rejects.toThrow(
+        'LLM rate limit reached',
+      );
+
+      expect(mockUpdateMaterialStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: defaultMaterialId,
+          metadata: expect.objectContaining({
+            graphExtraction: expect.objectContaining({
+              status: 'failed',
+              error: 'LLM rate limit reached',
+            }),
+          }),
+        }),
+      );
     });
   });
 });

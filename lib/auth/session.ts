@@ -100,3 +100,5 @@ export async function requireAuthUser(surface: Surface = 'chat'): Promise<AuthUs
   }
   return user;
 }
+
+export { requireProjectContext } from './project-context';

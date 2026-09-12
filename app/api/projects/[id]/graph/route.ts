@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { requireAuthUser } from '@/lib/auth/session';
-import { getProjectGraphData } from '@/lib/db/queries/knowledge';
-import { getProjectById } from '@/lib/db/queries/project';
+import { requireProjectContext } from '@/lib/auth/project-context';
 import { ChatbotError } from '@/lib/errors';
+import { getProjectGraphTopology } from '@/lib/learning/knowledge-graph';
 
 export const maxDuration = 60;
 
@@ -46,16 +45,10 @@ export async function GET(
       ).toResponse();
     }
 
-    const { id: projectId } = parseResult.data;
-    const user = await requireAuthUser();
+    const { project, user } = await requireProjectContext(params);
 
-    const project = await getProjectById({ id: projectId, userId: user.id });
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
-    }
-
-    const graphData = await getProjectGraphData({
-      projectId,
+    const graphData = await getProjectGraphTopology({
+      projectId: project.id,
       userId: user.id,
     });
 

@@ -30,19 +30,91 @@ function checkComponentRules(file: string, line: number, importPath: string) {
   }
 }
 
-function checkApiRules(file: string, line: number, importPath: string) {
-  const isRawDb =
-    importPath === 'pg' ||
-    importPath === 'postgres' ||
-    importPath.startsWith('drizzle-orm/postgres-js');
-  if (file.startsWith('app/api/') && isRawDb) {
-    violations.push({
-      rule: 'no-raw-db-in-api',
-      file,
-      line,
-      importPath,
-      message: 'API route imports raw database driver directly. Use @/lib/db queries instead.',
-    });
+function checkApiRules(file: string, line: number, importPath: string, importStatement: string) {
+  const isTest = file.includes('.test.') || file.includes('.spec.');
+  if (file.startsWith('app/api/') && !isTest) {
+    const isRawDbDriver =
+      importPath === 'pg' ||
+      importPath === 'postgres' ||
+      importPath.startsWith('drizzle-orm/postgres-js');
+    if (isRawDbDriver) {
+      violations.push({
+        rule: 'no-raw-db-in-api',
+        file,
+        line,
+        importPath,
+        message: 'API route imports raw database driver directly. Use @/lib/db queries instead.',
+      });
+    }
+
+    const isDirectDbClient =
+      importPath === '@/lib/db' ||
+      importPath === '@/lib/db/client' ||
+      importPath.startsWith('@/lib/db/client');
+    if (isDirectDbClient) {
+      violations.push({
+        rule: 'no-raw-db-client-in-api',
+        file,
+        line,
+        importPath,
+        message:
+          'API route imports raw database client directly. Use query functions or domain services instead.',
+      });
+    }
+
+    const isBypassingProjectLifecycle =
+      importPath === '@/lib/db/queries/project' && importStatement.includes('deleteProjectById');
+    const isBypassingMaterialLifecycle =
+      importPath === '@/lib/db/queries/material' && importStatement.includes('deleteMaterialById');
+
+    if (isBypassingProjectLifecycle || isBypassingMaterialLifecycle) {
+      violations.push({
+        rule: 'presentation-cannot-bypass-lifecycle',
+        file,
+        line,
+        importPath,
+        message:
+          'API route directly calls low-level delete query instead of lifecycle service (deleteProjectLifecycle / deleteMaterialLifecycle).',
+      });
+    }
+  }
+}
+
+function checkQueryRules(file: string, line: number, importPath: string) {
+  const isTest = file.includes('.test.') || file.includes('.spec.');
+  if (file.startsWith('lib/db/queries/') && !isTest) {
+    if (importPath.startsWith('@/lib/learning') || importPath.includes('/lib/learning')) {
+      violations.push({
+        rule: 'queries-cannot-import-learning',
+        file,
+        line,
+        importPath,
+        message:
+          'Database query layer must not import pedagogical/learning logic. Extract pure graph/learning algorithms to @/lib/learning.',
+      });
+    }
+  }
+}
+
+function checkLearningRules(file: string, line: number, importPath: string) {
+  const isTest = file.includes('.test.') || file.includes('.spec.');
+  if (file.startsWith('lib/learning/') && !isTest) {
+    const isRawDbDriver =
+      importPath === 'pg' ||
+      importPath === 'postgres' ||
+      importPath.startsWith('drizzle-orm/postgres-js') ||
+      importPath === '@/lib/db' ||
+      importPath === '@/lib/db/client';
+    if (isRawDbDriver) {
+      violations.push({
+        rule: 'learning-cannot-import-db-driver',
+        file,
+        line,
+        importPath,
+        message:
+          'Learning domain module must remain decoupled from raw database drivers and connection clients.',
+      });
+    }
   }
 }
 
@@ -83,8 +155,19 @@ function scanFile(filePath: string) {
     if (!match) continue;
 
     const importPath = match[1];
+
+    let importStatement = lines[i];
+    if (!lines[i].includes('import')) {
+      for (let j = i - 1; j >= Math.max(0, i - 15); j--) {
+        importStatement = `${lines[j]}\n${importStatement}`;
+        if (lines[j].includes('import')) break;
+      }
+    }
+
     checkComponentRules(relativeFile, lineNum, importPath);
-    checkApiRules(relativeFile, lineNum, importPath);
+    checkApiRules(relativeFile, lineNum, importPath, importStatement);
+    checkQueryRules(relativeFile, lineNum, importPath);
+    checkLearningRules(relativeFile, lineNum, importPath);
     checkDomainRules(relativeFile, lineNum, importPath);
     checkPathAliasRules(relativeFile, lineNum, importPath);
   }

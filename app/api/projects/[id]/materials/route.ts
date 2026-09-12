@@ -1,23 +1,24 @@
-import { requireAuthUser } from '@/lib/auth/session';
+import { z } from 'zod';
+import { requireProjectContext } from '@/lib/auth/project-context';
 import { getMaterialsByProjectId } from '@/lib/db/queries/material';
-import { getProjectById } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
 import { intakeMaterial } from '@/lib/materials';
 
 export const maxDuration = 60;
 
+const materialUploadSchema = z.object({
+  title: z.string().trim().min(1).optional(),
+});
+
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
   try {
-    const { id: projectId } = await params;
-    const user = await requireAuthUser();
+    const { project, user } = await requireProjectContext(params);
 
-    const project = await getProjectById({ id: projectId, userId: user.id });
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
-    }
-
-    const materials = await getMaterialsByProjectId({ projectId, userId: user.id });
+    const materials = await getMaterialsByProjectId({ projectId: project.id, userId: user.id });
     return Response.json({ materials }, { status: 200 });
   } catch (error) {
     if (error instanceof ChatbotError) {
@@ -28,15 +29,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
   try {
-    const { id: projectId } = await params;
-    const user = await requireAuthUser();
-
-    const project = await getProjectById({ id: projectId, userId: user.id });
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
-    }
+    const { project, user } = await requireProjectContext(params);
 
     const formData = await request.formData();
     const file = formData.get('file');
@@ -46,11 +44,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const titleParam = formData.get('title');
-    const title =
-      typeof titleParam === 'string' && titleParam.trim() ? titleParam.trim() : undefined;
+    const parsedFields = materialUploadSchema.safeParse({
+      title: typeof titleParam === 'string' && titleParam.trim() ? titleParam.trim() : undefined,
+    });
+
+    const title = parsedFields.success ? parsedFields.data.title : undefined;
 
     const material = await intakeMaterial({
-      projectId,
+      projectId: project.id,
       userId: user.id,
       file,
       title,

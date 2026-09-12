@@ -8,7 +8,6 @@ import {
   getKnowledgeComponentsByProjectId,
   getKnowledgeDependenciesByProjectId,
   getPrerequisiteChain,
-  getProjectGraphData,
   getReadyToLearnFrontier,
   insertExercises,
   insertKnowledgeDependencies,
@@ -793,85 +792,6 @@ describe('Knowledge Graph DB Queries', () => {
       const result = await getExercisesForKc({ projectId: 'proj-1', kcId: 'recursion' });
       expect(result).toEqual([]);
       expect(mockDbSelect).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('getProjectGraphData', () => {
-    it('queries components, dependencies, and materials with tenant scoping and computes diagnostics', async () => {
-      const mockComponents = [
-        {
-          id: 'kc-1',
-          projectId: 'proj-1',
-          name: 'Concept 1',
-          slug: 'concept-1',
-          pacerCategory: 'conceptual',
-          bloomLevel: 2,
-        },
-        {
-          id: 'kc-2',
-          projectId: 'proj-1',
-          name: 'Concept 2',
-          slug: 'concept-2',
-          pacerCategory: 'procedural',
-          bloomLevel: 3,
-        },
-      ];
-
-      const mockDependencies = [
-        {
-          id: 'dep-1',
-          projectId: 'proj-1',
-          sourceKcId: 'kc-1',
-          targetKcId: 'kc-2',
-          relationshipType: 'prerequisite',
-        },
-      ];
-
-      const mockMaterials = [
-        {
-          id: 'mat-1',
-          projectId: 'proj-1',
-          userId: 'user-1',
-          title: 'Textbook',
-        },
-      ];
-
-      // 1st select: knowledgeComponents
-      mockDbSelect.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValueOnce(mockComponents),
-          }),
-        }),
-      });
-
-      // 2nd select: knowledgeDependencies
-      mockDbSelect.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValueOnce(mockDependencies),
-        }),
-      });
-
-      // 3rd select: materials
-      mockDbSelect.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValueOnce(mockMaterials),
-          }),
-        }),
-      });
-
-      const result = await getProjectGraphData({ projectId: 'proj-1', userId: 'user-1' });
-
-      expect(result.components).toEqual(mockComponents);
-      expect(result.dependencies).toEqual(mockDependencies);
-      expect(result.materials).toEqual(mockMaterials);
-      expect(result.diagnostics.totalComponents).toBe(2);
-      expect(result.diagnostics.nodeCount).toBe(2);
-      expect(result.diagnostics.totalDependencies).toBe(1);
-      expect(result.diagnostics.edgeCount).toBe(1);
-      expect(result.diagnostics.orphanCount).toBe(0);
-      expect(result.diagnostics.hasCycles).toBe(false);
     });
   });
 

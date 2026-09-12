@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { requireAuthUser } from '@/lib/auth/session';
-import { deleteProjectById, getProjectById, updateProjectName } from '@/lib/db/queries/project';
+import { requireProjectContext } from '@/lib/auth/project-context';
+import { updateProjectName } from '@/lib/db/queries/project';
 import { ChatbotError } from '@/lib/errors';
 import { deleteProjectLifecycle } from '@/lib/materials';
 
@@ -11,20 +11,12 @@ const updateProjectSchema = z.object({
 });
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
   try {
-    const { id } = await params;
-    const user = await requireAuthUser();
-
-    const project = await getProjectById({
-      id,
-      userId: user.id,
-    });
-
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
-    }
-
+    const { project } = await requireProjectContext(params);
     return Response.json({ project }, { status: 200 });
   } catch (error) {
     if (error instanceof ChatbotError) {
@@ -35,10 +27,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
   try {
-    const { id } = await params;
-    const user = await requireAuthUser();
+    const { project, user } = await requireProjectContext(params);
 
     const json = await request.json();
     const parsed = updateProjectSchema.safeParse(json);
@@ -47,13 +41,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return new ChatbotError('bad_request:api', parsed.error.issues[0]?.message).toResponse();
     }
 
-    const project = await updateProjectName({
-      id,
+    const updated = await updateProjectName({
+      id: project.id,
       userId: user.id,
       name: parsed.data.name,
     });
 
-    return Response.json({ project }, { status: 200 });
+    return Response.json({ project: updated }, { status: 200 });
   } catch (error) {
     if (error instanceof ChatbotError) {
       return error.toResponse();
@@ -63,27 +57,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
   try {
-    const { id } = await params;
-    const user = await requireAuthUser();
-
-    const project = await getProjectById({
-      id,
-      userId: user.id,
-    });
-
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
-    }
+    const { project, user } = await requireProjectContext(params);
 
     await deleteProjectLifecycle({
-      projectId: id,
-      userId: user.id,
-    });
-
-    await deleteProjectById({
-      id,
+      projectId: project.id,
       userId: user.id,
     });
 

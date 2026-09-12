@@ -1,6 +1,28 @@
+import { generateObject, type LanguageModel } from 'ai';
 import { z } from 'zod';
-import { getMaterialsByProjectId, updateMaterialStatus } from '@/lib/db/queries/material';
-import type { MaterialChunk } from '@/lib/db/schema';
+import { buildConceptExtractionPrompt, CONCEPT_GRAPH_EXTRACTION_PROMPT } from '@/lib/ai/prompts';
+import { getLanguageModel } from '@/lib/ai/providers';
+import {
+  cleanupMaterialExtractedGraph,
+  getActiveProjectConceptNames,
+  getKnowledgeComponentsByProjectId,
+  insertExercises,
+  insertKnowledgeDependencies,
+  upsertKnowledgeComponents,
+} from '@/lib/db/queries/knowledge';
+import {
+  getMaterialById,
+  getMaterialChunksByMaterialId,
+  getMaterialsByProjectId,
+  updateMaterialStatus,
+} from '@/lib/db/queries/material';
+import type {
+  KnowledgeComponent,
+  Material,
+  MaterialChunk,
+  NewKnowledgeComponent,
+  NewKnowledgeDependency,
+} from '@/lib/db/schema';
 import {
   EXERCISE_QUESTION_TYPES,
   type ExerciseQuestionType,
@@ -457,4 +479,293 @@ export async function queueGraphExtraction({
     materialCount: targetIds.length,
     jobId,
   };
+}
+
+export type ExtractionContext = {
+  materialId: string;
+  projectId: string;
+  userId: string;
+  model: LanguageModel;
+};
+
+async function persistKnowledgeGraph(
+  ctx: ExtractionContext,
+  sanitized: SanitizedExtractionResult,
+): Promise<KnowledgeComponent[]> {
+  if (sanitized.concepts.length === 0) {
+    return [];
+  }
+
+  const newKcs: NewKnowledgeComponent[] = sanitized.concepts.map((c, idx) => ({
+    projectId: ctx.projectId,
+    userId: ctx.userId,
+    slug: c.slug,
+    name: c.name,
+    pacerCategory: c.pacerCategory,
+    bloomLevel: c.bloomLevel,
+    aliases: c.aliases,
+    sourceMaterialId: ctx.materialId,
+    status: 'active',
+    orderIndex: idx,
+  }));
+
+  const upsertedKcs = await upsertKnowledgeComponents(newKcs);
+  const slugToId = new Map(upsertedKcs.map((k) => [k.slug, k.id]));
+
+  const newKds: NewKnowledgeDependency[] = [];
+  for (const p of sanitized.prerequisites) {
+    const sourceKcId = slugToId.get(p.sourceSlug);
+    const targetKcId = slugToId.get(p.targetSlug);
+    if (sourceKcId && targetKcId) {
+      newKds.push({
+        projectId: ctx.projectId,
+        sourceKcId,
+        targetKcId,
+        relationshipType: p.relationshipType,
+        reasoning: p.reasoning,
+        sourceMaterialId: ctx.materialId,
+        isTransitive: false,
+      });
+    }
+  }
+
+  if (newKds.length > 0) {
+    await insertKnowledgeDependencies(newKds);
+  }
+
+  return upsertedKcs;
+}
+
+async function persistExtractedExercises(
+  ctx: ExtractionContext,
+  sanitized: SanitizedExtractionResult,
+  upsertedKcs: KnowledgeComponent[],
+): Promise<number> {
+  if (!sanitized.exercises || sanitized.exercises.length === 0) {
+    return 0;
+  }
+
+  const existingProjectKcs = await getKnowledgeComponentsByProjectId({
+    projectId: ctx.projectId,
+  });
+
+  const availableKcsMap = new Map<string, KcIdentifier>();
+  for (const kc of [...existingProjectKcs, ...upsertedKcs]) {
+    availableKcsMap.set(kc.id, { id: kc.id, name: kc.name, slug: kc.slug });
+  }
+
+  const linkedExercises = linkExercisesToKcs({
+    exercises: sanitized.exercises,
+    availableKcs: Array.from(availableKcsMap.values()),
+    projectId: ctx.projectId,
+    userId: ctx.userId,
+    materialId: ctx.materialId,
+  });
+
+  if (linkedExercises.length === 0) {
+    return 0;
+  }
+
+  const inserted = await insertExercises(linkedExercises);
+  return inserted.length;
+}
+
+async function persistExtractedGraph(
+  ctx: ExtractionContext,
+  sanitized: SanitizedExtractionResult,
+): Promise<{ exerciseCount: number }> {
+  const upsertedKcs = await persistKnowledgeGraph(ctx, sanitized);
+  const exerciseCount = await persistExtractedExercises(ctx, sanitized, upsertedKcs);
+  return { exerciseCount };
+}
+
+async function extractMaterialBatches(
+  ctx: ExtractionContext,
+): Promise<{ kcCount: number; exerciseCount: number }> {
+  const chunks = await getMaterialChunksByMaterialId({ materialId: ctx.materialId });
+  if (chunks.length === 0) {
+    return { kcCount: 0, exerciseCount: 0 };
+  }
+
+  const existingVocabulary = await getActiveProjectConceptNames({
+    projectId: ctx.projectId,
+    limit: 500,
+  });
+
+  const batches = sliceMaterialChunksIntoBatches(chunks);
+  const distinctConceptSlugs = new Set<string>();
+  let totalExerciseCount = 0;
+
+  for (const batch of batches) {
+    const prompt = buildConceptExtractionPrompt({
+      content: batch.content,
+      existingVocabulary,
+    });
+
+    const result = await generateObject({
+      model: ctx.model,
+      schema: conceptExtractionSchema,
+      system: CONCEPT_GRAPH_EXTRACTION_PROMPT,
+      prompt,
+    });
+
+    const sanitized = sanitizeExtractedGraph(result.object);
+    for (const c of sanitized.concepts) {
+      distinctConceptSlugs.add(c.slug);
+    }
+
+    const persistResult = await persistExtractedGraph(ctx, sanitized);
+    totalExerciseCount += persistResult.exerciseCount;
+  }
+
+  return {
+    kcCount: distinctConceptSlugs.size,
+    exerciseCount: totalExerciseCount,
+  };
+}
+
+async function setExtractionStatus(
+  material: Material,
+  status: 'extracting' | 'ready' | 'failed',
+  details: { kcCount?: number; exerciseCount?: number; error?: string } = {},
+): Promise<void> {
+  const now = new Date().toISOString();
+  const update: Record<string, unknown> = { status };
+
+  if (status === 'extracting') {
+    update.startedAt = now;
+  } else if (status === 'ready') {
+    update.completedAt = now;
+    update.kcCount = details.kcCount ?? 0;
+    update.exerciseCount = details.exerciseCount ?? 0;
+  } else if (status === 'failed') {
+    update.completedAt = now;
+    update.error = details.error;
+  }
+
+  const metadata = updateMaterialGraphExtractionMetadata(
+    material.metadata as Record<string, unknown>,
+    update,
+  );
+
+  await updateMaterialStatus({
+    id: material.id,
+    status: material.status,
+    metadata,
+  });
+}
+
+export const extractConceptGraphInputSchema = z.union([
+  z.string().trim().min(1, 'A valid material ID is required.'),
+  z.object({
+    materialId: z.string().trim().min(1, 'A valid material ID is required.'),
+    projectId: z.string().trim().min(1).optional(),
+    userId: z.string().trim().min(1).optional(),
+  }),
+]);
+
+export type ExtractConceptGraphInput = z.infer<typeof extractConceptGraphInputSchema>;
+
+export type ExtractConceptGraphOptions = {
+  projectId?: string;
+  userId?: string;
+  model?: LanguageModel;
+  isFinalAttempt?: boolean;
+};
+
+export type ExtractConceptGraphResult = {
+  materialId: string;
+  kcCount: number;
+  exerciseCount: number;
+};
+
+function resolveExtractionInput(
+  data: z.infer<typeof extractConceptGraphInputSchema>,
+  options: ExtractConceptGraphOptions,
+) {
+  if (typeof data === 'string') {
+    return {
+      materialId: data,
+      projectId: options.projectId,
+      userId: options.userId,
+    };
+  }
+  return {
+    materialId: data.materialId,
+    projectId: data.projectId ?? options.projectId,
+    userId: data.userId ?? options.userId,
+  };
+}
+
+async function recordExtractionFailure(
+  material: Material,
+  err: unknown,
+  isFinalAttempt: boolean,
+): Promise<void> {
+  if (!isFinalAttempt) return;
+  const errorMessage = err instanceof Error ? err.message : 'Concept graph extraction failed';
+  try {
+    await setExtractionStatus(material, 'failed', { error: errorMessage });
+  } catch (metaErr) {
+    console.error('Failed to record extraction error on material:', metaErr);
+  }
+}
+
+/**
+ * Deep, transport-agnostic concept graph extraction engine seam.
+ * Can be executed synchronously by tests or CLI scripts, or delegated from background workers.
+ * Manages chunk batching, vision/LLM extraction, sanitization, and atomic graph persistence.
+ */
+export async function extractConceptGraph(
+  materialIdOrInput: ExtractConceptGraphInput,
+  options: ExtractConceptGraphOptions = {},
+): Promise<ExtractConceptGraphResult> {
+  const parseResult = extractConceptGraphInputSchema.safeParse(materialIdOrInput);
+  if (!parseResult.success) {
+    throw new ChatbotError(
+      'bad_request:document',
+      parseResult.error.issues[0]?.message ?? 'A valid material ID is required.',
+    );
+  }
+
+  const { materialId, projectId, userId } = resolveExtractionInput(parseResult.data, options);
+  const model = options.model ?? getLanguageModel({ modelId: 'gemini-3.7-flash' });
+  const isFinalAttempt = options.isFinalAttempt ?? true;
+
+  const material = await getMaterialById({
+    id: materialId,
+    projectId,
+    userId,
+  });
+
+  if (!material) {
+    return { materialId, kcCount: 0, exerciseCount: 0 };
+  }
+
+  const ctx: ExtractionContext = {
+    materialId,
+    projectId: material.projectId,
+    userId: material.userId,
+    model,
+  };
+
+  await setExtractionStatus(material, 'extracting');
+
+  await cleanupMaterialExtractedGraph({
+    materialId: ctx.materialId,
+    projectId: ctx.projectId,
+  });
+
+  try {
+    const counts = await extractMaterialBatches(ctx);
+    await setExtractionStatus(material, 'ready', counts);
+    return {
+      materialId,
+      kcCount: counts.kcCount,
+      exerciseCount: counts.exerciseCount,
+    };
+  } catch (err) {
+    await recordExtractionFailure(material, err, isFinalAttempt);
+    throw err;
+  }
 }

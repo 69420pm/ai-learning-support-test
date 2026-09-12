@@ -1,6 +1,5 @@
 import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { getMaterialsByProjectId } from '@/lib/db/queries/material';
 import {
   type Exercise,
   exercises,
@@ -8,7 +7,6 @@ import {
   type KnowledgeDependency,
   knowledgeComponents,
   knowledgeDependencies,
-  type Material,
   type MaterialChunk,
   materialChunks,
   type NewExercise,
@@ -16,7 +14,6 @@ import {
   type NewKnowledgeDependency,
 } from '@/lib/db/schema';
 import { ChatbotError } from '@/lib/errors';
-import { computeGraphDiagnostics, type GraphDiagnostics } from '@/lib/learning/graph-diagnostics';
 
 export type GraphNeighborKC = KnowledgeComponent & {
   depth: number;
@@ -170,9 +167,11 @@ export async function getActiveProjectConceptNames({
       .limit(limit + 1);
 
     if (rows.length > limit) {
-      console.warn(
-        `[vocabulary-grounding] Project ${projectId} has active concepts exceeding limit of ${limit}. Using the ${limit} most recently updated concepts.`,
-      );
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          `[vocabulary-grounding] Project ${projectId} has active concepts exceeding limit of ${limit}. Using the ${limit} most recently updated concepts.`,
+        );
+      }
       return rows.slice(0, limit).map((r) => r.name);
     }
 
@@ -615,43 +614,6 @@ export async function getExercisesForKc(
       .from(exercises)
       .where(and(eq(exercises.projectId, projectId), eq(exercises.kcId, concept.id)))
       .orderBy(asc(exercises.pageNumber), asc(exercises.title));
-  } catch (error) {
-    if (error instanceof ChatbotError) throw error;
-    throw new ChatbotError('bad_request:database', { cause: error });
-  }
-}
-
-export { computeGraphDiagnostics, type GraphDiagnostics };
-
-export type ProjectGraphData = {
-  components: KnowledgeComponent[];
-  dependencies: KnowledgeDependency[];
-  materials: Material[];
-  diagnostics: GraphDiagnostics;
-};
-
-export async function getProjectGraphData({
-  projectId,
-  userId,
-}: {
-  projectId: string;
-  userId?: string;
-}): Promise<ProjectGraphData> {
-  try {
-    const [components, dependencies, materials] = await Promise.all([
-      getKnowledgeComponentsByProjectId({ projectId }),
-      getKnowledgeDependenciesByProjectId({ projectId }),
-      getMaterialsByProjectId({ projectId, userId }),
-    ]);
-
-    const diagnostics = computeGraphDiagnostics(components, dependencies);
-
-    return {
-      components,
-      dependencies,
-      materials,
-      diagnostics,
-    };
   } catch (error) {
     if (error instanceof ChatbotError) throw error;
     throw new ChatbotError('bad_request:database', { cause: error });

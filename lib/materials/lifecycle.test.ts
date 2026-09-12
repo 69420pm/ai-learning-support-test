@@ -18,6 +18,18 @@ vi.mock('@/lib/db/queries/material', () => ({
   getMaterialsByProjectId: (...args: unknown[]) => mockGetMaterialsByProjectId(...args),
 }));
 
+const mockGetProjectById = vi.fn();
+const mockDeleteProjectById = vi.fn();
+vi.mock('@/lib/db/queries/project', () => ({
+  getProjectById: (...args: unknown[]) => mockGetProjectById(...args),
+  deleteProjectById: (...args: unknown[]) => mockDeleteProjectById(...args),
+}));
+
+const mockCleanupMaterialExtractedGraph = vi.fn();
+vi.mock('@/lib/db/queries/knowledge', () => ({
+  cleanupMaterialExtractedGraph: (...args: unknown[]) => mockCleanupMaterialExtractedGraph(...args),
+}));
+
 describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
   const defaultProjectId = '11111111-1111-1111-1111-111111111111';
   const defaultUserId = '22222222-2222-2222-2222-222222222222';
@@ -105,10 +117,23 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
     mockGetMaterialById.mockResolvedValue({ ...sampleMaterial });
     mockDeleteMaterialById.mockResolvedValue({ ...sampleMaterial });
     mockGetMaterialsByProjectId.mockResolvedValue([...sampleMaterials]);
+    mockGetProjectById.mockResolvedValue({
+      id: defaultProjectId,
+      userId: defaultUserId,
+      name: 'Sample Project',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockDeleteProjectById.mockResolvedValue({
+      id: defaultProjectId,
+      userId: defaultUserId,
+      name: 'Sample Project',
+    });
+    mockCleanupMaterialExtractedGraph.mockResolvedValue(undefined);
   });
 
   describe('deleteMaterialLifecycle', () => {
-    it('verifies existence, deletes DB record, and purges physical storage blob', async () => {
+    it('verifies existence, reconciles extracted graph, deletes DB record, and purges physical storage blob', async () => {
       const result = await deleteMaterialLifecycle(
         {
           materialId: defaultMaterialId,
@@ -128,6 +153,10 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
       });
 
       expect(mockGetMaterialById).toHaveBeenCalledWith({ id: defaultMaterialId });
+      expect(mockCleanupMaterialExtractedGraph).toHaveBeenCalledWith({
+        materialId: defaultMaterialId,
+        projectId: defaultProjectId,
+      });
       expect(mockDeleteMaterialById).toHaveBeenCalledWith({
         id: defaultMaterialId,
         projectId: defaultProjectId,
@@ -322,15 +351,23 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
   });
 
   describe('deleteProjectLifecycle', () => {
-    it('retrieves materials for project and purges all storage blobs', async () => {
+    it('verifies project existence, purges storage blobs, and deletes project DB record', async () => {
       const result = await deleteProjectLifecycle(
         { projectId: defaultProjectId },
         { storageDriver: mockStorage },
       );
 
       expect(result).toEqual({
+        success: true,
+        projectId: defaultProjectId,
         purgedCount: 3,
         totalMaterials: 3,
+        project: expect.objectContaining({ id: defaultProjectId }),
+      });
+
+      expect(mockGetProjectById).toHaveBeenCalledWith({
+        id: defaultProjectId,
+        userId: undefined,
       });
 
       expect(mockGetMaterialsByProjectId).toHaveBeenCalledWith({
@@ -342,9 +379,28 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
       expect(mockDeleteBlob).toHaveBeenCalledWith(`${defaultProjectId}/lecture1.pdf`);
       expect(mockDeleteBlob).toHaveBeenCalledWith(`${defaultProjectId}/lecture2.pdf`);
       expect(mockDeleteBlob).toHaveBeenCalledWith(`${defaultProjectId}/notes.md`);
+
+      expect(mockDeleteProjectById).toHaveBeenCalledWith({
+        id: defaultProjectId,
+        userId: undefined,
+      });
     });
 
-    it('handles project with no materials gracefully', async () => {
+    it('throws not_found:chat when project does not exist', async () => {
+      mockGetProjectById.mockResolvedValueOnce(null);
+
+      await expect(
+        deleteProjectLifecycle(
+          { projectId: 'non-existent-project' },
+          { storageDriver: mockStorage },
+        ),
+      ).rejects.toThrow(ChatbotError);
+
+      expect(mockDeleteProjectById).not.toHaveBeenCalled();
+      expect(mockDeleteBlob).not.toHaveBeenCalled();
+    });
+
+    it('handles project with no materials gracefully and deletes DB record', async () => {
       mockGetMaterialsByProjectId.mockResolvedValueOnce([]);
 
       const result = await deleteProjectLifecycle(
@@ -353,11 +409,18 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
       );
 
       expect(result).toEqual({
+        success: true,
+        projectId: defaultProjectId,
         purgedCount: 0,
         totalMaterials: 0,
+        project: expect.objectContaining({ id: defaultProjectId }),
       });
 
       expect(mockDeleteBlob).not.toHaveBeenCalled();
+      expect(mockDeleteProjectById).toHaveBeenCalledWith({
+        id: defaultProjectId,
+        userId: undefined,
+      });
     });
 
     it('handles materials without storagePath gracefully', async () => {
@@ -373,15 +436,22 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
       );
 
       expect(result).toEqual({
+        success: true,
+        projectId: defaultProjectId,
         purgedCount: 1,
         totalMaterials: 3,
+        project: expect.objectContaining({ id: defaultProjectId }),
       });
 
       expect(mockDeleteBlob).toHaveBeenCalledTimes(1);
       expect(mockDeleteBlob).toHaveBeenCalledWith(`${defaultProjectId}/notes.md`);
+      expect(mockDeleteProjectById).toHaveBeenCalledWith({
+        id: defaultProjectId,
+        userId: undefined,
+      });
     });
 
-    it('continues purging remaining files even if one storage deletion fails', async () => {
+    it('continues purging remaining files even if one storage deletion fails, and still deletes DB record', async () => {
       mockDeleteBlob
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(new Error('Storage connection timeout'))
@@ -393,11 +463,18 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
       );
 
       expect(result).toEqual({
+        success: true,
+        projectId: defaultProjectId,
         purgedCount: 2,
         totalMaterials: 3,
+        project: expect.objectContaining({ id: defaultProjectId }),
       });
 
       expect(mockDeleteBlob).toHaveBeenCalledTimes(3);
+      expect(mockDeleteProjectById).toHaveBeenCalledWith({
+        id: defaultProjectId,
+        userId: undefined,
+      });
     });
 
     it('scopes material retrieval to userId when provided', async () => {
@@ -449,8 +526,11 @@ describe('Material Lifecycle Domain Logic (lib/materials/lifecycle.ts)', () => {
         );
 
         expect(result).toEqual({
+          success: true,
+          projectId: defaultProjectId,
           purgedCount: 3,
           totalMaterials: 3,
+          project: expect.objectContaining({ id: defaultProjectId }),
         });
 
         for (const mat of sampleMaterials) {

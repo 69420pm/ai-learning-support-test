@@ -1,27 +1,36 @@
-import { requireAuthUser } from '@/lib/auth/session';
-import { getProjectById } from '@/lib/db/queries/project';
+import { z } from 'zod';
+import { requireProjectContext } from '@/lib/auth/project-context';
 import { ChatbotError } from '@/lib/errors';
 import { deleteMaterialLifecycle, inspectMaterialContent } from '@/lib/materials';
 
 export const maxDuration = 60;
 
+const materialRouteParamsSchema = z.object({
+  id: z.string().trim().min(1, 'A valid project ID is required'),
+  materialId: z.string().trim().min(1, 'A valid material ID is required'),
+});
+
 // biome-ignore lint/style/useNamingConvention: Next.js HTTP method export
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string; materialId: string }> },
-) {
+): Promise<Response> {
   try {
-    const { id: projectId, materialId } = await params;
-    const user = await requireAuthUser();
-
-    const project = await getProjectById({ id: projectId, userId: user.id });
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
+    const rawParams = await params;
+    const parseResult = materialRouteParamsSchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return new ChatbotError(
+        'bad_request:api',
+        parseResult.error.issues[0]?.message ?? 'Invalid route parameters',
+      ).toResponse();
     }
+
+    const { materialId } = parseResult.data;
+    const { project, user } = await requireProjectContext(rawParams);
 
     const { material, chunks, content } = await inspectMaterialContent({
       materialId,
-      projectId,
+      projectId: project.id,
       userId: user.id,
     });
 
@@ -38,19 +47,23 @@ export async function GET(
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string; materialId: string }> },
-) {
+): Promise<Response> {
   try {
-    const { id: projectId, materialId } = await params;
-    const user = await requireAuthUser();
-
-    const project = await getProjectById({ id: projectId, userId: user.id });
-    if (!project) {
-      return new ChatbotError('not_found:chat', 'Project not found').toResponse();
+    const rawParams = await params;
+    const parseResult = materialRouteParamsSchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return new ChatbotError(
+        'bad_request:api',
+        parseResult.error.issues[0]?.message ?? 'Invalid route parameters',
+      ).toResponse();
     }
+
+    const { materialId } = parseResult.data;
+    const { project, user } = await requireProjectContext(rawParams);
 
     const result = await deleteMaterialLifecycle({
       materialId,
-      projectId,
+      projectId: project.id,
       userId: user.id,
     });
 
